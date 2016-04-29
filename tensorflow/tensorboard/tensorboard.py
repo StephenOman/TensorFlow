@@ -26,9 +26,9 @@ import socket
 
 from tensorflow.python.platform import app
 from tensorflow.python.platform import flags
-from tensorflow.python.platform import logging
 from tensorflow.python.platform import resource_loader
 from tensorflow.python.platform import status_bar
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.summary import event_multiplexer
 from tensorflow.tensorboard.backend import server
 
@@ -57,6 +57,8 @@ flags.DEFINE_boolean('purge_orphaned_data', True, 'Whether to purge data that '
                      'may have been orphaned due to TensorBoard restarts. '
                      'Disabling purge_orphaned_data can be used to debug data '
                      'disappearance.')
+flags.DEFINE_integer('reload_interval', 60, 'How often the backend should load '
+                     'more data.')
 
 FLAGS = flags.FLAGS
 
@@ -80,7 +82,8 @@ def main(unused_argv=None):
   multiplexer = event_multiplexer.EventMultiplexer(
       size_guidance=server.TENSORBOARD_SIZE_GUIDANCE,
       purge_orphaned_data=FLAGS.purge_orphaned_data)
-  server.StartMultiplexerReloadingThread(multiplexer, path_to_run)
+  server.StartMultiplexerReloadingThread(multiplexer, path_to_run,
+                                         FLAGS.reload_interval)
   try:
     tb_server = server.BuildServer(multiplexer, FLAGS.host, FLAGS.port)
   except socket.error:

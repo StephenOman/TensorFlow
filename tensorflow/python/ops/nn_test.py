@@ -90,6 +90,69 @@ class SigmoidCrossEntropyWithLogitsTest(tf.test.TestCase):
       tf.nn.sigmoid_cross_entropy_with_logits([[2, 1]], [1, 2, 3])
 
 
+class WeightedCrossEntropyTest(tf.test.TestCase):
+
+  def _WeightedCrossEntropy(self, logits, targets, pos_coeff):
+    assert len(logits) == len(targets)
+    pred = [1 / (1 + exp(-x)) for x in logits]
+    eps = 0.0001
+    pred = [min(max(p, eps), 1 - eps) for p in pred]
+    return [-z * pos_coeff * log(y) - (1 - z) * log(1 - y)
+            for y, z in zip(pred, targets)]
+
+  def _Inputs(self, x=None, y=None, q=3.0, dtype=tf.float64, sizes=None):
+    x = [-100, -2, -2, 0, 2, 2, 2, 100] if x is None else x
+    y = [0, 0, 1, 0, 0, 1, 0.5, 1] if y is None else y
+    assert len(x) == len(y)
+    sizes = sizes if sizes else [len(x)]
+    logits = tf.constant(x, shape=sizes, dtype=dtype, name="logits")
+    targets = tf.constant(y, shape=sizes, dtype=dtype, name="targets")
+    losses = np.array(self._WeightedCrossEntropy(x, y, q)).reshape(*sizes)
+    return logits, targets, q, losses
+
+  def testConstructionNamed(self):
+    with self.test_session():
+      logits, targets, pos_weight, _ = self._Inputs()
+      loss = tf.nn.weighted_cross_entropy_with_logits(logits, targets,
+                                                      pos_weight, name="mybce")
+    self.assertEqual("mybce", loss.op.name)
+
+  def testOutput(self):
+    for use_gpu in [True, False]:
+      with self.test_session(use_gpu=use_gpu):
+        logits, targets, pos_weight, losses = self._Inputs(dtype=tf.float32)
+        loss = tf.nn.weighted_cross_entropy_with_logits(logits, targets,
+                                                        pos_weight)
+        np_loss = np.array(losses).astype(np.float32)
+        tf_loss = loss.eval()
+      self.assertAllClose(np_loss, tf_loss, atol=0.001)
+
+  def testOutputMultiDim(self):
+    for use_gpu in [True, False]:
+      with self.test_session(use_gpu=use_gpu):
+        logits, targets, pos_weight, losses = self._Inputs(dtype=tf.float32,
+                                                           sizes=[2, 2, 2])
+        loss = tf.nn.weighted_cross_entropy_with_logits(logits, targets,
+                                                        pos_weight)
+        np_loss = np.array(losses).astype(np.float32)
+        tf_loss = loss.eval()
+      self.assertAllClose(np_loss, tf_loss, atol=0.001)
+
+  def testGradient(self):
+    sizes = [4, 2]
+    with self.test_session():
+      logits, targets, pos_weight, _ = self._Inputs(sizes=sizes)
+      loss = tf.nn.weighted_cross_entropy_with_logits(logits, targets,
+                                                      pos_weight)
+      err = tf.test.compute_gradient_error(logits, sizes, loss, sizes)
+    print("logistic loss gradient err = ", err)
+    self.assertLess(err, 1e-7)
+
+  def testShapeError(self):
+    with self.assertRaisesRegexp(ValueError, "must have the same shape"):
+      tf.nn.weighted_cross_entropy_with_logits([[2, 1]], [1, 2, 3], 2.0)
+
+
 class ZeroFractionTest(tf.test.TestCase):
 
   def _ZeroFraction(self, x):
@@ -146,6 +209,136 @@ class SoftmaxTest(tf.test.TestCase):
       err = tf.test.compute_gradient_error(x_tf, x_shape, y_tf, x_shape)
     eps = 1e-8
     self.assertLess(err, eps)
+
+
+class AtrousConv2DTest(tf.test.TestCase):
+
+  def _upsample_filters(self, filters, rate):
+    """Upsamples the filters by a factor of rate along the spatial dimensions.
+
+    Args:
+      filters: [h, w, in_depth, out_depth]. Original filters.
+      rate: An int, specifying the upsampling rate.
+
+    Returns:
+      filters_up: [h_up, w_up, in_depth, out_depth]. Upsampled filters with
+        h_up = h + (h - 1) * (rate - 1)
+        w_up = w + (w - 1) * (rate - 1)
+        containing (rate - 1) zeros between consecutive filter values along
+        the filters' spatial dimensions.
+    """
+    if rate == 1:
+      return filters
+    # [h, w, in_depth, out_depth] -> [in_depth, out_depth, h, w]
+    filters_up = np.transpose(filters, [2, 3, 0, 1])
+    ker = np.zeros([rate, rate])
+    ker[0, 0] = 1
+    filters_up = np.kron(filters_up, ker)[:, :, :-(rate-1), :-(rate-1)]
+    # [in_depth, out_depth, h_up, w_up] -> [h_up, w_up, in_depth, out_depth]
+    filters_up = np.transpose(filters_up, [2, 3, 0, 1])
+    self.assertEqual(np.sum(filters), np.sum(filters_up))
+    return filters_up
+
+  def testAtrousConv2DForward(self):
+    for use_gpu in [True, False]:
+      with self.test_session(use_gpu=use_gpu):
+        # Input: [batch, height, width, input_depth]
+        height = 15
+        for width in [15, 16]:  # Test both odd and even width.
+          x_shape = [2, height, width, 2]
+          x = np.arange(np.prod(x_shape), dtype=np.float32).reshape(x_shape)
+
+          # Filter: [kernel_height, kernel_width, input_depth, output_depth]
+          for kernel_height in range(1, 5):
+            for kernel_width in range(1, 5):
+              f_shape = [kernel_height, kernel_width, 2, 2]
+              f = np.arange(np.prod(f_shape), dtype=np.float32).reshape(f_shape)
+
+              for rate in range(1, 5):
+                f_up = self._upsample_filters(f, rate)
+
+                for padding in ["SAME", "VALID"]:
+                  y1 = tf.nn.atrous_conv2d(x, f, rate, padding=padding)
+                  y2 = tf.nn.conv2d(x, f_up, strides=[1, 1, 1, 1],
+                                    padding=padding)
+                  self.assertAllClose(y1.eval(), y2.eval(), rtol=1e-2,
+                                      atol=1e-2)
+
+  def testAtrousSequence(self):
+    """Tests optimization of sequence of atrous convolutions.
+
+    Verifies that a sequence of `atrous_conv2d` operations with identical `rate`
+    parameters, 'SAME' `padding`, and `filters` with odd heights/ widths:
+
+        net = atrous_conv2d(net, filters1, rate, padding="SAME")
+        net = atrous_conv2d(net, filters2, rate, padding="SAME")
+        ...
+        net = atrous_conv2d(net, filtersK, rate, padding="SAME")
+
+    is equivalent to:
+
+        pad = ...  # padding so that the input dims are multiples of rate
+        net = space_to_batch(net, paddings=pad, block_size=rate)
+        net = conv2d(net, filters1, strides=[1, 1, 1, 1], padding="SAME")
+        net = conv2d(net, filters2, strides=[1, 1, 1, 1], padding="SAME")
+        ...
+        net = conv2d(net, filtersK, strides=[1, 1, 1, 1], padding="SAME")
+        net = batch_to_space(net, crops=pad, block_size=rate)
+    """
+    padding = "SAME"  # The padding needs to be "SAME"
+    np.random.seed(1)  # Make it reproducible.
+
+    with self.test_session():
+      # Input: [batch, height, width, input_depth]
+      for height in range(15, 17):
+        for width in range(15, 17):
+          x_shape = [3, height, width, 2]
+          x = np.random.random_sample(x_shape).astype(np.float32)
+
+          for kernel in [1, 3, 5]:  # The kernel size needs to be odd.
+            # Filter: [kernel_height, kernel_width, input_depth, output_depth]
+            f_shape = [kernel, kernel, 2, 2]
+            f = 1e-2 * np.random.random_sample(f_shape).astype(np.float32)
+
+            for rate in range(2, 4):
+              # y1: three atrous_conv2d in a row.
+              y1 = tf.nn.atrous_conv2d(x, f, rate, padding=padding)
+              y1 = tf.nn.atrous_conv2d(y1, f, rate, padding=padding)
+              y1 = tf.nn.atrous_conv2d(y1, f, rate, padding=padding)
+              # y2: space_to_batch, three conv2d in a row, batch_to_space
+              pad_bottom = 0 if height % rate == 0 else rate - height % rate
+              pad_right = 0 if width % rate == 0 else rate - width % rate
+              pad = [[0, pad_bottom], [0, pad_right]]
+              y2 = tf.space_to_batch(x, paddings=pad, block_size=rate)
+              y2 = tf.nn.conv2d(y2, f, strides=[1, 1, 1, 1], padding=padding)
+              y2 = tf.nn.conv2d(y2, f, strides=[1, 1, 1, 1], padding=padding)
+              y2 = tf.nn.conv2d(y2, f, strides=[1, 1, 1, 1], padding=padding)
+              y2 = tf.batch_to_space(y2, crops=pad, block_size=rate)
+              self.assertAllClose(y1.eval(), y2.eval(), rtol=1e-2, atol=1e-2)
+
+  def testGradient(self):
+    for use_gpu in [True, False]:
+      with self.test_session(use_gpu=use_gpu):
+        # Input: [batch, height, width, input_depth]
+        x_shape = [2, 5, 6, 2]
+        # Filter: [kernel_height, kernel_width, input_depth, output_depth]
+        f_shape = [3, 3, 2, 2]
+        # Output: [batch, height, width, output_depth]
+        y_shape = [2, 5, 6, 2]
+
+        np.random.seed(1)  # Make it reproducible.
+        x_val = np.random.random_sample(x_shape).astype(np.float32)
+        f_val = np.random.random_sample(f_shape).astype(np.float32)
+        x = tf.constant(x_val, name="x", dtype=tf.float32)
+        f = tf.constant(f_val, name="f", dtype=tf.float32)
+
+        for rate in range(1, 4):
+          output = tf.nn.atrous_conv2d(x, f, rate=rate, padding="SAME")
+          err = tf.test.compute_gradient_error(
+              [x, f], [x_shape, f_shape], output, y_shape)
+          print("atrous_conv2d gradient err = %g " % err)
+          err_tolerance = 1e-3
+          self.assertLess(err, err_tolerance)
 
 
 class Conv2DTransposeTest(tf.test.TestCase):

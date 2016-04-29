@@ -65,7 +65,15 @@ Status PaddingFIFOQueue::GetElementComponent(
 }
 
 void PaddingFIFOQueue::TryDequeueMany(int num_elements, OpKernelContext* ctx,
+                                      bool allow_small_batch,
                                       CallbackWithTuple callback) {
+  if (allow_small_batch) {
+    ctx->SetStatus(
+        errors::Unimplemented("Dequeue: Queue does not support small batches"));
+    callback(Tuple());
+    return;
+  }
+
   if (num_elements == 0) {
     Tuple tuple;
     tuple.reserve(num_components());
@@ -287,6 +295,9 @@ Status HandleElementToLargerSlice(const Tensor& element, Tensor* parent,
   Status s = ValidateElementToLargerSlice(element, parent);
   if (!s.ok()) {
     return s;
+  }
+  if (element.NumElements() == 0) {
+    return Status::OK();
   }
   auto element_t = element.tensor<T, NDIMS>();
   auto parent_t = parent->tensor<T, NDIMS + 1>();

@@ -40,32 +40,36 @@ Example
   height: 100%
 }
 
+.container {
+  height: 650px;
+}
+
 </style>
-<div class="all">
-  <div class="side">
-    <tf-graph-controls
-        color-by-params="[[colorByParams]]"
-        has-stats="[[hasStats]]"
-        color-by="{{colorBy}}"
-    ></tf-graph-controls>
-    <tf-graph-loader id="loader"
-        out-graph-hierarchy="{{graphHierarchy}}"
-        out-graph="{{graph}}"
-        out-graph-name="{{graphName}}"
-        has-stats="{{hasStats}}"
-        progress="{{_progress}}"
-    ></tf-graph-loader>
-  </div>
-  <div class="main">
-    <tf-graph-board id="graphboard"
-        graph-hierarchy="[[graphHierarchy]]"
-        graph="[[graph]]"
-        has-stats="[[hasStats]]"
-        graph-name="[[graphName]]"
-        progress="[[_progress]]"
-        color-by="[[colorBy]]"
-        color-by-params="{{colorByParams}}"
-    ></tf-graph-board>
+<div class="container">
+  <div class="all">
+    <div class="side">
+      <tf-graph-controls
+          color-by-params="[[colorByParams]]"
+          stats="[[stats]]"
+          color-by="{{colorBy}}"
+      ></tf-graph-controls>
+      <tf-graph-loader id="loader"
+          out-graph-hierarchy="{{graphHierarchy}}"
+          out-graph="{{graph}}"
+          out-stats="{{stats}}"
+          progress="{{_progress}}"
+      ></tf-graph-loader>
+    </div>
+    <div class="main">
+      <tf-graph-board id="graphboard"
+          graph-hierarchy="[[graphHierarchy]]"
+          graph="[[graph]]"
+          stats="[[stats]]"
+          progress="[[_progress]]"
+          color-by="[[colorBy]]"
+          color-by-params="{{colorByParams}}"
+      ></tf-graph-board>
+    </div>
   </div>
 </div>
 </template>
@@ -77,7 +81,7 @@ Example
 Polymer({
   is: 'tf-graph-app',
   properties: {
-    hasStats: Boolean,
+    stats: Object,
     pbtxt: {
       type: String,
       observer: '_updateGraph',
@@ -85,7 +89,8 @@ Polymer({
     _progress: Object
   },
   _updateGraph: function() {
-    this.$.loader._parseAndConstructHierarchicalGraph(null, this.pbtxt);
+    var blob = new Blob([this.pbtxt]);
+    this.$.loader._parseAndConstructHierarchicalGraph(null, blob);
   }
 });
 })();

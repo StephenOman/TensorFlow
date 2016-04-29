@@ -22,35 +22,23 @@ limitations under the License.
 #include "tensorflow/core/framework/numeric_types.h"
 #include "tensorflow/core/framework/tensor_types.h"
 
-// The following functors (sign, tanh, sigmoid, etc.) are not defined
-// by Eigen.  When their equivalent are added into the Eigen, we can
-// replace them using type aliases.
-
 namespace Eigen {
 namespace internal {
 
+// TODO(rmlarsen): Get rid of fmod2 once fmod is upstreamed to Eigen.
 template <typename T>
 struct scalar_fmod2_op {
   EIGEN_EMPTY_STRUCT_CTOR(scalar_fmod2_op)
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const T operator()(const T& a,
                                                            const T& b) const {
-    return fmod(a, b);
+    return std::fmod(a, b);
   }
 };
 
 template <typename T>
-struct scalar_mod2_op {
-  EIGEN_EMPTY_STRUCT_CTOR(scalar_mod2_op)
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const T operator()(const T& a,
-                                                           const T& b) const {
-    return a % b;
-  }
-};
-
-template <typename T>
-struct functor_traits<scalar_mod2_op<T> > {
+struct functor_traits<scalar_fmod2_op<T>> {
   enum {
-    Cost = 5,  // Roughly the cost of a div
+    Cost = 13,  // Reciprocal throughput of FPREM on Haswell.
     PacketAccess = false,
   };
 };
@@ -353,62 +341,6 @@ struct cos : base<T, Eigen::internal::scalar_cos_op<T> > {};
 struct logical_not : base<bool, Eigen::internal::scalar_boolean_not_op<bool> > {
 };
 
-namespace impl {
-
-#ifndef __CUDACC__
-// Uses STL std cmath functions.
-template <typename T>
-bool isinf(T v) {
-  return std::isinf(v);
-}
-
-template <typename T>
-bool isnan(T v) {
-  return std::isnan(v);
-}
-
-template <typename T>
-bool isfinite(T v) {
-  return std::isfinite(v);
-}
-
-template <typename T>
-T floor(T v) {
-  return std::floor(v);
-}
-
-template <typename T>
-T ceil(T v) {
-  return std::ceil(v);
-}
-#else
-// Uses CUDA's functions for float and double.
-template <typename T>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE bool isinf(T v) {
-  return ::isinf(v);
-}
-
-template <typename T>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE bool isnan(T v) {
-  return ::isnan(v);
-}
-
-template <typename T>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE bool isfinite(T v) {
-  return ::isfinite(v);
-}
-
-template <typename T>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE T floor(T v) {
-  return ::floor(v);
-}
-
-template <typename T>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE T ceil(T v) {
-  return ::ceil(v);
-}
-#endif
-}  // end namespace impl
 
 // NOTE: std::isinf, std::isnan, std::isfinite are plain function.
 // Therefore we need to wrap them in functors to be used with Eigen's
@@ -418,7 +350,7 @@ template <typename T>
 struct isinf_func {
   typedef bool result_type;
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE bool operator()(T x) const {
-    return impl::isinf(x);
+    return Eigen::numext::isinf(x);
   }
 };
 
@@ -429,7 +361,7 @@ template <typename T>
 struct isnan_func {
   typedef bool result_type;
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE bool operator()(T x) const {
-    return impl::isnan(x);
+    return Eigen::numext::isnan(x);
   }
 };
 
@@ -440,7 +372,7 @@ template <typename T>
 struct isfinite_func {
   typedef bool result_type;
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE bool operator()(T x) const {
-    return impl::isfinite(x);
+    return Eigen::numext::isfinite(x);
   }
 };
 
@@ -451,7 +383,7 @@ template <typename T>
 struct floor_func {
   typedef T result_type;
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE T operator()(T x) const {
-    return impl::floor(x);
+    return Eigen::numext::floor(x);
   }
 };
 
@@ -462,7 +394,7 @@ template <typename T>
 struct ceil_func {
   typedef T result_type;
   EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE T operator()(T x) const {
-    return impl::ceil(x);
+    return Eigen::numext::ceil(x);
   }
 };
 
@@ -506,7 +438,7 @@ template <typename T>
 struct fmod : base<T, Eigen::internal::scalar_fmod2_op<T> > {};
 
 template <typename T>
-struct mod : base<T, Eigen::internal::scalar_mod2_op<T> > {};
+struct mod : base<T, Eigen::internal::scalar_mod2_op<T>> {};
 
 template <typename T>
 struct pow : base<T, Eigen::internal::scalar_binary_pow_op<T, T> > {};
@@ -516,6 +448,12 @@ struct maximum : base<T, Eigen::internal::scalar_max_op<T> > {};
 
 template <typename T>
 struct minimum : base<T, Eigen::internal::scalar_min_op<T> > {};
+
+template <typename T>
+struct igamma : base<T, Eigen::internal::scalar_igamma_op<T>> {};
+
+template <typename T>
+struct igammac : base<T, Eigen::internal::scalar_igammac_op<T>> {};
 
 template <typename T>
 struct squared_difference
@@ -598,7 +536,7 @@ struct BinaryFunctor {
              typename Functor::tscalar_type scalar);
 
   // Computes on device "d":
-  //   out = Functor(in0.broadcast(bcast0), in1.broadcast(bcast01))
+  //   out = Functor(in0.broadcast(bcast0), in1.broadcast(bcast1))
   //
   // TODO(zhifengc): makes BCast a template member function on NDIMS
   // instead making BinaryFunctor templates on NDIMS.

@@ -18,51 +18,53 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import bisect
 
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import logging
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.summary.impl import gcs
+from tensorflow.python.summary.impl import io_wrapper
 
 
 class DirectoryWatcher(object):
   """A DirectoryWatcher wraps a loader to load from a sequence of paths.
 
   A loader reads a path and produces some kind of values as an iterator. A
-  DirectoryWatcher takes a directory, a path provider (see below) to call to
-  find new paths to load from, and a factory for loaders and watches all the
-  paths inside that directory.
+  DirectoryWatcher takes a directory, a factory for loaders, and optionally a
+  path filter and watches all the paths inside that directory.
 
-  A path provider is a function that, given either a path or None, returns the
-  next path to load from (or None if there is no such path). This class is only
-  valid under the assumption that only one path will be written to by the data
-  source at a time, and that the path_provider will return the oldest data
-  source that contains fresh data.
-
+  This class is only valid under the assumption that only one path will be
+  written to by the data source at a time and that once the source stops writing
+  to a path, it will start writing to a new path that's lexicographically
+  greater and never come back. It uses some heuristics to check whether this is
+  true based on tracking changes to the files' sizes, but the check can have
+  false negatives. However, it should have no false positives.
   """
 
-  def __init__(self, path_provider, loader_factory):
+  def __init__(self, directory, loader_factory, path_filter=lambda x: True):
     """Constructs a new DirectoryWatcher.
 
     Args:
-      path_provider: The callback to invoke when trying to find a new path to
-        load from. See the class documentation for the semantics of a path
-        provider.
+      directory: The directory to load files from.
       loader_factory: A factory for creating loaders. The factory should take a
         path and return an object that has a Load method returning an
         iterator that will yield all events that have not been yielded yet.
+      path_filter: If specified, only paths matching this filter are loaded.
 
     Raises:
       ValueError: If path_provider or loader_factory are None.
     """
-    if path_provider is None:
-      raise ValueError('A path provider is required')
+    if directory is None:
+      raise ValueError('A directory is required')
     if loader_factory is None:
       raise ValueError('A loader factory is required')
-    self._path_provider = path_provider
+    self._directory = directory
     self._path = None
     self._loader_factory = loader_factory
     self._loader = None
+    self._path_filter = path_filter
+    self._ooo_writes_detected = False
+    # The file size for each file at the time it was finalized.
+    self._finalized_sizes = {}
 
   def Load(self):
     """Loads new values.
@@ -118,6 +120,24 @@ class DirectoryWatcher(object):
       # Advance to the next path and start over.
       self._SetPath(next_path)
 
+  # The number of paths before the current one to check for out of order writes.
+  _OOO_WRITE_CHECK_COUNT = 20
+
+  def OutOfOrderWritesDetected(self):
+    """Returns whether any out-of-order writes have been detected.
+
+    Out-of-order writes are only checked as part of the Load() iterator. Once an
+    out-of-order write is detected, this function will always return true.
+
+    Note that out-of-order write detection is not performed on GCS paths, so
+    this function will always return false.
+
+    Returns:
+      Whether any out-of-order write has ever been detected by this watcher.
+
+    """
+    return self._ooo_writes_detected
+
   def _InitializeLoader(self):
     path = self._GetNextPath()
     if path:
@@ -126,61 +146,65 @@ class DirectoryWatcher(object):
       raise StopIteration
 
   def _SetPath(self, path):
+    old_path = self._path
+    if old_path and not gcs.IsGCSPath(old_path):
+      # We're done with the path, so store its size.
+      size = io_wrapper.Size(old_path)
+      logging.debug('Setting latest size of %s to %d', old_path, size)
+      self._finalized_sizes[old_path] = size
+
     self._path = path
     self._loader = self._loader_factory(path)
 
   def _GetNextPath(self):
-    """Returns the next path to use or None if no such path exists."""
-    return self._path_provider(self._path)
+    """Gets the next path to load from.
 
+    This function also does the checking for out-of-order writes as it iterates
+    through the paths.
 
-def _SequentialProvider(path_source):
-  """A provider that iterates over the output of a function that produces paths.
+    Returns:
+      The next path to load events from, or None if there are no more paths.
+    """
+    paths = sorted(path
+                   for path in io_wrapper.ListDirectoryAbsolute(self._directory)
+                   if self._path_filter(path))
+    if not paths:
+      return None
 
-  _SequentialProvider takes in a path_source, which is a function that returns a
-  list of all currently available paths. _SequentialProvider returns in a path
-  provider (see documentation for the |DirectoryWatcher| class for the
-  semantics) that will return the alphabetically next path after the current one
-  (or the earliest path if the current path is None).
+    if self._path is None:
+      return paths[0]
 
-  The provider will never return a path which is alphanumerically less than the
-  current path; as such, if the path source provides a high path (e.g. "c") and
-  later doubles back and provides a low path (e.g. "b"), once the current path
-  was set to "c" the _SequentialProvider will ignore the "b" and never return
-  it.
+    # Don't bother checking if the paths are GCS (which we can't check) or if
+    # we've already detected an OOO write.
+    if not gcs.IsGCSPath(paths[0]) and not self._ooo_writes_detected:
+      # Check the previous _OOO_WRITE_CHECK_COUNT paths for out of order writes.
+      current_path_index = bisect.bisect_left(paths, self._path)
+      ooo_check_start = max(0, current_path_index - self._OOO_WRITE_CHECK_COUNT)
+      for path in paths[ooo_check_start:current_path_index]:
+        if self._HasOOOWrite(path):
+          self._ooo_writes_detected = True
+          break
 
-  Args:
-    path_source: A function that returns an iterable of paths.
-
-  Returns:
-    A path provider for use with DirectoryWatcher.
-
-  """
-  def _Provider(current_path):
     next_paths = list(path
-                      for path in path_source()
-                      if current_path is None or path > current_path)
+                      for path in paths
+                      if self._path is None or path > self._path)
     if next_paths:
       return min(next_paths)
     else:
       return None
 
-  return _Provider
-
-
-def SequentialGFileProvider(directory, path_filter=lambda x: True):
-  """Provides the files in a directory that match the given filter."""
-  def _Source():
-    paths = (os.path.join(directory, path)
-             for path in gfile.ListDirectory(directory))
-    return (path for path in paths if path_filter(path))
-
-  return _SequentialProvider(_Source)
-
-
-def SequentialGCSProvider(directory, path_filter=lambda x: True):
-  """Provides the files in a GCS directory that match the given filter."""
-  def _Source():
-    return (path for path in gcs.ListDirectory(directory) if path_filter(path))
-
-  return _SequentialProvider(_Source)
+  def _HasOOOWrite(self, path):
+    """Returns whether the path has had an out-of-order write."""
+    # Check the sizes of each path before the current one.
+    size = io_wrapper.Size(path)
+    old_size = self._finalized_sizes.get(path, None)
+    if size != old_size:
+      if old_size is None:
+        logging.error('File %s created after file %s even though it\'s '
+                      'lexicographically earlier', path, self._path)
+      else:
+        logging.error('File %s updated even though the current file is %s',
+                      path, self._path)
+      return True
+    else:
+      return False

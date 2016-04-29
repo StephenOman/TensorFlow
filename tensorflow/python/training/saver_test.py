@@ -54,13 +54,16 @@ class SaverTest(tf.test.TestCase):
   def testBasics(self):
     save_path = os.path.join(self.get_temp_dir(), "basics")
 
+    # Build a graph with 2 parameter nodes, and Save and
+    # Restore nodes for them.
+    v0 = tf.Variable(10.0, name="v0")
+    v1 = tf.Variable(20.0, name="v1")
+    save = tf.train.Saver({"v0": v0, "v1": v1}, restore_sequentially=True)
+    init_all_op = tf.initialize_all_variables()
+
     with self.test_session() as sess:
-      # Build a graph with 2 parameter nodes, and Save and
-      # Restore nodes for them.
-      v0 = tf.Variable(10.0, name="v0")
-      v1 = tf.Variable(20.0, name="v1")
-      save = tf.train.Saver({"v0": v0, "v1": v1}, restore_sequentially=True)
-      tf.initialize_all_variables().run()
+      # Initialize all variables
+      sess.run(init_all_op)
 
       # Check that the parameter nodes have been initialized.
       self.assertEqual(10.0, v0.eval())
@@ -524,6 +527,19 @@ class MaxToKeepTest(tf.test.TestCase):
       s2 = save2.save(sess, os.path.join(save_dir2, "s2"))
       self.assertEqual([], save2.last_checkpoints)
       self.assertTrue(gfile.Exists(s2))
+
+  def testNoMetaGrap(self):
+    save_dir = _TestDir("no_meta_graph")
+
+    with self.test_session() as sess:
+      v = tf.Variable(10.0, name="v")
+      save = tf.train.Saver({"v": v})
+      tf.initialize_all_variables().run()
+
+      s1 = save.save(sess, os.path.join(save_dir, "s1"),
+                     write_meta_graph=False)
+      self.assertTrue(gfile.Exists(s1))
+      self.assertFalse(gfile.Exists(save._MetaGraphFilename(s1)))
 
 
 class KeepCheckpointEveryNHoursTest(tf.test.TestCase):
@@ -1013,40 +1029,42 @@ class MetaGraphTest(tf.test.TestCase):
     test_dir = _TestDir("graph_extension")
     filename = os.path.join(test_dir, "metafile")
     saver0_ckpt = os.path.join(test_dir, "saver0.ckpt")
-    with self.test_session(graph=tf.Graph()) as sess:
-      # Creates an inference graph.
-      # Hidden 1
-      images = tf.constant(1.2, tf.float32, shape=[100, 28])
-      with tf.name_scope("hidden1"):
-        weights = tf.Variable(
-            tf.truncated_normal([28, 128],
-                                stddev=1.0 / math.sqrt(float(28))),
-            name="weights")
-        biases = tf.Variable(tf.zeros([128]),
-                             name="biases")
-        hidden1 = tf.nn.relu(tf.matmul(images, weights) + biases)
-      # Hidden 2
-      with tf.name_scope("hidden2"):
-        weights = tf.Variable(
-            tf.truncated_normal([128, 32],
-                                stddev=1.0 / math.sqrt(float(128))),
-            name="weights")
-        biases = tf.Variable(tf.zeros([32]),
-                             name="biases")
-        hidden2 = tf.nn.relu(tf.matmul(hidden1, weights) + biases)
-      # Linear
-      with tf.name_scope("softmax_linear"):
-        weights = tf.Variable(
-            tf.truncated_normal([32, 10],
-                                stddev=1.0 / math.sqrt(float(32))),
-            name="weights")
-        biases = tf.Variable(tf.zeros([10]),
-                             name="biases")
-        logits = tf.matmul(hidden2, weights) + biases
-        tf.add_to_collection("logits", logits)
+    # Creates an inference graph.
+    # Hidden 1
+    images = tf.constant(1.2, tf.float32, shape=[100, 28])
+    with tf.name_scope("hidden1"):
+      weights = tf.Variable(
+          tf.truncated_normal([28, 128],
+                              stddev=1.0 / math.sqrt(float(28))),
+          name="weights")
+      biases = tf.Variable(tf.zeros([128]),
+                           name="biases")
+      hidden1 = tf.nn.relu(tf.matmul(images, weights) + biases)
+    # Hidden 2
+    with tf.name_scope("hidden2"):
+      weights = tf.Variable(
+          tf.truncated_normal([128, 32],
+                              stddev=1.0 / math.sqrt(float(128))),
+          name="weights")
+      biases = tf.Variable(tf.zeros([32]),
+                           name="biases")
+      hidden2 = tf.nn.relu(tf.matmul(hidden1, weights) + biases)
+    # Linear
+    with tf.name_scope("softmax_linear"):
+      weights = tf.Variable(
+          tf.truncated_normal([32, 10],
+                              stddev=1.0 / math.sqrt(float(32))),
+          name="weights")
+      biases = tf.Variable(tf.zeros([10]),
+                           name="biases")
+      logits = tf.matmul(hidden2, weights) + biases
+      tf.add_to_collection("logits", logits)
+    init_all_op = tf.initialize_all_variables()
 
+    with self.test_session() as sess:
+      # Initializes all the variables.
+      sess.run(init_all_op)
       # Runs to logit.
-      tf.initialize_all_variables().run()
       sess.run(logits)
       # Creates a saver.
       saver0 = tf.train.Saver()
@@ -1163,28 +1181,40 @@ class MetaGraphTest(tf.test.TestCase):
 class CheckpointReaderTest(tf.test.TestCase):
 
   def testDebugString(self):
+    # Builds a graph.
+    v0 = tf.Variable([[1, 2, 3], [4, 5, 6]], dtype=tf.float32, name="v0")
+    v1 = tf.Variable([[[1], [2]], [[3], [4]], [[5], [6]]], dtype=tf.float32,
+                     name="v1")
+    init_all_op = tf.initialize_all_variables()
+    save = tf.train.Saver({"v0": v0, "v1": v1})
     save_path = os.path.join(self.get_temp_dir(), "ckpt_for_debug_string")
     with self.test_session() as sess:
-      # Builds a graph.
-      v0 = tf.Variable(tf.zeros([2, 3]), name="v0")
-      v1 = tf.Variable(tf.zeros([3, 2, 1]), name="v1")
-      save = tf.train.Saver({"v0": v0, "v1": v1})
-      tf.initialize_all_variables().run()
+      sess.run(init_all_op)
       # Saves a checkpoint.
       save.save(sess, save_path)
+
       # Creates a reader.
       reader = tf.train.NewCheckpointReader(save_path)
       # Verifies that the tensors exist.
-      self.assertTrue(reader.HasTensor("v0"))
-      self.assertTrue(reader.HasTensor("v1"))
-      debug_string = reader.DebugString()
+      self.assertTrue(reader.has_tensor("v0"))
+      self.assertTrue(reader.has_tensor("v1"))
+      debug_string = reader.debug_string()
       # Verifies that debug string contains the right strings.
-      self.assertTrue(compat.as_bytes("v1 [3,2,1]") in debug_string)
-      self.assertTrue(compat.as_bytes("v0 [2,3]") in debug_string)
-      # Verifies GetVariableToShapeMap() returns the correct information.
-      var_map = reader.GetVariableToShapeMap()
-      self.assertEquals([3, 2, 1], var_map["v1"])
+      self.assertTrue(compat.as_bytes("v0 (DT_FLOAT) [2,3]") in debug_string)
+      self.assertTrue(compat.as_bytes("v1 (DT_FLOAT) [3,2,1]") in debug_string)
+      # Verifies get_variable_to_shape_map() returns the correct information.
+      var_map = reader.get_variable_to_shape_map()
       self.assertEquals([2, 3], var_map["v0"])
+      self.assertEquals([3, 2, 1], var_map["v1"])
+      # Verifies get_tensor() returns the tensor value.
+      v0_tensor = reader.get_tensor("v0")
+      v1_tensor = reader.get_tensor("v1")
+      self.assertAllEqual(v0.eval(), v0_tensor)
+      self.assertAllEqual(v1.eval(), v1_tensor)
+      # Verifies get_tensor() fails for non-existent tensors.
+      with self.assertRaisesRegexp(pywrap_tensorflow.StatusNotOK,
+                                   "Not found"):
+        reader.get_tensor("v3")
 
   def testNonexistentPath(self):
     with self.assertRaisesRegexp(pywrap_tensorflow.StatusNotOK,

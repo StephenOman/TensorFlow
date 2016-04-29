@@ -27,7 +27,7 @@ from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_util
-from tensorflow.python.platform import logging
+from tensorflow.python.platform import tf_logging as logging
 
 _VARIABLE_OPS = {
     "Assign",
@@ -58,7 +58,7 @@ def set_cpu0(device_string):
    Returns:
      A device string.
   """
-  parsed_device = pydev.from_string(device_string)
+  parsed_device = pydev.DeviceSpec.from_string(device_string)
   parsed_device.device_type = "CPU"
   parsed_device.device_index = 0
   return parsed_device.to_string()
@@ -113,34 +113,6 @@ def must_run_on_cpu(node, pin_variables_on_cpu=False):
 # device functions for use in with g.device(...)
 #
 ################################################################################
-
-
-def pin_variables_on_cpu(op):
-  """Returns a CPU device for Variable nodes if the device is not specified.
-
-  Args:
-    op: The ops.Operation object describing the node for which a device
-      should be chosen. The op.device field is respected.
-
-  Returns:
-    A device containing "/device:CPU:0" if the node is related to a variable.
-  """
-  device = op.device if op.device is not None else ""
-  dev = pydev.from_string(device)
-
-  # If a device type exists already, do not override.
-  if dev.device_type:
-    return device
-
-  if isinstance(op, ops.Operation):
-    node_def = op.node_def
-  else:
-    assert isinstance(op, graph_pb2.NodeDef)
-    node_def = op
-
-  if _is_variable_op(node_def.op):
-    return set_cpu0(device)
-  return device
 
 
 def _node_name(n):
@@ -242,7 +214,10 @@ def convert_variables_to_constants(sess, input_graph_def, output_node_names):
       variable_name = node.input[0]
       variable_dict_names.append(variable_name)
       variable_names.append(variable_name + ":0")
-  returned_variables = sess.run(variable_names)
+  if variable_names:
+    returned_variables = sess.run(variable_names)
+  else:
+    returned_variables = []
   found_variables = dict(zip(variable_dict_names, returned_variables))
   logging.info("Frozen %d variables." % len(returned_variables))
 

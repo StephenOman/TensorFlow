@@ -322,24 +322,23 @@ class _SparseMetaData(object):
 
 def _serialize_sparse_tensors(tensor_list, enqueue_many):
   """Serialize SparseTensors for feeding into batch, etc."""
-  sparse_info_list = [
-      _SparseMetaData(sparse=True,
-                      dtype=t.dtype,
-                      rank=t.shape.get_shape().with_rank(1)[0])
-      if isinstance(t, ops.SparseTensor)
-      else _SparseMetaData(False, None, None)
-      for t in tensor_list]
 
-  def _maybe_serialize(t, sparse):
-    if not sparse:
+  def _sparse_meta_data(t):
+    if not isinstance(t, ops.SparseTensor):
+      return _SparseMetaData(False, None, None)
+    rank = t.shape.get_shape().with_rank(1)[0]
+    if enqueue_many:
+      rank -= 1
+    return _SparseMetaData(sparse=True, dtype=t.dtype, rank=rank)
+
+  def _maybe_serialize(t):
+    if not isinstance(t, ops.SparseTensor):
       return t
     return (sparse_ops.serialize_many_sparse(t) if enqueue_many
             else sparse_ops.serialize_sparse(t))
 
-  serialized_list = [
-      _maybe_serialize(t, info.sparse) for (t, info)
-      in zip(tensor_list, sparse_info_list)]
-
+  serialized_list = [_maybe_serialize(t) for t in tensor_list]
+  sparse_info_list = [_sparse_meta_data(t) for t in tensor_list]
   return serialized_list, sparse_info_list
 
 
@@ -368,7 +367,7 @@ def _deserialize_sparse_tensors(serialized_list, sparse_info_list):
   if not received_sequence:
     serialized_list = (serialized_list,)
   tensors = [
-      sparse_ops.deserialize_many_sparse(s, info.dtype, info.rank.value)
+      sparse_ops.deserialize_many_sparse(s, info.dtype, (info.rank + 1).value)
       if info.sparse else s
       for (s, info)
       in zip(serialized_list, sparse_info_list)]
@@ -413,11 +412,33 @@ def _merge_shapes(shape_list, enqueue_many):
 
 
 def _shapes(tensor_list_list, shapes, enqueue_many):
+  """Calculate and merge the shapes of incoming tensors.
+
+  Args:
+    tensor_list_list: List of tensor lists.
+    shapes: List of shape tuples corresponding to tensors within the lists.
+    enqueue_many: Boolean describing whether shapes will be enqueued as
+      batches or individual entries.
+
+  Returns:
+    A list of shapes aggregating shape inference info from `tensor_list_list`,
+    or returning `shapes` if it is not `None`.
+
+  Raises:
+    ValueError: If any of the inferred shapes in `tensor_list_list` lack a
+      well defined rank.
+  """
   if shapes is None:
-    l = len(tensor_list_list[0])
+    len0 = len(tensor_list_list[0])
+
+    for tl in tensor_list_list:
+      for i in xrange(len0):
+        if tl[i].get_shape().ndims is None:
+          raise ValueError("Cannot infer Tensor's rank: %s" % tl[i])
+
     shapes = [_merge_shapes(
         [tl[i].get_shape().as_list() for tl in tensor_list_list], enqueue_many)
-              for i in xrange(l)]
+              for i in xrange(len0)]
   return shapes
 
 
@@ -437,11 +458,16 @@ def _enqueue(queue, tensor_list, threads, enqueue_many):
   queue_runner.add_queue_runner(queue_runner.QueueRunner(queue, enqueue_ops))
 
 
+def _which_queue(dynamic_pad):
+  return (data_flow_ops.PaddingFIFOQueue if dynamic_pad
+          else data_flow_ops.FIFOQueue)
+
+
 # Batching functions ----------------------------------------------------------
 
 
 def batch(tensor_list, batch_size, num_threads=1, capacity=32,
-          enqueue_many=False, shapes=None,
+          enqueue_many=False, shapes=None, dynamic_pad=False,
           shared_name=None, name=None):
   """Creates batches of tensors in `tensor_list`.
 
@@ -465,10 +491,18 @@ def batch(tensor_list, batch_size, num_threads=1, capacity=32,
   this exception, however, if this operation is used in your main thread
   you are responsible for catching this yourself.
 
-  *N.B.:* You must ensure that either (i) the `shapes` argument is
-  passed, or (ii) all of the tensors in `tensor_list` must have
-  fully-defined shapes. `ValueError` will be raised if neither of
-  these conditions holds.
+  *N.B.:* If `dynamic_pad` is `False`, you must ensure that either
+  (i) the `shapes` argument is passed, or (ii) all of the tensors in
+  `tensor_list` must have fully-defined shapes. `ValueError` will be
+  raised if neither of these conditions holds.
+
+  If `dynamic_pad` is `True`, it is sufficient that the *rank* of the
+  tensors is known, but individual dimensions may have shape `None`.
+  In this case, for each enqueue the dimensions with value `None`
+  may have a variable length; upon dequeue, the output tensors will be padded
+  on the right to the maximum shape of the tensors in the current minibatch.
+  For numbers, this padding takes value 0.  For strings, this padding is
+  the empty string.  See `PaddingFIFOQueue` for more info.
 
   Args:
     tensor_list: The list of tensors to enqueue.
@@ -478,6 +512,9 @@ def batch(tensor_list, batch_size, num_threads=1, capacity=32,
     enqueue_many: Whether each tensor in `tensor_list` is a single example.
     shapes: (Optional) The shapes for each example.  Defaults to the
       inferred shapes for `tensor_list`.
+    dynamic_pad: Boolean.  Allow variable dimensions in input shapes.
+      The given dimensions are padded upon dequeue so that tensors within a
+      batch have the same shapes.
     shared_name: (optional). If set, this queue will be shared under the given
       name across multiple sessions.
     name: (Optional) A name for the operations.
@@ -496,7 +533,7 @@ def batch(tensor_list, batch_size, num_threads=1, capacity=32,
     types = _dtypes([tensor_list])
     shapes = _shapes([tensor_list], shapes, enqueue_many)
     # TODO(josh11b,mrry): Switch to BatchQueue once it is written.
-    queue = data_flow_ops.FIFOQueue(
+    queue = _which_queue(dynamic_pad)(
         capacity=capacity, dtypes=types, shapes=shapes, shared_name=shared_name)
     _enqueue(queue, tensor_list, num_threads, enqueue_many)
     logging_ops.scalar_summary(
@@ -515,7 +552,8 @@ def batch(tensor_list, batch_size, num_threads=1, capacity=32,
 # read that many files in parallel due to the number of seeks required).
 # Once this is done, batch() can be written as a call to batch_join().
 def batch_join(tensor_list_list, batch_size, capacity=32, enqueue_many=False,
-               shapes=None, shared_name=None, name=None):
+               shapes=None, dynamic_pad=False,
+               shared_name=None, name=None):
   """Runs a list of tensors to fill a queue to create batches of examples.
 
   Enqueues a different list of tensors in different threads.
@@ -548,10 +586,18 @@ def batch_join(tensor_list_list, batch_size, capacity=32, enqueue_many=False,
   this exception, however, if this operation is used in your main thread
   you are responsible for catching this yourself.
 
-  *N.B.:* You must ensure that either (i) the `shapes` argument is
-  passed, or (ii) all of the tensors in `tensor_list_list` must have
-  fully-defined shapes. `ValueError` will be raised if neither of
-  these conditions holds.
+  *N.B.:* If `dynamic_pad` is `False`, you must ensure that either
+  (i) the `shapes` argument is passed, or (ii) all of the tensors in
+  `tensor_list` must have fully-defined shapes. `ValueError` will be
+  raised if neither of these conditions holds.
+
+  If `dynamic_pad` is `True`, it is sufficient that the *rank* of the
+  tensors is known, but individual dimensions may have value `None`.
+  In this case, for each enqueue the dimensions with value `None`
+  may have a variable length; upon dequeue, the output tensors will be padded
+  on the right to the maximum shape of the tensors in the current minibatch.
+  For numbers, this padding takes value 0.  For strings, this padding is
+  the empty string.  See `PaddingFIFOQueue` for more info.
 
   Args:
     tensor_list_list: A list of tuples of tensors to enqueue.
@@ -561,6 +607,9 @@ def batch_join(tensor_list_list, batch_size, capacity=32, enqueue_many=False,
       example.
     shapes: (Optional) The shapes for each example.  Defaults to the
       inferred shapes for `tensor_list_list[i]`.
+    dynamic_pad: Boolean.  Allow variable dimensions in input shapes.
+      The given dimensions are padded upon dequeue so that tensors within a
+      batch have the same shapes.
     shared_name: (Optional) If set, this queue will be shared under the given
       name across multiple sessions.
     name: (Optional) A name for the operations.
@@ -580,7 +629,7 @@ def batch_join(tensor_list_list, batch_size, capacity=32, enqueue_many=False,
     types = _dtypes(tensor_list_list)
     shapes = _shapes(tensor_list_list, shapes, enqueue_many)
     # TODO(josh11b,mrry): Switch to BatchQueue once it is written.
-    queue = data_flow_ops.FIFOQueue(
+    queue = _which_queue(dynamic_pad)(
         capacity=capacity, dtypes=types, shapes=shapes, shared_name=shared_name)
     _enqueue_join(queue, tensor_list_list, enqueue_many)
     logging_ops.scalar_summary(

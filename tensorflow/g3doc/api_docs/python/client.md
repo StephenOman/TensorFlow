@@ -93,7 +93,7 @@ the session constructor.
 
 - - -
 
-#### `tf.Session.run(fetches, feed_dict=None, options=None, run_outputs=None)` {#Session.run}
+#### `tf.Session.run(fetches, feed_dict=None, options=None, run_metadata=None)` {#Session.run}
 
 Runs the operations and evaluates the tensors in `fetches`.
 
@@ -117,6 +117,9 @@ method. A graph element can be one of the following types:
   the *i*th return value will be a
   [`SparseTensorValue`](../../api_docs/python/sparse_ops.md#SparseTensorValue)
   containing the value of that sparse tensor.
+* If the *i*th element of `fetches` is produced by a `get_tensor_handle` op,
+  the *i*th return value will be a numpy ndarray containing the handle of
+  that tensor.
 
 The optional `feed_dict` argument allows the caller to override
 the value of tensors in the graph. Each key in `feed_dict` can be
@@ -133,11 +136,14 @@ one of the following types:
   the value should be a
   [`SparseTensorValue`](../../api_docs/python/sparse_ops.md#SparseTensorValue).
 
+Each value in `feed_dict` must be convertible to a numpy array of the dtype
+of the corresponding key.
+
 The optional `options` argument expects a [`RunOptions`] proto. The options
 allow controlling the behavior of this particular step (e.g. turning tracing
 on).
 
-The optional `run_outputs` argument expects a [`RunOutputs`] proto. When
+The optional `run_metadata` argument expects a [`RunMetadata`] proto. When
 appropriate, the non-Tensor output of this step will be collected there. For
 example, when users turn on tracing in `options`, the profiled info will be
 collected into this argument and passed back.
@@ -150,7 +156,7 @@ collected into this argument and passed back.
 *  <b>`feed_dict`</b>: A dictionary that maps graph elements to values
     (described above).
 *  <b>`options`</b>: A [`RunOptions`] protocol buffer
-*  <b>`run_outputs`</b>: A [`RunOutputs`] protocol buffer
+*  <b>`run_metadata`</b>: A [`RunMetadata`] protocol buffer
 
 ##### Returns:
 
@@ -620,7 +626,7 @@ Creates an `AbortedError`.
 
 ### `class tf.errors.OutOfRangeError` {#OutOfRangeError}
 
-Raised when an operation executed past the valid range.
+Raised when an operation iterates past the valid input range.
 
 This exception is raised in "end-of-file" conditions, such as when a
 [`queue.dequeue()`](../../api_docs/python/io_ops.md#QueueBase.dequeue)

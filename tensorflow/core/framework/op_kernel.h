@@ -31,6 +31,7 @@ limitations under the License.
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/rendezvous.h"
 #include "tensorflow/core/framework/selective_registration.h"
+#include "tensorflow/core/framework/session_state.h"
 #include "tensorflow/core/framework/step_stats.pb.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/tensor_shape.h"
@@ -502,6 +503,12 @@ class OpKernelContext {
     // computations running on other devices.
     Rendezvous* rendezvous = nullptr;
 
+    // The session state for this op.
+    SessionState* session_state = nullptr;
+
+    // The tensor store for this op.
+    TensorStore* tensor_store = nullptr;
+
     // Mechanism used by this op kernel invocation to register a callback
     // for its cancellation.
     CancellationManager* cancellation_manager = nullptr;
@@ -841,6 +848,12 @@ class OpKernelContext {
   // Rendezvous Send() and Recv().
   Rendezvous* rendezvous() const { return params_->rendezvous; }
 
+  // An op kernel can access the session state it belongs to.
+  SessionState* session_state() const { return params_->session_state; }
+
+  // An op kernel can access the tensor store of the run it belongs to.
+  TensorStore* tensor_store() const { return params_->tensor_store; }
+
   // Function call support.
   //
   // If this kernel invocation is within a function execution,
@@ -1025,28 +1038,30 @@ namespace register_kernel {
 typedef ::tensorflow::KernelDefBuilder Name;
 }  // namespace register_kernel
 
-
 #define REGISTER_KERNEL_BUILDER(kernel_builder, ...) \
   REGISTER_KERNEL_BUILDER_UNIQ_HELPER(__COUNTER__, kernel_builder, __VA_ARGS__)
 
 #define REGISTER_KERNEL_BUILDER_UNIQ_HELPER(ctr, kernel_builder, ...) \
   REGISTER_KERNEL_BUILDER_UNIQ(ctr, kernel_builder, __VA_ARGS__)
 
-#define REGISTER_KERNEL_BUILDER_UNIQ(ctr, kernel_builder, ...)        \
-  static ::tensorflow::kernel_factory::OpKernelRegistrar              \
-      registrar__body__##ctr##__object(                               \
-          SHOULD_REGISTER_OP_KERNEL(__FILE__)                         \
-              ? ::tensorflow::register_kernel::kernel_builder.Build() \
-              : nullptr,                                              \
-          [](::tensorflow::OpKernelConstruction* context)             \
-              -> ::tensorflow::OpKernel* { return new __VA_ARGS__(context); })
+#define REGISTER_KERNEL_BUILDER_UNIQ(ctr, kernel_builder, ...)          \
+  static ::tensorflow::kernel_factory::OpKernelRegistrar                \
+      registrar__body__##ctr##__object(                                 \
+          SHOULD_REGISTER_OP_KERNEL(#__VA_ARGS__)                       \
+              ? ::tensorflow::register_kernel::kernel_builder.Build()   \
+              : nullptr,                                                \
+          #__VA_ARGS__, [](::tensorflow::OpKernelConstruction* context) \
+                            -> ::tensorflow::OpKernel* {                \
+                              return new __VA_ARGS__(context);          \
+                            });
 
 void* GlobalKernelRegistry();
 
 // If node_def has a corresponding kernel registered on device_type,
-// returns OK and fill in the kernel def.
+// returns OK and fill in the kernel def and kernel_class_name. <def> and
+// <kernel_class_name> may be null.
 Status FindKernelDef(DeviceType device_type, const NodeDef& node_def,
-                     const KernelDef** def);
+                     const KernelDef** def, string* kernel_class_name);
 
 // Treats 'registry_ptr' as a pointer to KernelRegistry. For each kernel 'k'
 // registered with the current library's global kernel registry (obtained by
@@ -1058,16 +1073,19 @@ namespace kernel_factory {
 class OpKernelRegistrar {
  public:
   typedef OpKernel* (*Factory)(OpKernelConstruction*);
-  OpKernelRegistrar(const KernelDef* kernel_def, Factory factory) {
+
+  OpKernelRegistrar(const KernelDef* kernel_def, StringPiece kernel_class_name,
+                    Factory factory) {
     // Perform the check in the header to allow compile-time optimization
     // to a no-op, allowing the linker to remove the kernel symbols.
     if (kernel_def != nullptr) {
-      InitInternal(kernel_def, factory);
+      InitInternal(kernel_def, kernel_class_name, factory);
     }
   }
 
  private:
-  void InitInternal(const KernelDef* kernel_def, Factory factory);
+  void InitInternal(const KernelDef* kernel_def, StringPiece kernel_class_name,
+                    Factory factory);
 };
 
 }  // namespace kernel_factory
@@ -1232,21 +1250,6 @@ inline void OpOutputList::set_ref(int i, mutex* mu, Tensor* tensor_for_ref) {
 //   OP_REQUIRES_OK(context, status);
 //   ...
 // }
-
-// Declares an op deprecated, and illegal starting at GraphDef version VERSION
-#define OP_DEPRECATED(CTX, VERSION, NOTE)                                      \
-  if ((CTX)->graph_def_version() >= (VERSION)) {                               \
-    ::tensorflow::Status _s(::tensorflow::errors::Unimplemented(               \
-        "Op ", (CTX)->op_def().name(),                                         \
-        " is not available in GraphDef version ", (CTX)->graph_def_version(),  \
-        ". It has been removed in version ", (VERSION), ". ", (NOTE), "."));   \
-    (CTX)->CtxFailure(_s);                                                     \
-    return;                                                                    \
-  } else {                                                                     \
-    LOG(WARNING) << "Op is deprecated."                                        \
-                 << " It will cease to work in GraphDef version " << (VERSION) \
-                 << ". " << (NOTE) << ".";                                     \
-  }
 
 #define OP_REQUIRES(CTX, EXP, STATUS) \
   if (!TF_PREDICT_TRUE(EXP)) {        \

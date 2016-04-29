@@ -41,6 +41,9 @@ NodeBuilder::NodeBuilder(StringPiece name, StringPiece op_name,
 NodeBuilder::NodeBuilder(StringPiece name, const OpDef* op_def)
     : def_builder_(name, op_def) {}
 
+NodeBuilder::NodeBuilder(const NodeDefBuilder& def_builder)
+    : def_builder_(def_builder) {}
+
 NodeBuilder& NodeBuilder::Input(Node* src_node, int src_index) {
   inputs_.emplace_back(src_node, src_index);
   DataType dt;
@@ -105,6 +108,8 @@ Status NodeBuilder::Finalize(Graph* graph, Node** created_node) const {
   NodeDef node_def;
   TF_RETURN_IF_ERROR(def_builder_.Finalize(&node_def));
   TF_RETURN_IF_ERROR(ValidateNodeDef(node_def, def_builder_.op_def()));
+  TF_RETURN_IF_ERROR(
+      CheckOpDeprecation(def_builder_.op_def(), graph->versions().producer()));
   Status status;
   Node* node = graph->AddNode(node_def, &status);
   if (!status.ok()) return status;

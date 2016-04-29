@@ -43,6 +43,13 @@ TensorFlow program: Feeding, Reading and Preloading.
 
 [View Tutorial](reading_data/index.md)
 
+## Distributed TensorFlow
+
+This tutorial describes how to execute TensorFlow programs using a cluster of
+TensorFlow servers.
+
+[View Tutorial](distributed/index.md)
+
 
 ## Threading and Queues
 
@@ -58,6 +65,15 @@ TensorFlow already has a large suite of node operations from which you can
 compose in your graph, but here are the details of how to add you own custom Op.
 
 [View Tutorial](adding_an_op/index.md)
+
+
+## How to write TensorFlow code
+
+Tensorflow Style Guide is set of style decisions that both developers
+and users of Tensorflow should follow to increase the readability of their code,
+reduce the number of errors, and promote consistency.
+
+[View Style Guide](style_guide.md)
 
 
 ## Writing Documentation
@@ -111,3 +127,10 @@ categories of objects, which is a lot faster and easier than completely
 retraining a new model.
 
 [View Tutorial](../how_tos/image_retraining/index.md)
+
+## How to Export and Import a Model
+
+This tutorial describes how to export everything pertaining to a running
+model and import it later for various purposes.
+
+[View Tutorial](../how_tos/meta_graph/index.md)

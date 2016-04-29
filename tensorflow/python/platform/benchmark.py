@@ -23,11 +23,15 @@ import numbers
 import os
 import re
 import sys
+import time
 
 import six
 
-from google.protobuf import text_format
+from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.util import test_log_pb2
+# timeline is outside of the platform target, but is brought in by the target
+# ":platform_test", which also brings in ":platform" (and thus this library).
+from tensorflow.python.client import timeline
 from tensorflow.python.platform import app
 from tensorflow.python.platform import gfile
 
@@ -66,7 +70,8 @@ def _global_report_benchmark(
     # Reporting was not requested
     return
 
-  entry = test_log_pb2.BenchmarkEntry()
+  entries = test_log_pb2.BenchmarkEntries()
+  entry = entries.entry.add()
   entry.name = name
   if iters is not None:
     entry.iters = iters
@@ -83,13 +88,13 @@ def _global_report_benchmark(
       else:
         entry.extras[k].string_value = str(v)
 
-  serialized_entry = text_format.MessageToString(entry)
+  serialized_entry = entries.SerializeToString()
 
   mangled_name = name.replace("/", "__")
   output_path = "%s%s" % (test_env, mangled_name)
   if gfile.Exists(output_path):
     raise IOError("File already exists: %s" % output_path)
-  with gfile.GFile(output_path, "w") as out:
+  with gfile.GFile(output_path, "wb") as out:
     out.write(serialized_entry)
 
 
@@ -99,9 +104,7 @@ class _BenchmarkRegistrar(type):
   def __new__(mcs, clsname, base, attrs):
     newclass = super(mcs, _BenchmarkRegistrar).__new__(
         mcs, clsname, base, attrs)
-    if len(newclass.mro()) > 2:
-      # Only the base Benchmark abstract class has mro length 2.
-      # The rest subclass from it and are therefore registered.
+    if not newclass.is_abstract():
       GLOBAL_BENCHMARK_REGISTRY.add(newclass)
     return newclass
 
@@ -116,18 +119,33 @@ class Benchmark(six.with_metaclass(_BenchmarkRegistrar, object)):
   benchmarking.
   """
 
+  @classmethod
+  def is_abstract(cls):
+    # mro: (_BenchmarkRegistrar, Benchmark) means this is Benchmark
+    return len(cls.mro()) <= 2
+
   def _get_name(self, overwrite_name):
     """Returns full name of class and method calling report_benchmark."""
 
-    # Expect that the caller called report_benchmark, which called _get_name.
-    caller = inspect.stack()[2]
-    calling_class = caller[0].f_locals.get("self", None)
+    # Find the caller method (outermost Benchmark class)
+    stack = inspect.stack()
+    calling_class = None
+    name = None
+    for frame in stack[::-1]:
+      f_locals = frame[0].f_locals
+      f_self = f_locals.get("self", None)
+      if isinstance(f_self, Benchmark):
+        calling_class = f_self  # Get the outermost stack Benchmark call
+        name = frame[3]  # Get the method name
+        break
+    if calling_class is None:
+      raise ValueError("Unable to determine calling Benchmark class.")
+
     # Use the method name, or overwrite_name is provided.
-    name = overwrite_name if overwrite_name is not None else caller[3]
-    if calling_class is not None:
-      # Prefix the name with the class name.
-      class_name = type(calling_class).__name__
-      name = "%s.%s" % (class_name, name)
+    name = overwrite_name or name
+    # Prefix the name with the class name.
+    class_name = type(calling_class).__name__
+    name = "%s.%s" % (class_name, name)
     return name
 
   def report_benchmark(
@@ -147,8 +165,7 @@ class Benchmark(six.with_metaclass(_BenchmarkRegistrar, object)):
       throughput: (optional) Throughput (in MB/s)
       extras: (optional) Dict mapping string keys to additional benchmark info.
       name: (optional) Override the BenchmarkEntry name with `name`.
-        Otherwise it is inferred from the calling class and top-level
-        method name.
+        Otherwise it is inferred from the top-level method name.
     """
     name = self._get_name(overwrite_name=name)
     _global_report_benchmark(
@@ -156,27 +173,85 @@ class Benchmark(six.with_metaclass(_BenchmarkRegistrar, object)):
         throughput=throughput, extras=extras)
 
 
-def _run_specific_benchmark(benchmark_class):
-  benchmark = benchmark_class()
-  attrs = dir(benchmark)
-  # Only run methods of this class whose names start with "benchmark"
-  for attr in attrs:
-    if not attr.startswith("benchmark"):
-      continue
-    benchmark_fn = getattr(benchmark, attr)
-    if not callable(benchmark_fn):
-      continue
-    # Call this benchmark method
-    benchmark_fn()
+class TensorFlowBenchmark(Benchmark):
+  """Abstract class that provides helpers for TensorFlow benchmarks."""
+
+  @classmethod
+  def is_abstract(cls):
+    # mro: (_BenchmarkRegistrar, Benchmark, TensorFlowBenchmark) means
+    # this is TensorFlowBenchmark.
+    return len(cls.mro()) <= 3
+
+  def run_op_benchmark(self,
+                       sess,
+                       op_or_tensor,
+                       feed_dict=None,
+                       burn_iters=2,
+                       min_iters=10,
+                       store_trace=False,
+                       name=None):
+    """Run an op or tensor in the given session.  Report the results.
+
+    Args:
+      sess: `Session` object to use for timing.
+      op_or_tensor: `Operation` or `Tensor` to benchmark.
+      feed_dict: A `dict` of values to feed for each op iteration (see the
+        `feed_dict` parameter of `Session.run`).
+      burn_iters: Number of burn-in iterations to run.
+      min_iters: Minimum number of iterations to use for timing.
+      store_trace: Boolean, whether to run an extra untimed iteration and
+        store the trace of iteration in the benchmark report.
+        The trace will be stored as a string in Google Chrome trace format
+        in the extras field "full_trace_chrome_format".
+      name: (optional) Override the BenchmarkEntry name with `name`.
+        Otherwise it is inferred from the top-level method name.
+    """
+    for _ in range(burn_iters):
+      sess.run(op_or_tensor, feed_dict=feed_dict)
+
+    deltas = [None] * min_iters
+
+    for i in range(min_iters):
+      start_time = time.time()
+      sess.run(op_or_tensor, feed_dict=feed_dict)
+      end_time = time.time()
+      delta = end_time - start_time
+      deltas[i] = delta
+
+    extras = {}
+    if store_trace:
+      run_options = config_pb2.RunOptions(
+          trace_level=config_pb2.RunOptions.FULL_TRACE)
+      run_metadata = config_pb2.RunMetadata()
+      sess.run(op_or_tensor, feed_dict=feed_dict,
+               options=run_options, run_metadata=run_metadata)
+      tl = timeline.Timeline(run_metadata.step_stats)
+      extras["full_trace_chrome_format"] = tl.generate_chrome_trace_format()
+
+    def _median(x):
+      if not x:
+        return -1
+      s = sorted(x)
+      l = len(x)
+      lm1 = l - 1
+      return (s[l//2] + s[lm1//2]) / 2.0
+
+    median_delta = _median(deltas)
+
+    self.report_benchmark(
+        iters=min_iters,
+        wall_time=median_delta,
+        extras=extras,
+        name=name)
 
 
 def _run_benchmarks(regex):
   """Run benchmarks that match regex `regex`.
 
   This function goes through the global benchmark registry, and matches
-  benchmark **classe names** of the form "module.name.BenchmarkClass" to
-  the given regex.  If a class matches, all of its benchmark methods
-  are run.
+  benchmark class and method names of the form
+  `module.name.BenchmarkClass.benchmarkMethod` to the given regex.
+  If a method matches, it is run.
 
   Args:
     regex: The string regular expression to match Benchmark classes against.
@@ -186,13 +261,27 @@ def _run_benchmarks(regex):
   # Match benchmarks in registry against regex
   for benchmark in registry:
     benchmark_name = "%s.%s" % (benchmark.__module__, benchmark.__name__)
-    if re.search(regex, benchmark_name):
-      # Found a match
+    attrs = dir(benchmark)
+    # Don't instantiate the benchmark class unless necessary
+    benchmark_instance = None
 
-      _run_specific_benchmark(benchmark)
+    for attr in attrs:
+      if not attr.startswith("benchmark"):
+        continue
+      candidate_benchmark_fn = getattr(benchmark, attr)
+      if not callable(candidate_benchmark_fn):
+        continue
+      full_benchmark_name = "%s.%s" % (benchmark_name, attr)
+      if regex == "all" or re.search(regex, full_benchmark_name):
+        # Instantiate the class if it hasn't been instantiated
+        benchmark_instance = benchmark_instance or benchmark()
+        # Get the method tied to the class
+        instance_benchmark_fn = getattr(benchmark_instance, attr)
+        # Call the instance method
+        instance_benchmark_fn()
 
 
-def benchmarks_main(true_main=None):
+def benchmarks_main(true_main):
   """Run benchmarks as declared in args.
 
   Args:

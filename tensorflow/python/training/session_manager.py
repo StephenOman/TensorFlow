@@ -20,13 +20,11 @@ from __future__ import print_function
 import threading
 import time
 
-from tensorflow.core.protobuf import tensorflow_server_pb2
-from tensorflow.python.client import server_lib
 from tensorflow.python.client import session
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.platform import gfile
-from tensorflow.python.platform import logging
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import saver as saver_mod
 
 
@@ -110,9 +108,10 @@ class SessionManager(object):
     self._recovery_wait_secs = recovery_wait_secs
     self._target = None
 
-  def prepare_session(self, master, init_op, saver=None,
+  def prepare_session(self, master, init_op=None, saver=None,
                       checkpoint_dir=None, wait_for_checkpoint=False,
-                      max_wait_secs=7200, config=None, init_feed_dict=None):
+                      max_wait_secs=7200, config=None, init_feed_dict=None,
+                      init_fn=None):
     """Creates a `Session`. Makes sure the model is ready to be used.
 
     Creates a `Session` on 'master'. If a `saver` object is passed in, and
@@ -122,8 +121,10 @@ class SessionManager(object):
     `True`, then the process would check every `recovery_wait_secs`,
     up to `max_wait_secs`, for recovery to succeed.
 
-    If the model cannot be recovered successfully, and an `init_op`
-    is not `None`, the `init_op` is run to initialize the model.
+    If the model cannot be recovered successfully then it is initialized by
+    either running the provided `init_op`, or calling the provided `init_fn`.
+    It is an error if the model cannot be recovered and neither an `init_op`
+    or an `init_fn` are passed.
 
     This is a convenient function for the following, with a few error checks
     added:
@@ -131,20 +132,27 @@ class SessionManager(object):
     ```python
     sess, initialized = self.recover_session(master)
     if not initialized:
-      sess.run(self.init_op)
+      if init_op:
+        sess.run(init_op, feed_dict=init_feed_dict)
+      if init_fn;
+        init_fn(sess)
     return sess
     ```
 
     Args:
       master: `String` representation of the TensorFlow master to use.
-      init_op: `Operation` used to to initialize the model.
+      init_op: Optional `Operation` used to initialize the model.
       saver: A `Saver` object used to restore a model.
       checkpoint_dir: Path to the checkpoint files.
       wait_for_checkpoint: Whether to wait for checkpoint to become available.
       max_wait_secs: Maximum time to wait for checkpoints to become available.
       config: Optional `ConfigProto` proto used to configure the session.
-      init_feed_dict: A dictionary that maps `Tensor` objects to feed values.
-        This feed dictionary will be used when `init_op` is evaluated.
+      init_feed_dict: Optional dictionary that maps `Tensor` objects to feed
+        values.  This feed dictionary is passed to the session `run()` call when
+        running the init op.
+      init_fn: Optional callable used to initialize the model. Called after the
+        optional `init_op` is called.  The callable must accept one argument,
+        the session being initialized.
 
     Returns:
       A `Session` object that can be used to drive the model.
@@ -157,14 +165,18 @@ class SessionManager(object):
         wait_for_checkpoint=wait_for_checkpoint,
         max_wait_secs=max_wait_secs, config=config)
     if not initialized:
-      if not init_op:
-        raise RuntimeError("Model is not initialized and no init_op was given")
-      else:
+      if not init_op and not init_fn:
+        raise RuntimeError("Model is not initialized and no init_op or "
+                           "init_fn was given")
+      if init_op:
         sess.run(init_op, feed_dict=init_feed_dict)
-        not_ready = self._model_not_ready(sess)
-        if not_ready:
-          raise RuntimeError("Init operation '%s' did not make model ready: %s"
-                             % (init_op.name, not_ready))
+      if init_fn:
+        init_fn(sess)
+      not_ready = self._model_not_ready(sess)
+      if not_ready:
+        raise RuntimeError("Init operations did not make model ready.  "
+                           "Init op: %s, init fn: %s, error: %s"
+                           % (init_op.name, init_fn, not_ready))
     return sess
 
   def recover_session(self, master, saver=None, checkpoint_dir=None,
@@ -187,8 +199,8 @@ class SessionManager(object):
       A pair (sess, initialized) where 'initialized' is `True` if
       the session could be recovered, `False` otherwise.
     """
-    target = self._maybe_launch_in_process_server(master)
-    sess = session.Session(target, graph=self._graph, config=config)
+    self._target = master
+    sess = session.Session(self._target, graph=self._graph, config=config)
     if self._local_init_op:
       sess.run([self._local_init_op])
 
@@ -228,7 +240,7 @@ class SessionManager(object):
       logging.info("Restored model from %s", ckpt.model_checkpoint_path)
       return sess, True
 
-  def wait_for_session(self, master, config=None):
+  def wait_for_session(self, master, config=None, max_wait_secs=float("Inf")):
     """Creates a new `Session` and waits for model to be ready.
 
     Creates a new `Session` on 'master'.  Waits for the model to be
@@ -238,59 +250,48 @@ class SessionManager(object):
     distributed training configuration where a different thread/process
     is responsible for initializing or recovering the model being trained.
 
+    NB: The amount of time this method waits for the session is bounded
+    by max_wait_secs. By default, this function will wait indefinitely.
+
     Args:
       master: `String` representation of the TensorFlow master to use.
       config: Optional ConfigProto proto used to configure the session.
+      max_wait_secs: Maximum time to wait for the session to become available.
 
     Returns:
-      sess: A `Session`.
+      A `Session`. May be None if the operation exceeds the timeout
+      specified by config.operation_timeout_in_ms.
+
+    Raises:
+      tf.DeadlineExceededError: if the session is not available after
+        max_wait_secs.
     """
-    target = self._maybe_launch_in_process_server(master)
-    sess = session.Session(target, graph=self._graph, config=config)
-    if self._local_init_op:
-      sess.run([self._local_init_op])
+    self._target = master
+
+    if max_wait_secs is None:
+      max_wait_secs = float("Inf")
+    timer = _CountDownTimer(max_wait_secs)
+
     while True:
+      sess = session.Session(self._target, graph=self._graph, config=config)
+      if self._local_init_op:
+        sess.run([self._local_init_op])
       not_ready = self._model_not_ready(sess)
       if not not_ready:
-        break
+        return sess
+
       self._safe_close(sess)
+
+      # Do we have enough time left to try again?
+      remaining_ms_after_wait = (
+          timer.secs_remaining() - self._recovery_wait_secs)
+      if remaining_ms_after_wait < 0:
+        raise errors.DeadlineExceededError(
+            None, None,
+            "Session was not ready after waiting %d secs." % (max_wait_secs,))
+
       logging.info("Waiting for model to be ready: %s", not_ready)
       time.sleep(self._recovery_wait_secs)
-      sess = session.Session(master, graph=self._graph)
-
-    return sess
-
-  def _maybe_launch_in_process_server(self, master):
-    """Launches the in-process TensorFlow server if needed.
-
-    If 'master' is 'local', an in-memory TensorFlow master is launched.
-
-    TODO(sherrym): Add support for taking a ClusterDef as 'master'.
-
-    Args:
-      master: name of the TensorFlow master to use.
-
-    Returns:
-      Target to be used as argument for creating Session.
-    """
-    if master == "local":
-      with SessionManager._launch_lock:
-        if not SessionManager._TENSORFLOW_LAUNCHED:
-          # Creates ServerDef.
-          server_def = tensorflow_server_pb2.ServerDef(protocol="grpc")
-          job_def = server_def.cluster.job.add()
-          job_def.name = "local"
-          job_def.tasks[0] = "localhost:0"
-          server_def.job_name = job_def.name
-          server_def.task_index = 0
-          server = server_lib.GrpcServer(server_def)
-          # Launch tensorflow server.
-          SessionManager._TENSORFLOW_LAUNCHED = True
-          server.start()
-          self._target = server.target
-    else:
-      self._target = master
-    return self._target
 
   def _safe_close(self, sess):
     """Closes a session without raising an exception.
@@ -331,3 +332,14 @@ class SessionManager(object):
           logging.warning("Model not ready raised: %s", str(e))
           raise  e
         return str(e)
+
+
+class _CountDownTimer(object):
+
+  def __init__(self, duration_secs):
+    self._start_time_secs = time.time()
+    self._duration_secs = duration_secs
+
+  def secs_remaining(self):
+    diff = self._duration_secs - (time.time() - self._start_time_secs)
+    return max(0, diff)

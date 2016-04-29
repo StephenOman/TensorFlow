@@ -63,7 +63,7 @@ Returns a context manager that makes this `Graph` the default graph.
 This method should be used if you want to create multiple graphs
 in the same process. For convenience, a global default graph is
 provided, and all ops will be added to this graph if you do not
-create a new graph explicitly. Use this method the `with` keyword
+create a new graph explicitly. Use this method with the `with` keyword
 to specify that ops created within the scope of a block should be
 added to this graph.
 
@@ -238,7 +238,7 @@ string, a device function, or None:
 * If it is a device name string, all operations constructed in
   this context will be assigned to the device with that name, unless
   overridden by a nested `device()` context.
-* If it is a function, it will be treated as function from
+* If it is a function, it will be treated as a function from
   Operation objects to device name strings, and invoked each time
   a new Operation is created. The Operation will be assigned to
   the device with the returned name.
@@ -267,6 +267,11 @@ with g.device(matmul_on_gpu):
   # will be placed on GPU 0; all other operations will be placed
   # on CPU 0.
 ```
+
+**N.B.** The device scope may be overridden by op wrappers or
+other library code. For example, a variable assignment op
+`v.assign()` must be colocated with the `tf.Variable` `v`, and
+incompatible device scopes will be ignored.
 
 ##### Args:
 
@@ -393,13 +398,20 @@ a collection several times.
 
 Returns a list of values in the collection with the given `name`.
 
+This is different from `get_collection_ref()` which always returns the
+actual collection list if it exists in that it returns a new list each time
+it is called.
+
 ##### Args:
 
 
 *  <b>`name`</b>: The key for the collection. For example, the `GraphKeys` class
     contains many standard names for collections.
 *  <b>`scope`</b>: (Optional.) If supplied, the resulting list is filtered to include
-    only items whose name begins with this string.
+    only items whose `name` attribute matches using `re.match`. Items
+    without a `name` attribute are never returned if a scope is supplied and
+    the choice or `re.match` means that a `scope` without special tokens
+    filters by prefix.
 
 ##### Returns:
 
@@ -407,6 +419,31 @@ Returns a list of values in the collection with the given `name`.
   an empty list if no value has been added to that collection. The
   list contains the values in the order under which they were
   collected.
+
+
+- - -
+
+#### `tf.Graph.get_collection_ref(name)` {#Graph.get_collection_ref}
+
+Returns a list of values in the collection with the given `name`.
+
+If the collection exists, this returns the list itself, which can
+be modified in place to change the collection.  If the collection does
+not exist, it is created as an empty list and the list is returned.
+
+This is different from `get_collection()` which always returns a copy of
+the collection list if it exists and never creates an empty collection.
+
+##### Args:
+
+
+*  <b>`name`</b>: The key for the collection. For example, the `GraphKeys` class
+    contains many standard names for collections.
+
+##### Returns:
+
+  The list of values in the collection with the given `name`, or an empty
+  list if no value has been added to that collection.
 
 
 
@@ -518,7 +555,7 @@ This method may be called concurrently from multiple threads.
 
 #### `tf.Graph.seed` {#Graph.seed}
 
-
+The graph-level random seed of this graph.
 
 
 - - -
@@ -681,6 +718,9 @@ Note that collections are not sets, so it is possible to add a value to
 a collection several times. This function makes sure that duplicates in
 `names` are ignored, but it will not check for pre-existing membership of
 `value` in any of the collections in `names`.
+
+`names` can be any iterable, but if `names` is a string, it is treated as a
+single collection name.
 
 ##### Args:
 
@@ -1225,6 +1265,7 @@ Represents the type of the elements in a `Tensor`.
 
 The following `DType` objects are defined:
 
+* `tf.float16`: 16-bit half-precision floating-point.
 * `tf.float32`: 32-bit single-precision floating-point.
 * `tf.float64`: 64-bit double-precision floating-point.
 * `tf.bfloat16`: 16-bit truncated floating-point.
@@ -1681,6 +1722,32 @@ protocol buffer, and extract individual objects in the `GraphDef` as
 
 - - -
 
+### `tf.load_file_system_library(library_filename)` {#load_file_system_library}
+
+Loads a TensorFlow plugin, containing file system implementation.
+
+Pass `library_filename` to a platform-specific mechanism for dynamically
+loading a library. The rules for determining the exact location of the
+library are platform-specific and are not documented here.
+
+##### Args:
+
+
+*  <b>`library_filename`</b>: Path to the plugin.
+    Relative or absolute filesystem path to a dynamic library file.
+
+##### Returns:
+
+  None.
+
+##### Raises:
+
+
+*  <b>`RuntimeError`</b>: when unable to load the library.
+
+
+- - -
+
 ### `tf.load_op_library(library_filename)` {#load_op_library}
 
 Loads a TensorFlow plugin, containing custom ops and kernels.
@@ -1741,7 +1808,10 @@ for more details.
 *  <b>`key`</b>: The key for the collection. For example, the `GraphKeys` class
     contains many standard names for collections.
 *  <b>`scope`</b>: (Optional.) If supplied, the resulting list is filtered to include
-    only items whose name begins with this string.
+    only items whose `name` attribute matches using `re.match`. Items
+    without a `name` attribute are never returned if a scope is supplied and
+    the choice or `re.match` means that a `scope` without special tokens
+    filters by prefix.
 
 ##### Returns:
 
@@ -1749,6 +1819,29 @@ for more details.
   an empty list if no value has been added to that collection. The
   list contains the values in the order under which they were
   collected.
+
+
+- - -
+
+### `tf.get_collection_ref(key)` {#get_collection_ref}
+
+Wrapper for `Graph.get_collection_ref()` using the default graph.
+
+See [`Graph.get_collection_ref()`](../../api_docs/python/framework.md#Graph.get_collection_ref)
+for more details.
+
+##### Args:
+
+
+*  <b>`key`</b>: The key for the collection. For example, the `GraphKeys` class
+    contains many standard names for collections.
+
+##### Returns:
+
+  The list of values in the collection with the given `name`, or an empty
+  list if no value has been added to that collection.  Note that this returns
+  the collection list itself, which can be modified in place to change the
+  collection.
 
 
 - - -
@@ -2305,7 +2398,7 @@ The value of this dimension, or None if it is unknown.
 Returns a context manager for use when defining a Python op.
 
 This context manager validates that the given `values` are from the
-same graph, ensures that that graph is the default graph, and pushes a
+same graph, ensures that graph is the default graph, and pushes a
 name scope.
 
 For example, to define a new Python op called `my_op`:
@@ -2408,6 +2501,157 @@ registered with a smaller priority than `G`.
 
 
 ## Other Functions and Classes
+- - -
+
+### `class tf.DeviceSpec` {#DeviceSpec}
+
+Represents a (possibly partial) specification for a TensorFlow device.
+
+`DeviceSpec`s are used throughout TensorFlow to describe where state is stored
+and computations occur. Using `DeviceSpec` allows you to parse device spec
+strings to verify their validity, merge them or compose them programmatically.
+
+Example:
+```python
+# Place the operations on device "GPU:0" in the "ps" job.
+device_spec = DeviceSpec(job="ps", device_type="GPU", device_index=0)
+with tf.device(device_spec):
+  # Both my_var and squared_var will be placed on /job:ps/device:GPU:0.
+  my_var = tf.Variable(..., name="my_variable")
+  squared_var = tf.square(my_var)
+```
+
+If a `DeviceSpec` is partially specified, it will be merged with other
+`DeviceSpec`s according to the scope in which it is defined. `DeviceSpec`
+components defined in inner scopes take precedence over those defined in
+outer scopes.
+
+```python
+with tf.device(DeviceSpec(job="train", )):
+  with tf.device(DeviceSpec(job="ps", device_type="GPU", device_index=0):
+    # Nodes created here will be assigned to /job:ps/device:GPU:0.
+  with tf.device(DeviceSpec(device_type="GPU", device_index=1):
+    # Nodes created here will be assigned to /job:train/device:GPU:1.
+```
+
+A `DeviceSpec` consists of 5 components -- each of
+which is optionally specified:
+
+* Job: The job name.
+* Replica: The replica index.
+* Task: The task index.
+* Device type: The device type string (e.g. "CPU" or "GPU").
+* Device index: The device index.
+- - -
+
+#### `tf.DeviceSpec.__init__(job=None, replica=None, task=None, device_type=None, device_index=None)` {#DeviceSpec.__init__}
+
+Create a new `DeviceSpec` object.
+
+##### Args:
+
+
+*  <b>`job`</b>: string.  Optional job name.
+*  <b>`replica`</b>: int.  Optional replica index.
+*  <b>`task`</b>: int.  Optional task index.
+*  <b>`device_type`</b>: Optional device type string (e.g. "CPU" or "GPU")
+*  <b>`device_index`</b>: int.  Optional device index.  If left
+    unspecified, device represents 'any' device_index.
+
+
+- - -
+
+#### `tf.DeviceSpec.from_string(spec)` {#DeviceSpec.from_string}
+
+Construct a `DeviceSpec` from a string.
+
+##### Args:
+
+
+*  <b>`spec`</b>: a string of the form
+   /job:<name>/replica:<id>/task:<id>/device:CPU:<id>
+  or
+   /job:<name>/replica:<id>/task:<id>/device:GPU:<id>
+  as cpu and gpu are mutually exclusive.
+  All entries are optional.
+
+##### Returns:
+
+  A DeviceSpec.
+
+
+- - -
+
+#### `tf.DeviceSpec.job` {#DeviceSpec.job}
+
+
+
+
+- - -
+
+#### `tf.DeviceSpec.merge_from(dev)` {#DeviceSpec.merge_from}
+
+Merge the properties of "dev" into this `DeviceSpec`.
+
+##### Args:
+
+
+*  <b>`dev`</b>: a `DeviceSpec`.
+
+
+- - -
+
+#### `tf.DeviceSpec.parse_from_string(spec)` {#DeviceSpec.parse_from_string}
+
+Parse a `DeviceSpec` name into its components.
+
+##### Args:
+
+
+*  <b>`spec`</b>: a string of the form
+   /job:<name>/replica:<id>/task:<id>/device:CPU:<id>
+  or
+   /job:<name>/replica:<id>/task:<id>/device:GPU:<id>
+  as cpu and gpu are mutually exclusive.
+  All entries are optional.
+
+##### Returns:
+
+  The `DeviceSpec`.
+
+##### Raises:
+
+
+*  <b>`ValueError`</b>: if the spec was not valid.
+
+
+- - -
+
+#### `tf.DeviceSpec.replica` {#DeviceSpec.replica}
+
+
+
+
+- - -
+
+#### `tf.DeviceSpec.task` {#DeviceSpec.task}
+
+
+
+
+- - -
+
+#### `tf.DeviceSpec.to_string()` {#DeviceSpec.to_string}
+
+Return a string representation of this `DeviceSpec`.
+
+##### Returns:
+
+  a string of the form
+  /job:<name>/replica:<id>/task:<id>/device:<device_type>:<id>.
+
+
+
 - - -
 
 ### `class tf.bytes` {#bytes}

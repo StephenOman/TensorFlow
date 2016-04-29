@@ -642,9 +642,13 @@ class ExecutorState {
   typedef gtl::InlinedVector<TaggedNode, 8> TaggedNodeSeq;
   typedef gtl::InlinedVector<Entry, 4> EntryVector;
 
+  const bool vlog_;  // true if VLOG_IS_ON(1). Used to check vlog cheaply.
+
   int64 step_id_;
   // Not owned.
   Rendezvous* rendezvous_;
+  SessionState* session_state_;
+  TensorStore* tensor_store_;
   StepStatsCollector* stats_collector_;
   // QUESTION: Make it a checkpoint::TensorSliceReaderCacheWrapper
   // instead of a pointer?  (avoids having to delete).
@@ -791,8 +795,11 @@ class ExecutorState {
 };
 
 ExecutorState::ExecutorState(const Executor::Args& args, ExecutorImpl* impl)
-    : step_id_(args.step_id),
+    : vlog_(VLOG_IS_ON(1)),
+      step_id_(args.step_id),
       rendezvous_(args.rendezvous),
+      session_state_(args.session_state),
+      tensor_store_(args.tensor_store),
       stats_collector_(args.stats_collector),
       slice_reader_cache_(new checkpoint::TensorSliceReaderCacheWrapper),
       call_frame_(args.call_frame),
@@ -811,7 +818,7 @@ ExecutorState::ExecutorState(const Executor::Args& args, ExecutorImpl* impl)
   root_frame_->max_parallel_iterations = 1;  // enough for root frame
   root_frame_->iterations.resize(root_frame_->max_parallel_iterations);
 
-  VLOG(2) << "Create frame: " << root_frame_->frame_name;
+  if (vlog_) VLOG(2) << "Create frame: " << root_frame_->frame_name;
 
   // Initialize the iteration.
   IterationState* iter_state = new IterationState(impl);
@@ -938,6 +945,8 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
   // track allocations if and only if we are collecting statistics
   params.track_allocations = (stats_collector_ != nullptr);
   params.rendezvous = rendezvous_;
+  params.session_state = session_state_;
+  params.tensor_store = tensor_store_;
   params.cancellation_manager = cancellation_manager_;
   params.call_frame = call_frame_;
   params.function_library = impl_->params_.function_library;
@@ -964,7 +973,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
 
     // TODO(misard) Replace with a finer-grain enabling flag once we
     // add better optional debugging support.
-    if (VLOG_IS_ON(1)) {
+    if (vlog_ && VLOG_IS_ON(1)) {
       mutex_lock l(mu_);
 
       IterationState* iter_state = input_frame->GetIteration(input_iter);
@@ -984,8 +993,10 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
       nodestats::SetAllStart(stats);
     }
 
-    VLOG(1) << "Process node: " << id << " step " << params.step_id << " "
-            << SummarizeNodeDef(node->def());
+    if (vlog_) {
+      VLOG(1) << "Process node: " << id << " step " << params.step_id << " "
+              << SummarizeNodeDef(node->def());
+    }
 
     Entry* input_tensors = GetInputTensors(input_frame, input_iter);
     Entry* first_input = input_tensors + item.input_start;
@@ -1012,7 +1023,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
         }
         // TODO(misard) Replace with a finer-grain enabling flag once we
         // add better optional debugging support.
-        if (VLOG_IS_ON(1)) {
+        if (vlog_ && VLOG_IS_ON(1)) {
           mutex_lock l(mu_);
           IterationState* iter_state = input_frame->GetIteration(input_iter);
           iter_state->mark_completed(id);
@@ -1039,8 +1050,10 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
         auto ctx = new OpKernelContext(pcopy, item.num_outputs);
         auto done = [this, tagged_node, item, first_input, ctx, stats, pcopy,
                      device]() {
-          VLOG(2) << this << " Async kernel done: "
-                  << SummarizeNodeDef(item.node->def());
+          if (vlog_) {
+            VLOG(2) << this << " Async kernel done: "
+                    << SummarizeNodeDef(item.node->def());
+          }
           if (stats_collector_) nodestats::SetOpEnd(stats);
           EntryVector outputs;
           Status s = ProcessOutputs(item, ctx, &outputs, stats);
@@ -1052,7 +1065,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
           }
           // TODO(misard) Replace with a finer-grain enabling flag once we
           // add better optional debugging support.
-          if (VLOG_IS_ON(1)) {
+          if (vlog_ && VLOG_IS_ON(1)) {
             mutex_lock l(mu_);
             tagged_node.input_frame->GetIteration(tagged_node.input_iter)
                 ->mark_completed(tagged_node.node->id());
@@ -1113,7 +1126,7 @@ void ExecutorState::Process(TaggedNode tagged_node, int64 scheduled_usec) {
       }
       // TODO(misard) Replace with a finer-grain enabling flag once we
       // add better optional debugging support.
-      if (VLOG_IS_ON(1)) {
+      if (vlog_ && VLOG_IS_ON(1)) {
         mutex_lock l(mu_);
         IterationState* iter_state = input_frame->GetIteration(input_iter);
         iter_state->mark_completed(id);
@@ -1220,7 +1233,7 @@ Status ExecutorState::ProcessOutputs(const NodeItem& item, OpKernelContext* ctx,
     s = AttachDef(s, item.kernel->def());
     // TODO(misard) Replace with a finer-grain enabling flag once we
     // add better optional debugging support.
-    if (VLOG_IS_ON(1)) {
+    if (vlog_ && VLOG_IS_ON(1)) {
       LOG(WARNING) << this << " Compute status: " << s;
       DumpState();
     }
@@ -1732,7 +1745,9 @@ void ExecutorState::FindOrCreateChildFrame(FrameState* frame, int64 iter,
     *child = it->second;
   } else {
     // Need to create a new frame instance.
-    VLOG(2) << "Create frame: " << child_name;
+    if (vlog_) {
+      VLOG(2) << "Create frame: " << child_name;
+    }
 
     FrameState* temp = new FrameState;
     temp->frame_name = child_name;
@@ -1763,8 +1778,10 @@ void ExecutorState::IncrementIteration(FrameState* frame,
   frame->iteration_count++;
   int64 next_iter = frame->iteration_count;
 
-  VLOG(2) << "Create iteration: [" << frame->frame_name << ", " << next_iter
-          << "]";
+  if (vlog_) {
+    VLOG(2) << "Create iteration: [" << frame->frame_name << ", " << next_iter
+            << "]";
+  }
 
   IterationState* iter_state = new IterationState(impl_);
   frame->SetIteration(next_iter, iter_state);
@@ -1840,8 +1857,10 @@ void ExecutorState::CleanupFramesIterations(FrameState* frame, int64 iter,
   while (curr_iter <= frame->iteration_count &&
          IsIterationDone(frame, curr_iter)) {
     // Delete the iteration curr_iter
-    VLOG(2) << "Delete iteration [" << frame->frame_name << ", " << curr_iter
-            << "].";
+    if (vlog_) {
+      VLOG(2) << "Delete iteration [" << frame->frame_name << ", " << curr_iter
+              << "].";
+    }
 
     delete frame->GetIteration(curr_iter);
     frame->SetIteration(curr_iter, nullptr);
@@ -1896,7 +1915,9 @@ void ExecutorState::CleanupFramesIterations(FrameState* frame, int64 iter,
 
     // Delete the frame
     const string& frame_name = frame->frame_name;
-    VLOG(2) << "Delete frame " << frame_name;
+    if (vlog_) {
+      VLOG(2) << "Delete frame " << frame_name;
+    }
     outstanding_frames_.erase(frame_name);
     delete frame;
 

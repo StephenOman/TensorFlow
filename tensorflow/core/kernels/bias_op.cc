@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/kernels/bounds_check.h"
 #include "tensorflow/core/util/tensor_format.h"
 
 #if GOOGLE_CUDA
@@ -131,19 +132,19 @@ void GetBiasValueDims(const Tensor& value_tensor, TensorFormat data_format,
   *channel = 1;
   if (data_format == FORMAT_NHWC) {
     int32 channel_dim = value_tensor.dims() - 1;
-    *channel = value_tensor.dim_size(channel_dim);
+    *channel = static_cast<int32>(value_tensor.dim_size(channel_dim));
     for (int32 i = 0; i < channel_dim; i++) {
-      *batch *= value_tensor.dim_size(i);
+      *batch *= static_cast<int32>(value_tensor.dim_size(i));
     }
   } else if (data_format == FORMAT_NCHW) {
     int32 channel_dim = value_tensor.dims() - 3;
     int32 height_dim = value_tensor.dims() - 2;
     int32 width_dim = value_tensor.dims() - 1;
-    *channel = value_tensor.dim_size(channel_dim);
-    *height = value_tensor.dim_size(height_dim);
-    *width = value_tensor.dim_size(width_dim);
+    *channel = static_cast<int32>(value_tensor.dim_size(channel_dim));
+    *height = static_cast<int32>(value_tensor.dim_size(height_dim));
+    *width = static_cast<int32>(value_tensor.dim_size(width_dim));
     for (int32 i = 0; i < channel_dim; i++) {
-      *batch *= value_tensor.dim_size(i);
+      *batch *= static_cast<int32>(value_tensor.dim_size(i));
     }
   }
 }
@@ -176,13 +177,19 @@ class BiasGradOp<CPUDevice, T> : public OpKernel {
                 TensorShapeUtils::IsMatrixOrHigher(output_backprop.shape()),
                 errors::InvalidArgument("Input tensor must be at least 2D: ",
                                         output_backprop.shape().DebugString()));
+
+    OP_REQUIRES(
+        context, FastBoundsCheck(output_backprop.NumElements(),
+                                 std::numeric_limits<int32>::max()),
+        errors::InvalidArgument("BiasGrad requires tensor size <= int32 max"));
+
     int32 batch, height, width, channel;
     GetBiasValueDims(output_backprop, data_format_, &batch, &height, &width,
                      &channel);
     Tensor* output = nullptr;
     TensorShape output_shape{channel};
     OP_REQUIRES_OK(context, context->allocate_output(0, output_shape, &output));
-    int32 total_count = output_backprop.NumElements();
+    int32 total_count = static_cast<int32>(output_backprop.NumElements());
     int32 bias_size = channel;
     const T* output_backprop_data = output_backprop.template flat<T>().data();
     T* output_data = output->template flat<T>().data();
@@ -264,7 +271,7 @@ class BiasOp<GPUDevice, T> : public BinaryOp<T> {
       Name("BiasAddV1").Device(DEVICE_GPU).TypeConstraint<type>("T"), \
       BiasOp<GPUDevice, type>);
 
-TF_CALL_GPU_NUMBER_TYPES(REGISTER_GPU_KERNEL);
+TF_CALL_GPU_NUMBER_TYPES_NO_HALF(REGISTER_GPU_KERNEL);
 #undef REGISTER_GPU_KERNEL
 
 template <typename T>
@@ -315,7 +322,7 @@ class BiasGradOp<GPUDevice, T> : public OpKernel {
       Name("BiasAddGrad").Device(DEVICE_GPU).TypeConstraint<type>("T"), \
       BiasGradOp<GPUDevice, type>);
 
-TF_CALL_GPU_NUMBER_TYPES(REGISTER_GPU_KERNEL);
+TF_CALL_GPU_NUMBER_TYPES_NO_HALF(REGISTER_GPU_KERNEL);
 #undef REGISTER_GPU_KERNEL
 
 #endif  // GOOGLE_CUDA

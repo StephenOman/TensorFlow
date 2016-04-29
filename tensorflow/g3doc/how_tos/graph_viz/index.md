@@ -7,10 +7,10 @@ TensorFlow computation graphs are powerful but complicated. The graph visualizat
 
 To see your own graph, run TensorBoard pointing it to the log directory of the job, click on the graph tab on the top pane and select the appropriate run using the menu at the upper left corner. For in depth information on how to run TensorBoard and make sure you are logging all the necessary information, see [TensorBoard: Visualizing Learning](../../how_tos/summaries_and_tensorboard/index.md).
 
-You can interact with an instance of TensorBoard looking at data from a
-[CIFAR-10](../../tutorials/deep_cnn/index.md) training session, including the
+You can interact with an instance of TensorBoard looking at data from an
+[MNIST](../../tutorials/mnist/beginners/index.md) training session, including the
 graph visualization, by clicking
-[here](https://www.tensorflow.org/tensorboard/cifar.html#graphs).
+[here](https://www.tensorflow.org/tensorboard/index.html#graphs).
 
 ## Name scoping and nodes
 
@@ -78,9 +78,8 @@ and `control_dependency`.
 
 There's a second trick to simplifying the layout. Most TensorFlow graphs have a
 few nodes with many connections to other nodes. For example, many nodes might
-have a control dependencies on an initialization step. Drawing all edges
-between the `init` node and its dependencies would create a very cluttered
-view.
+have a control dependency on an initialization step. Drawing all edges between
+the `init` node and its dependencies would create a very cluttered view.
 
 To reduce clutter, the visualization separates out all high-degree nodes to an
 *auxiliary* area on the right and doesn't draw lines to represent their edges.

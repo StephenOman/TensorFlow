@@ -1,13 +1,13 @@
 /* Copyright 2015 Google Inc. All Rights Reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the Apache License, Version 2.0 (the 'License');
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
+distributed under the License is distributed on an 'AS IS' BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
@@ -85,7 +85,7 @@ export function time<T>(msg: string, task: () => T) {
     let start = Date.now();
     let result = task();
     /* tslint:disable */
-    console.log(msg, ":", Date.now() - start, "ms");
+    console.log(msg, ':', Date.now() - start, 'ms');
     /* tslint:enable */
     return result;
 }
@@ -111,13 +111,11 @@ export interface ProgressTracker {
 export function getTracker(polymerComponent: any) {
   return {
     setMessage: function(msg) {
-      polymerComponent.set("progress", {
-        value: polymerComponent.progress.value,
-        msg: msg
-      });
+      polymerComponent.set(
+          'progress', {value: polymerComponent.progress.value, msg: msg});
     },
     updateProgress: function(value) {
-      polymerComponent.set("progress", {
+      polymerComponent.set('progress', {
         value: polymerComponent.progress.value + value,
         msg: polymerComponent.progress.msg
       });
@@ -126,11 +124,9 @@ export function getTracker(polymerComponent: any) {
       // Log the stack trace in the console.
       console.error(err.stack);
       // And send a user-friendly message to the UI.
-      polymerComponent.set("progress", {
-        value: polymerComponent.progress.value,
-        msg: msg,
-        error: true
-      });
+      polymerComponent.set(
+          'progress',
+          {value: polymerComponent.progress.value, msg: msg, error: true});
     },
   };
 }
@@ -147,7 +143,7 @@ export function getSubtaskTracker(parentTracker: ProgressTracker,
     setMessage: function(progressMsg) {
       // The parent should show a concatenation of its message along with
       // its subtask tracker message.
-      parentTracker.setMessage(subtaskMsg + ": " + progressMsg);
+      parentTracker.setMessage(subtaskMsg + ': ' + progressMsg);
     },
     updateProgress: function(incrementValue) {
       // Update the parent progress relative to the child progress.
@@ -159,9 +155,31 @@ export function getSubtaskTracker(parentTracker: ProgressTracker,
     reportError: function(msg: string, err: Error) {
       // The parent should show a concatenation of its message along with
       // its subtask error message.
-      parentTracker.reportError(subtaskMsg + ": " + msg, err);
+      parentTracker.reportError(subtaskMsg + ': ' + msg, err);
     }
   };
+}
+
+/**
+ * Runs an expensive task and return the result.
+ */
+export function runTask<T>(msg: string, incProgressValue: number,
+    task: () => T, tracker: ProgressTracker): T {
+  // Update the progress message to say the current running task.
+  tracker.setMessage(msg);
+  // Run the expensive task with a delay that gives enough time for the
+  // UI to update.
+  try {
+    var result = tf.time(msg, task);
+    // Update the progress value.
+    tracker.updateProgress(incProgressValue);
+    // Return the result to be used by other tasks.
+    return result;
+  } catch (e) {
+    // Errors that happen inside asynchronous tasks are
+    // reported to the tracker using a user-friendly message.
+    tracker.reportError('Failed ' + msg, e);
+  }
 }
 
 /**
@@ -184,7 +202,7 @@ export function runAsyncTask<T>(msg: string, incProgressValue: number,
       } catch (e) {
         // Errors that happen inside asynchronous tasks are
         // reported to the tracker using a user-friendly message.
-        tracker.reportError("Failed " + msg, e);
+        tracker.reportError('Failed ' + msg, e);
       }
     }, ASYNC_TASK_DELAY);
   });
@@ -195,7 +213,7 @@ export function runAsyncTask<T>(msg: string, incProgressValue: number,
  * allowed in a query selector.
  */
 export function escapeQuerySelector(querySelector: string): string {
-  return querySelector.replace( /([:.\[\],/\\\(\)])/g, "\\$1" );
+  return querySelector.replace(/([:.\[\],/\\\(\)])/g, '\\$1');
 }
 
 /**
@@ -217,31 +235,31 @@ export interface TFNode {
 /**
  * TensorFlow stats file definition as defined in the stats proto file.
  */
-export interface TFStats {
-  devStats: {device: string, nodeStats: TFNodeStats[]}[];
+export interface StepStats {
+  dev_stats: {device: string, node_stats: NodeStats[]}[];
 }
 
 /**
  * TensorFlow stats for a node as defined in the stats proto file.
  */
-export interface TFNodeStats {
-  nodeName: string;
+export interface NodeStats {
+  node_name: string;
   // The next 4 properties are currently stored as string in json
   // and must be parsed.
-  allStartMicros: number;
-  opStartRelMicros: number;
-  opEndRelMicros: number;
-  allEndRelMicros: number;
+  all_start_micros: number;
+  op_start_rel_micros: number;
+  op_end_rel_micros: number;
+  all_end_rel_micros: number;
   memory: {
-    allocatorName: string;
-    totalBytes: number; // Stored as string in json and should be parsed.
-    peakBytes: number; // Stored as string in json and should be parsed.
+    allocator_name: string;
+    total_bytes: number; // Stored as string in json and should be parsed.
+    peak_bytes: number; // Stored as string in json and should be parsed.
   }[];
   /** Output sizes recorded for a single execution of a graph node */
   output: TFNodeOutput[];
-  timelineLabel: string;
-  scheduledMicros: string;
-  threadId: string;
+  timeline_label: string;
+  scheduled_micros: string;
+  thread_id: string;
 }
 
 /**
@@ -249,36 +267,34 @@ export interface TFNodeStats {
  */
 export interface TFNodeOutput {
   slot: number; // Stored as string in json and should be parsed.
-  /** Was the tensor allocated by this Op or a previous computation */
-  allocationType: string;
-  tensorDescription: {
+  tensor_description: {
     /** Data type of tensor elements */
     dtype: string;
     /** Shape of the tensor */
     shape: {
       /**
-       * Dimensions of the tensor, such as [{name: "input", size: 30},
-       * {name: "output", size: 40}] for a 30 x 40 2D tensor.  The names
-       * are optional. The order of entries in "dim" matters: It indicates
+       * Dimensions of the tensor, such as [{name: 'input', size: 30},
+       * {name: 'output', size: 40}] for a 30 x 40 2D tensor.  The names
+       * are optional. The order of entries in 'dim' matters: It indicates
        * the layout of the values in the tensor in-memory representation.
        */
       dim: {
         /** Size of the tensor in that dimension */
-        size: number, // Stored as string in json and should be parsed.
+        size: number,  // Stored as string in json and should be parsed.
         /** Optional name of the tensor dimension */
         name?: string
       }[];
     };
     /** Information about the size and allocator used for the data */
-    allocationDescription: {
+    allocation_description: {
       // The next 2 properties are stored as string in json and
       // should be parsed.
       /** Total number of bytes requested */
-      requestedBytes: number;
+      requested_bytes: number;
       /** Total number of bytes allocated, if known */
-      allocatedBytes?: number;
+      allocated_bytes?: number;
       /** Name of the allocator used */
-      allocatorName: string;
+      allocator_name: string;
     };
   };
 }

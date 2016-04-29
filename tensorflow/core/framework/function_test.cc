@@ -563,8 +563,8 @@ TEST(FunctionCallFrame, Void_Void) {
   auto a = test::AsTensor<float>({100});
   HasError(frame.SetArgs({a}), "Invalid argument");
   Tensor v;
-  HasError(frame.GetArg(0, &v), "Out of range");
-  HasError(frame.SetRetval(0, v), "Out of range");
+  HasError(frame.GetArg(0, &v), "Invalid argument");
+  HasError(frame.SetRetval(0, v), "Invalid argument");
   std::vector<Tensor> rets;
   TF_EXPECT_OK(frame.GetRetvals(&rets));
   EXPECT_EQ(rets.size(), 0);
@@ -581,16 +581,16 @@ TEST(FunctionCallFrame, Float_Float_Float) {
   TF_EXPECT_OK(frame.SetArgs({a, b}));
 
   Tensor v;
-  HasError(frame.GetArg(-1, &v), "Out of range");
-  HasError(frame.GetArg(2, &v), "Out of range");
+  HasError(frame.GetArg(-1, &v), "Invalid argument");
+  HasError(frame.GetArg(2, &v), "Invalid argument");
   TF_EXPECT_OK(frame.GetArg(0, &v));
   test::ExpectTensorEqual<float>(a, v);
   TF_EXPECT_OK(frame.GetArg(1, &v));
   test::ExpectTensorEqual<float>(b, v);
 
   v = test::AsTensor<float>({-100});
-  HasError(frame.SetRetval(-1, v), "Out of range");
-  HasError(frame.SetRetval(1, v), "Out of range");
+  HasError(frame.SetRetval(-1, v), "Invalid argument");
+  HasError(frame.SetRetval(1, v), "Invalid argument");
   HasError(frame.SetRetval(0, test::AsTensor<int64>({-100})),
            "Invalid argument: Expects ret[0] to be float");
 
@@ -650,6 +650,58 @@ TEST(FunctionLibraryDefinitionTest, LookUp) {
   ASSERT_NE(found, nullptr);
   EXPECT_EQ(found->DebugString(),
             test::function::XTimesTwo().signature().DebugString());
+}
+
+TEST(FunctionLibraryDefinitionTest, AddFunctionDef) {
+  // Add one function to the proto lib before constructing 'lib_def'.
+  FunctionDefLibrary proto;
+  *proto.add_function() = test::function::XTimesTwo();
+  FunctionLibraryDefinition lib_def(proto);
+
+  // Add a new function def to the library.
+  TF_EXPECT_OK(lib_def.AddFunctionDef(test::function::WXPlusB()));
+
+  // Test lookup of first function.
+  Status s;
+  auto first = lib_def.LookUp("XTimesTwo", &s);
+  ASSERT_NE(first, nullptr);
+  EXPECT_EQ(first->DebugString(),
+            test::function::XTimesTwo().signature().DebugString());
+
+  // Test lookup of second function.
+  auto second = lib_def.LookUp("WXPlusB", &s);
+  ASSERT_NE(second, nullptr);
+  EXPECT_EQ(second->DebugString(),
+            test::function::WXPlusB().signature().DebugString());
+}
+
+TEST(FunctionLibraryDefinitionTest, ToProto) {
+  FunctionDefLibrary proto1;
+  *proto1.add_function() = test::function::XTimesTwo();
+  *proto1.add_function() = test::function::WXPlusB();
+  FunctionLibraryDefinition lib_def1(proto1);
+
+  // Call 'ToProto' and make sure both protos have the same function lib size.
+  FunctionDefLibrary proto2 = lib_def1.ToProto();
+  EXPECT_EQ(proto1.function_size(), proto2.function_size());
+
+  // Initialize 'lib_def2' with proto returned by 'ToProto' call.
+  FunctionLibraryDefinition lib_def2(proto2);
+
+  // Test that the first function exists in both libraries.
+  Status s;
+  auto f1 = lib_def1.LookUp("XTimesTwo", &s);
+  TF_EXPECT_OK(s);
+  auto f2 = lib_def1.LookUp("XTimesTwo", &s);
+  TF_EXPECT_OK(s);
+  EXPECT_EQ(f1->DebugString(), f2->DebugString());
+
+  // Test that the second function exists in both libraries.
+  auto f3 = lib_def1.LookUp("WXPlusB", &s);
+  TF_EXPECT_OK(s);
+  auto f4 = lib_def1.LookUp("WXPlusB", &s);
+  TF_EXPECT_OK(s);
+  EXPECT_EQ(f3->DebugString(), f4->DebugString());
 }
 
 }  // end namespace tensorflow

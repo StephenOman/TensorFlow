@@ -42,7 +42,7 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import linalg_ops
 from tensorflow.python.ops import functional_ops
 
-from tensorflow.python.platform import logging
+from tensorflow.python.platform import tf_logging as logging
 
 # Warn the user if we convert a sparse representation to dense with at
 # least this number of elements.
@@ -311,7 +311,7 @@ def gradients(ys,
               colocate_gradients_with_ops=False,
               gate_gradients=False,
               aggregation_method=None):
-  """Constructs symbolic partial derivatives of `ys` w.r.t. x in `xs`.
+  """Constructs symbolic partial derivatives of sum of `ys` w.r.t. x in `xs`.
 
   `ys` and `xs` are each a `Tensor` or a list of tensors.  `grad_ys`
   is a list of `Tensor`, holding the gradients received by the
@@ -501,6 +501,8 @@ def gradients(ys,
           in_grads = [None] * len(op.inputs)
         for t_in, in_grad in zip(op.inputs, in_grads):
           if in_grad is not None:
+            if isinstance(in_grad, ops.Tensor):
+              in_grad.set_shape(t_in.get_shape())
             _SetGrad(grads, t_in, in_grad)
         if loop_state:
           loop_state.ExitGradWhileContext(op, before=False)
@@ -638,13 +640,13 @@ def _AggregatedGrads(grads, op, loop_state, aggregation_method=None):
                       "or all IndexedSlices")
     # Aggregate multiple gradients, and convert [] to None.
     if out_grad:
-      if all([isinstance(g, ops.Tensor) for g in out_grad if g is not None]):
+      if len(out_grad) < 2:
+        used = "nop"
+        out_grads[i] = out_grad[0]
+      elif all([isinstance(g, ops.Tensor) for g in out_grad if g is not None]):
         tensor_shape = _AccumulatorShape(out_grad)
-        if len(out_grad) < 2:
-          used = "nop"
-          out_grads[i] = out_grad[0]
-        elif (aggregation_method == AggregationMethod.EXPERIMENTAL_ACCUMULATE_N
-              and len(out_grad) > 2 and tensor_shape.is_fully_defined()):
+        if (aggregation_method == AggregationMethod.EXPERIMENTAL_ACCUMULATE_N
+            and len(out_grad) > 2 and tensor_shape.is_fully_defined()):
           # The benefit of using AccumulateN is that its inputs can be combined
           # in any order and this can allow the expression to be evaluated with
           # a smaller memory footprint.  When used with gpu_allocator_retry,

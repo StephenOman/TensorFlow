@@ -13,10 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// We define the PY_ARRAY_UNIQUE_SYMBOL in this .cc file and provide an
-// ImportNumpy function to populate it.
-#define TF_IMPORT_NUMPY
-
 #include "tensorflow/python/client/tf_session_helper.h"
 
 #include <cstring>
@@ -93,6 +89,9 @@ Status PyArray_TYPE_to_TF_DataType(PyArrayObject* array,
   int pyarray_type = PyArray_TYPE(array);
   PyArray_Descr* descr = PyArray_DESCR(array);
   switch (pyarray_type) {
+    case NPY_FLOAT16:
+      *out_tf_datatype = TF_HALF;
+      break;
     case NPY_FLOAT32:
       *out_tf_datatype = TF_FLOAT;
       break;
@@ -144,6 +143,9 @@ Status PyArray_TYPE_to_TF_DataType(PyArrayObject* array,
 Status TF_DataType_to_PyArray_TYPE(TF_DataType tf_datatype,
                                    int* out_pyarray_type) {
   switch (tf_datatype) {
+    case TF_HALF:
+      *out_pyarray_type = NPY_FLOAT16;
+      break;
     case TF_FLOAT:
       *out_pyarray_type = NPY_FLOAT32;
       break;
@@ -629,8 +631,6 @@ void TF_PRun_wrapper(TF_Session* session, const char* handle,
   TF_Run_wrapper_helper(session, handle, nullptr, inputs, output_names,
                         NameVector(), out_status, out_values, nullptr);
 }
-
-void ImportNumpy() { import_array1(); }
 
 string EqualGraphDefWrapper(const string& actual, const string& expected) {
   GraphDef actual_def;

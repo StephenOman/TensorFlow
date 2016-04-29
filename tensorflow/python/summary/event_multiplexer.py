@@ -23,10 +23,9 @@ import threading
 
 import six
 
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import logging
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.summary import event_accumulator
-from tensorflow.python.summary.impl import gcs
+from tensorflow.python.summary.impl import io_wrapper
 
 
 class EventMultiplexer(object):
@@ -75,6 +74,7 @@ class EventMultiplexer(object):
   @@Histograms
   @@CompressedHistograms
   @@Images
+  @@Audio
   """
 
   def __init__(self,
@@ -172,24 +172,15 @@ class EventMultiplexer(object):
     Returns:
       The `EventMultiplexer`.
     """
-    subdirs = []
-    if gcs.IsGCSPath(path):
-      subdirs = [
-          subdir
-          for (subdir, files) in gcs.ListRecursively(path)
-          if list(filter(event_accumulator.IsTensorFlowEventsFile, files))
-      ]
-    else:
-      if not gfile.Exists(path):
-        return  # Maybe it hasn't been created yet, fail silently to retry later
-      if not gfile.IsDirectory(path):
-        raise ValueError('AddRunsFromDirectory: path exists and is not a '
-                         'directory, %s' % path)
-      subdirs = [
-          subdir
-          for (subdir, _, files) in gfile.Walk(path)
-          if list(filter(event_accumulator.IsTensorFlowEventsFile, files))
-      ]
+    if io_wrapper.Exists(path) and not io_wrapper.IsDirectory(path):
+      raise ValueError('AddRunsFromDirectory: path exists and is not a '
+                       'directory, %s' % path)
+    # ListRecursively just yields nothing if the path doesn't exist.
+    subdirs = [
+        subdir
+        for (subdir, files) in io_wrapper.ListRecursively(path)
+        if list(filter(event_accumulator.IsTensorFlowEventsFile, files))
+    ]
 
     for subdir in subdirs:
       logging.info('Adding events from directory %s', subdir)
@@ -315,6 +306,24 @@ class EventMultiplexer(object):
     """
     accumulator = self._GetAccumulator(run)
     return accumulator.Images(tag)
+
+  def Audio(self, run, tag):
+    """Retrieve the audio events associated with a run and tag.
+
+    Args:
+      run: A string name of the run for which values are retrieved.
+      tag: A string name of the tag for which values are retrieved.
+
+    Raises:
+      KeyError: If the run is not found, or the tag is not available for
+        the given run.
+      RuntimeError: If the run's `EventAccumulator` has not been activated.
+
+    Returns:
+      An array of `event_accumulator.AudioEvents`.
+    """
+    accumulator = self._GetAccumulator(run)
+    return accumulator.Audio(tag)
 
   def Runs(self):
     """Return all the run names in the `EventMultiplexer`.

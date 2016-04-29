@@ -24,19 +24,10 @@ limitations under the License.
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/types.h"
 
-// Return type of import_array() changed between Python 2 and 3
-// NUMPY_IMPORT_ARRAY_RETVAL is NULL for Python 3
-#if PY_MAJOR_VERSION >= 3
-#define NUMPY_IMPORT_ARRAY_RETURN_TYPE int
-#else
-#define NUMPY_IMPORT_ARRAY_RETURN_TYPE void
-#endif
-
 namespace tensorflow {
 namespace {
 
 static mutex mu;
-static bool initialized GUARDED_BY(mu) = false;
 static PyObject* py_trampoline GUARDED_BY(mu) = nullptr;
 
 // Returns the py_trampoline that is used to pass the control to the
@@ -44,18 +35,6 @@ static PyObject* py_trampoline GUARDED_BY(mu) = nullptr;
 PyObject* GetPyTrampoline() {
   mutex_lock l(mu);
   return py_trampoline;
-}
-
-// Module initialization (mainly import numpy) if needed.
-NUMPY_IMPORT_ARRAY_RETURN_TYPE InitIfNeeded() {
-  mutex_lock l(mu);
-  if (!initialized) {
-    PyGILState_STATE py_threadstate;
-    py_threadstate = PyGILState_Ensure();
-    import_array();
-    PyGILState_Release(py_threadstate);
-    initialized = true;
-  }
 }
 
 // Returns a single-thread threadpool used to execute python
@@ -108,44 +87,6 @@ Status TfDTypeToNpDType(const DataType& tf, int* np) {
     default:
       return errors::Unimplemented("Unsupported tf type ", DataTypeString(tf));
   }
-  return Status::OK();
-}
-
-// Creates a numpy array in 'ret' and copies the content of tensor 't'
-// into 'ret'.
-Status ConvertTensorToNdarray(const Tensor& t, PyObject** ret) {
-  int typenum = -1;
-  TF_RETURN_IF_ERROR(TfDTypeToNpDType(t.dtype(), &typenum));
-  PyArray_Descr* descr = PyArray_DescrFromType(typenum);
-  CHECK(descr);
-  std::vector<npy_intp> dims;
-  for (int i = 0; i < t.dims(); ++i) {
-    dims.push_back(t.dim_size(i));
-  }
-  PyObject* obj = PyArray_Empty(dims.size(), dims.data(), descr, 0);
-  if (obj == nullptr) {
-    return errors::Internal("Failed to allocate np array: ",
-                            t.shape().DebugString());
-  }
-  PyArrayObject* np_array = reinterpret_cast<PyArrayObject*>(obj);
-  if (typenum == NPY_OBJECT) {
-    CHECK_EQ(DT_STRING, t.dtype());
-    auto tflat = t.flat<string>();
-    PyObject** out = reinterpret_cast<PyObject**>(np_array->data);
-    for (int i = 0; i < tflat.dimension(0); ++i) {
-      const string& el = tflat(i);
-      out[i] = PyBytes_FromStringAndSize(el.data(), el.size());
-      if (out[i] == nullptr) {
-        Py_DECREF(obj);
-        return errors::Internal("Failed to allocate a copy of string ", i);
-      }
-    }
-  } else {
-    CHECK(DataTypeCanUseMemcpy(t.dtype()));
-    StringPiece p = t.tensor_data();
-    memcpy(np_array->data, p.data(), p.size());
-  }
-  *ret = PyArray_Return(np_array);
   return Status::OK();
 }
 
@@ -267,7 +208,7 @@ Status ConvertNdarrayToTensor(PyObject* obj, Tensor* ret) {
       Tensor t(dtype, shape);
       CHECK(DataTypeCanUseMemcpy(dtype));
       StringPiece p = t.tensor_data();
-      memcpy(const_cast<char*>(p.data()), input->data, p.size());
+      memcpy(const_cast<char*>(p.data()), PyArray_DATA(input), p.size());
       *ret = t;
     }
   }
@@ -329,7 +270,6 @@ Status DoCallPyFunc(PyCall* call) {
 // Calls the python function in a separate thread. Arranges to call
 // done() when the python function returns.
 void CallPyFunc(PyCall* call, std::function<void(Status)> done) {
-  InitIfNeeded();
   py_thread()->Schedule([call, done]() {
     PyGILState_STATE py_threadstate;
     py_threadstate = PyGILState_Ensure();
@@ -340,6 +280,47 @@ void CallPyFunc(PyCall* call, std::function<void(Status)> done) {
 }
 
 }  // end namespace
+
+// Creates a numpy array in 'ret' and copies the content of tensor 't'
+// into 'ret'.
+Status ConvertTensorToNdarray(const Tensor& t, PyObject** ret) {
+  int typenum = -1;
+  TF_RETURN_IF_ERROR(TfDTypeToNpDType(t.dtype(), &typenum));
+  PyArray_Descr* descr = PyArray_DescrFromType(typenum);
+  CHECK(descr);
+  std::vector<npy_intp> dims;
+  for (int i = 0; i < t.dims(); ++i) {
+    dims.push_back(t.dim_size(i));
+  }
+  PyObject* obj = PyArray_Empty(dims.size(), dims.data(), descr, 0);
+  if (obj == nullptr) {
+    return errors::Internal("Failed to allocate np array: ",
+                            t.shape().DebugString());
+  }
+  PyArrayObject* np_array = reinterpret_cast<PyArrayObject*>(obj);
+  if (typenum == NPY_OBJECT) {
+    CHECK_EQ(DT_STRING, t.dtype());
+    auto tflat = t.flat<string>();
+    PyObject** out = reinterpret_cast<PyObject**>(PyArray_DATA(np_array));
+    for (int i = 0; i < tflat.dimension(0); ++i) {
+      const string& el = tflat(i);
+      out[i] = PyBytes_FromStringAndSize(el.data(), el.size());
+      if (out[i] == nullptr) {
+        for (int j = 0; j < i; ++j) {
+          Py_DECREF(out[j]);
+        }
+        Py_DECREF(obj);
+        return errors::Internal("Failed to allocate a copy of string ", i);
+      }
+    }
+  } else {
+    CHECK(DataTypeCanUseMemcpy(t.dtype()));
+    StringPiece p = t.tensor_data();
+    memcpy(PyArray_DATA(np_array), p.data(), p.size());
+  }
+  *ret = PyArray_Return(np_array);
+  return Status::OK();
+}
 
 void InitializePyTrampoline(PyObject* trampoline) {
   mutex_lock l(mu);
