@@ -1,0 +1,30 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "DEF827AEE61008D72BA753A95234A28088662AAB",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "DBA6F8B12B84878540F44342C4772AC004D85ABD" : 0,
+    "DEF827AEE61008D72BA753A95234A28088662AAB" : 0
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "3182B453-E289-4091-8A90-03CFA3BA127B",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "DBA6F8B12B84878540F44342C4772AC004D85ABD" : "tensorflow\/google\/protobuf\/",
+    "DEF827AEE61008D72BA753A95234A28088662AAB" : "tensorflow\/"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "tensorflow",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "tensorflow.xcworkspace",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/google\/protobuf.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "DBA6F8B12B84878540F44342C4772AC004D85ABD"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/StephenOman\/tensorflow.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "DEF827AEE61008D72BA753A95234A28088662AAB"
+    }
+  ]
+}
