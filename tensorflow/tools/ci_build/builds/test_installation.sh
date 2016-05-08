@@ -72,7 +72,10 @@
 #   depends on having the .so which is not shipped in the pip package.
 # tensorflow/contrib/quantization/*:
 #   These depend on an .so mechanism that's not shipped in the pip package.
-#
+# tensorflow/python/platform/default/*_test.py:
+#   These are obsolete and replaced by corresponding files in python/platform.
+#   They will be removed in the future.
+
 PY_TEST_BLACKLIST="${PY_TEST_BLACKLIST}:"\
 "tensorflow/python/framework/ops_test.py:"\
 "tensorflow/python/util/protobuf/compare_test.py:"\
@@ -81,7 +84,11 @@ PY_TEST_BLACKLIST="${PY_TEST_BLACKLIST}:"\
 "tensorflow/python/framework/file_system_test.py:"\
 "tensorflow/contrib/quantization/python/dequantize_op_test.py:"\
 "tensorflow/contrib/quantization/python/quantized_conv_ops_test.py:"\
-"tensorflow/contrib/quantization/tools/quantize_graph_test.py"
+"tensorflow/contrib/quantization/tools/quantize_graph_test.py:"\
+"tensorflow/python/platform/default/_resource_loader_test.py:"\
+"tensorflow/python/platform/default/flags_test.py:"\
+"tensorflow/python/platform/default/logging_test.py:"\
+"tensorflow/python/platform/default/gfile_test.py"
 
 # Test blacklist: GPU-only
 PY_TEST_GPU_BLACKLIST="${PY_TEST_GPU_BLACKLIST}:"\
@@ -222,6 +229,12 @@ cp -r tensorflow/core/lib/jpeg ${PY_TEST_DIR}/tensorflow/core/lib
 rm -rf ${PY_TEST_DIR}/tensorflow/core/lib/png
 cp -r tensorflow/core/lib/png ${PY_TEST_DIR}/tensorflow/core/lib
 
+# Copy test data from tensorflow/contrib/ffmpeg
+
+mkdir -p ${PY_TEST_DIR}/tensorflow/contrib/ffmpeg
+rm -rf ${PY_TEST_DIR}/tensorflow/contrib/ffmpeg/testdata
+cp -r tensorflow/contrib/ffmpeg/testdata ${PY_TEST_DIR}
+
 # Run tests
 DIR0=$(pwd)
 ALL_PY_TESTS_0=$(find tensorflow/{contrib,examples,models,python,tensorboard} \
@@ -287,6 +300,11 @@ while true; do
 
   ITER_COUNTER=0
   while true; do
+    # Break if the end is reached
+    if [[ $(echo "${TEST_COUNTER} >= ${PY_TEST_COUNT}" | bc -l) == "1" ]]; then
+      break;
+    fi
+
     # for TEST_FILE_PATH in ${ALL_PY_TESTS}; do
     TEST_FILE_PATH=${ALL_PY_TESTS[TEST_COUNTER]}
 
@@ -312,8 +330,8 @@ while true; do
     TEST_INDICES="${TEST_INDICES} ${TEST_COUNTER}"
     TEST_FILE_PATHS="${TEST_FILE_PATHS} ${TEST_FILE_PATH}"
 
-    # Copy to a separate directory to guard against the possibility of picking up
-    # modules in the source directory
+    # Copy to a separate directory to guard against the possibility of picking
+    # up modules in the source directory
     cp ${TEST_FILE_PATH} ${PY_TEST_DIR}/
 
     TEST_BASENAME=$(basename "${TEST_FILE_PATH}")
@@ -327,6 +345,7 @@ while true; do
     TEST_LOG=$(realpath ${TEST_LOG_REL})  # Absolute path
     TEST_LOGS="${TEST_LOGS} ${TEST_LOG}"
 
+    # Launch test asynchronously
     "${SCRIPT_DIR}/py_test_delegate.sh" \
       "${PYTHON_BIN_PATH}" "${PY_TEST_DIR}/${TEST_BASENAME}" "${TEST_LOG}" &
 
@@ -386,6 +405,7 @@ while true; do
     ((K++))
   done
 
+  # Stop if the end is reached
   if [[ $(echo "${TEST_COUNTER} >= ${PY_TEST_COUNT}" | bc -l) == "1" ]]; then
     break;
   fi
@@ -396,6 +416,7 @@ rm -rf ${TF_INSTALL_PATH}/python/tools
 rm -rf ${TF_INSTALL_PATH}/examples/image_retraining
 rm -rf ${PY_TEST_DIR}/tensorflow/core/lib/jpeg
 rm -rf ${PY_TEST_DIR}/tensorflow/core/lib/png
+rm -rf ${PY_TEST_DIR}/testdata
 
 echo ""
 echo "${PY_TEST_COUNT} Python test(s):" \
