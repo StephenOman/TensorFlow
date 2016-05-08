@@ -2,9 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:tensorflow/contrib/xcode/tensorflow_api/tensorflow_api.xcodeproj">
-   </FileRef>
-   <FileRef
       location = "group:tensorflow/contrib/xcode/tensorflow_lite/tensorflow_lite.xcodeproj">
    </FileRef>
    <FileRef
