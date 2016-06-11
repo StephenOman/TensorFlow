@@ -162,7 +162,7 @@ OPTFLAGS="-Os -mfpu=neon-vfpv4 -funsafe-math-optimizations -ftree-vectorize"
 
 The Makefile loads in a list of dependencies stored in text files. These files
 are generated from the main Bazel build by running 
-`tensorflow/contrib/makefile/gen_file_lists.sh`. You'll need to re-run this i
+`tensorflow/contrib/makefile/gen_file_lists.sh`. You'll need to re-run this if
 you make changes to the files that are included in the build.
 
 Header dependencies are not automatically tracked by the Makefile, so if you

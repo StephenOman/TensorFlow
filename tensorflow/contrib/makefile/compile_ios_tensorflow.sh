@@ -28,6 +28,13 @@ then
   echo "armv7 compilation failed."
   exit 1
 fi
+make -f tensorflow/contrib/makefile/Makefile \
+TARGET=IOS IOS_ARCH=ARMV7 LIB_LITE=yes LIB_NAME=${LIB_PREFIX}-armv7-lite.a OPTFLAGS="$1" $2 $3
+if [ $? -ne 0 ]
+then
+  echo "armv7 lite compilation failed."
+  exit 1
+fi
 
 make -f tensorflow/contrib/makefile/Makefile cleantarget
 make -f tensorflow/contrib/makefile/Makefile \
@@ -35,6 +42,13 @@ TARGET=IOS IOS_ARCH=ARMV7S LIB_NAME=${LIB_PREFIX}-armv7s.a OPTFLAGS="$1" $2 $3
 if [ $? -ne 0 ]
 then
   echo "arm7vs compilation failed."
+  exit 1
+fi
+make -f tensorflow/contrib/makefile/Makefile \
+TARGET=IOS IOS_ARCH=ARMV7S LIB_LITE=yes LIB_NAME=${LIB_PREFIX}-armv7s-lite.a OPTFLAGS="$1" $2 $3
+if [ $? -ne 0 ]
+then
+  echo "arm7vs lite compilation failed."
   exit 1
 fi
 
@@ -46,6 +60,13 @@ then
   echo "arm64 compilation failed."
   exit 1
 fi
+make -f tensorflow/contrib/makefile/Makefile \
+TARGET=IOS IOS_ARCH=ARM64 LIB_LITE=yes LIB_NAME=${LIB_PREFIX}-arm64-lite.a OPTFLAGS="$1" $2 $3
+if [ $? -ne 0 ]
+then
+  echo "arm64 lite compilation failed."
+  exit 1
+fi
 
 make -f tensorflow/contrib/makefile/Makefile cleantarget
 make -f tensorflow/contrib/makefile/Makefile \
@@ -55,10 +76,24 @@ then
   echo "i386 compilation failed."
   exit 1
 fi
+make -f tensorflow/contrib/makefile/Makefile \
+TARGET=IOS IOS_ARCH=I386  LIB_LITE=yes LIB_NAME=${LIB_PREFIX}-i386-lite.a OPTFLAGS="$1" $2 $3
+if [ $? -ne 0 ]
+then
+  echo "i386 lite compilation failed."
+  exit 1
+fi
 
 make -f tensorflow/contrib/makefile/Makefile cleantarget
 make -f tensorflow/contrib/makefile/Makefile \
 TARGET=IOS IOS_ARCH=X86_64 LIB_NAME=${LIB_PREFIX}-x86_64.a OPTFLAGS="$1" $2 $3
+if [ $? -ne 0 ]
+then
+  echo "x86_64 compilation failed."
+  exit 1
+fi
+make -f tensorflow/contrib/makefile/Makefile \
+TARGET=IOS IOS_ARCH=X86_64 LIB_LITE=yes LIB_NAME=${LIB_PREFIX}-x86_64-lite.a OPTFLAGS="$1" $2 $3
 if [ $? -ne 0 ]
 then
   echo "x86_64 compilation failed."
@@ -73,3 +108,12 @@ ${LIBDIR}/${LIB_PREFIX}-i386.a \
 ${LIBDIR}/${LIB_PREFIX}-x86_64.a \
 -create \
 -output ${LIBDIR}/${LIB_PREFIX}.a
+
+lipo \
+${LIBDIR}/${LIB_PREFIX}-armv7-lite.a \
+${LIBDIR}/${LIB_PREFIX}-armv7s-lite.a \
+${LIBDIR}/${LIB_PREFIX}-arm64-lite.a \
+${LIBDIR}/${LIB_PREFIX}-i386-lite.a \
+${LIBDIR}/${LIB_PREFIX}-x86_64-lite.a \
+-create \
+-output ${LIBDIR}/${LIB_PREFIX}-lite.a

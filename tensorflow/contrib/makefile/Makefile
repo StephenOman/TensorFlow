@@ -277,12 +277,16 @@ endif
 LIB_NAME := libtensorflow-core.a
 LIB_PATH := $(LIBDIR)$(LIB_NAME)
 
+# Set this to anything to cause make to generate lite versions of the libs
+LIB_LITE :=
+
 # A small example program that shows how to link against the library.
 BENCHMARK_NAME := $(BINDIR)benchmark
 
 # What sources we want to compile, derived from the main Bazel build using the
 # gen_file_lists.sh script.
 TF_CC_SRCS := $(shell cat $(MAKEFILE_DIR)/tf_cc_files.txt)
+TF_CC_LITE_SRCS := $(shell cat $(MAKEFILE_DIR)/tf_cc_lite_files.txt)
 PBT_CC_SRCS := $(shell cat $(MAKEFILE_DIR)/tf_pb_text_files.txt)
 PROTO_SRCS := $(shell cat $(MAKEFILE_DIR)/tf_proto_files.txt)
 BENCHMARK_SRCS := \
@@ -291,11 +295,19 @@ tensorflow/tools/benchmark/benchmark_model_main.cc
 
 # File names of the intermediate files target compilation generates.
 TF_CC_OBJS := $(addprefix $(OBJDIR), $(TF_CC_SRCS:.cc=.o))
+TF_CC_LITE_OBJS := $(addprefix $(OBJDIR), $(TF_CC_LITE_SRCS:.cc=.o))
 PBT_GEN_FILES := $(addprefix $(PBTGENDIR), $(PBT_CC_SRCS))
 PBT_OBJS := $(addprefix $(OBJDIR), $(PBT_CC_SRCS:.cc=.o))
 PROTO_CC_SRCS := $(addprefix $(PROTOGENDIR), $(PROTO_SRCS:.proto=.pb.cc))
 PROTO_OBJS := $(addprefix $(OBJDIR), $(PROTO_SRCS:.proto=.pb.o))
-LIB_OBJS := $(PROTO_OBJS) $(TF_CC_OBJS) $(PBT_OBJS)
+ifndef LIB_LITE
+	LIB_OBJS := $(PROTO_OBJS) $(TF_CC_OBJS) $(PBT_OBJS)
+else
+	LIB_OBJS := $(PROTO_OBJS) $(TF_CC_LITE_OBJS) $(PBT_OBJS)
+	# Ignore the benchmark when building the lite lib
+	BENCHMARK_NAME :=
+endif
+
 BENCHMARK_OBJS := $(addprefix $(OBJDIR), $(BENCHMARK_SRCS:.cc=.o))
 
 .PHONY: clean cleantarget
