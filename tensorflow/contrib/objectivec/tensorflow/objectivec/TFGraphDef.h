@@ -1,8 +1,8 @@
 //
-//  TF_Status.h
-//  tensorflow_api
+//  TFGraphDef.h
+//  tensorflow-api
 //
-//  Created by Stephen Oman on 20/04/2016.
+//  Created by Stephen Oman on 13/06/2016.
 //  Copyright © 2016 Stephen Oman. All rights reserved.
 //
 //
@@ -22,13 +22,17 @@
 
 #import "TFTypes.h"
 
-@interface TFStatus : NSObject
+#include "tensorflow/core/public/session.h"
 
-- (instancetype)init;
 
-- (instancetype)initWithCode:(TFCode)code message:(NSString *)message;
+@interface TFGraphDef : NSObject
 
-- (TFCode)code;
-- (NSString *)message;
+// Load a graph from a bundled resource
+
+- (instancetype) init;
+
+- (void) loadGraphFromFileName:(NSString *)filename didFailWithError:(NSError * __autoreleasing *)error;
+
+- (tensorflow::GraphDef) getTFGraph;
 
 @end

@@ -19,17 +19,16 @@
 
 #import <Foundation/Foundation.h>
 
-#import "TFStatus.h"
+#import "TFTypes.h"
 
 @interface TFSessionOptions : NSObject
-
 
 - (instancetype)init;
 
 - (void)setTarget:(NSString *)target;
 
-- (void)setConfig:(NSData *)proto withStatus:(TFStatus *)status;
 
-- (void)deleteSessionOptions;
+//- (void)setConfig:(NSData *)proto;
+
 
 @end

@@ -19,11 +19,12 @@
 
 #import "TFSessionOptions.h"
 
+#include "tensorflow/core/public/session.h"
 #include "tensorflow/core/public/session_options.h"
 
 @interface TFSessionOptions () {
 
-    tensorflow::SessionOptions sessionOptions;
+    tensorflow::SessionOptions *sessionOptions;
     
 }
 @end
@@ -39,17 +40,14 @@
     
     // Note the encoding is strict ASCII.
     // TODO - Check if target string can contain non ASCII chars
-    sessionOptions.target = [target cStringUsingEncoding:NSASCIIStringEncoding];
+    sessionOptions->target = [target cStringUsingEncoding:NSASCIIStringEncoding];
 }
 
-- (void)setConfig:(NSData *)proto withStatus:(TFStatus *)status {
-    if(!sessionOptions.config.ParseFromArray([proto bytes], [proto length])) {
-        status = tensorflow::errors::InvalidArgument("Unparseable ConfigProto");
+- (void)setConfig:(NSData *)proto {
+    if(!sessionOptions->config.ParseFromArray([proto bytes], (int)[proto length])) {
+        tensorflow::errors::InvalidArgument("Unparseable ConfigProto");
     }
 }
 
-- (void)deleteSessionOptions {
-    
-}
 
 @end

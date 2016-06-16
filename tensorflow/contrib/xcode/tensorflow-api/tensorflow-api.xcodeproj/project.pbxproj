@@ -1,0 +1,303 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		94454C391D0F4B3500E2B368 /* TFSession.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C2E1D0F4B3500E2B368 /* TFSession.h */; };
+		94454C3A1D0F4B3500E2B368 /* TFSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = 94454C2F1D0F4B3500E2B368 /* TFSession.mm */; };
+		94454C3B1D0F4B3500E2B368 /* TFSessionOptions.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C301D0F4B3500E2B368 /* TFSessionOptions.h */; };
+		94454C3C1D0F4B3500E2B368 /* TFSessionOptions.mm in Sources */ = {isa = PBXBuildFile; fileRef = 94454C311D0F4B3500E2B368 /* TFSessionOptions.mm */; };
+		94454C3F1D0F4B3500E2B368 /* TFTensor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C341D0F4B3500E2B368 /* TFTensor.h */; };
+		94454C401D0F4B3500E2B368 /* TFTensor.mm in Sources */ = {isa = PBXBuildFile; fileRef = 94454C351D0F4B3500E2B368 /* TFTensor.mm */; };
+		94454C411D0F4B3500E2B368 /* TFTypes.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C361D0F4B3500E2B368 /* TFTypes.h */; };
+		94454C441D0F5CF700E2B368 /* TFGraphDef.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C421D0F5CF700E2B368 /* TFGraphDef.h */; };
+		94454C451D0F5CF700E2B368 /* TFGraphDef.mm in Sources */ = {isa = PBXBuildFile; fileRef = 94454C431D0F5CF700E2B368 /* TFGraphDef.mm */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		94454C1F1D0F4AF700E2B368 /* libtensorflow-api.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libtensorflow-api.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		94454C2E1D0F4B3500E2B368 /* TFSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFSession.h; path = ../../objectivec/tensorflow/objectivec/TFSession.h; sourceTree = "<group>"; };
+		94454C2F1D0F4B3500E2B368 /* TFSession.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TFSession.mm; path = ../../objectivec/tensorflow/objectivec/TFSession.mm; sourceTree = "<group>"; };
+		94454C301D0F4B3500E2B368 /* TFSessionOptions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFSessionOptions.h; path = ../../objectivec/tensorflow/objectivec/TFSessionOptions.h; sourceTree = "<group>"; };
+		94454C311D0F4B3500E2B368 /* TFSessionOptions.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TFSessionOptions.mm; path = ../../objectivec/tensorflow/objectivec/TFSessionOptions.mm; sourceTree = "<group>"; };
+		94454C341D0F4B3500E2B368 /* TFTensor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFTensor.h; path = ../../objectivec/tensorflow/objectivec/TFTensor.h; sourceTree = "<group>"; };
+		94454C351D0F4B3500E2B368 /* TFTensor.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TFTensor.mm; path = ../../objectivec/tensorflow/objectivec/TFTensor.mm; sourceTree = "<group>"; };
+		94454C361D0F4B3500E2B368 /* TFTypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFTypes.h; path = ../../objectivec/tensorflow/objectivec/TFTypes.h; sourceTree = "<group>"; };
+		94454C421D0F5CF700E2B368 /* TFGraphDef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFGraphDef.h; path = ../../objectivec/tensorflow/objectivec/TFGraphDef.h; sourceTree = "<group>"; };
+		94454C431D0F5CF700E2B368 /* TFGraphDef.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TFGraphDef.mm; path = ../../objectivec/tensorflow/objectivec/TFGraphDef.mm; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		94454C1C1D0F4AF700E2B368 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		94454C161D0F4AF700E2B368 = {
+			isa = PBXGroup;
+			children = (
+				94454C2B1D0F4B1300E2B368 /* src */,
+				94454C201D0F4AF700E2B368 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		94454C201D0F4AF700E2B368 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				94454C1F1D0F4AF700E2B368 /* libtensorflow-api.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		94454C2B1D0F4B1300E2B368 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				94454C2E1D0F4B3500E2B368 /* TFSession.h */,
+				94454C2F1D0F4B3500E2B368 /* TFSession.mm */,
+				94454C301D0F4B3500E2B368 /* TFSessionOptions.h */,
+				94454C311D0F4B3500E2B368 /* TFSessionOptions.mm */,
+				94454C341D0F4B3500E2B368 /* TFTensor.h */,
+				94454C351D0F4B3500E2B368 /* TFTensor.mm */,
+				94454C361D0F4B3500E2B368 /* TFTypes.h */,
+				94454C421D0F5CF700E2B368 /* TFGraphDef.h */,
+				94454C431D0F5CF700E2B368 /* TFGraphDef.mm */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		94454C1D1D0F4AF700E2B368 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94454C441D0F5CF700E2B368 /* TFGraphDef.h in Headers */,
+				94454C3F1D0F4B3500E2B368 /* TFTensor.h in Headers */,
+				94454C391D0F4B3500E2B368 /* TFSession.h in Headers */,
+				94454C3B1D0F4B3500E2B368 /* TFSessionOptions.h in Headers */,
+				94454C411D0F4B3500E2B368 /* TFTypes.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		94454C1E1D0F4AF700E2B368 /* tensorflow-api */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 94454C281D0F4AF700E2B368 /* Build configuration list for PBXNativeTarget "tensorflow-api" */;
+			buildPhases = (
+				94454C1B1D0F4AF700E2B368 /* Sources */,
+				94454C1C1D0F4AF700E2B368 /* Frameworks */,
+				94454C1D1D0F4AF700E2B368 /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "tensorflow-api";
+			productName = "tensorflow-api";
+			productReference = 94454C1F1D0F4AF700E2B368 /* libtensorflow-api.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		94454C171D0F4AF700E2B368 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0730;
+				ORGANIZATIONNAME = "Stephen Oman";
+				TargetAttributes = {
+					94454C1E1D0F4AF700E2B368 = {
+						CreatedOnToolsVersion = 7.3.1;
+					};
+				};
+			};
+			buildConfigurationList = 94454C1A1D0F4AF700E2B368 /* Build configuration list for PBXProject "tensorflow-api" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 94454C161D0F4AF700E2B368;
+			productRefGroup = 94454C201D0F4AF700E2B368 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				94454C1E1D0F4AF700E2B368 /* tensorflow-api */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		94454C1B1D0F4AF700E2B368 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94454C3A1D0F4B3500E2B368 /* TFSession.mm in Sources */,
+				94454C3C1D0F4B3500E2B368 /* TFSessionOptions.mm in Sources */,
+				94454C451D0F5CF700E2B368 /* TFGraphDef.mm in Sources */,
+				94454C401D0F4B3500E2B368 /* TFTensor.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		94454C261D0F4AF700E2B368 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../../makefile/gen/proto",
+					"$(SRCROOT)/../../makefile/downloads/eigen-eigen-5f86b31739cd",
+					"$(SRCROOT)/../../makefile/downloads",
+					"$(SRCROOT)/../../makefile/downloads/protobuf/src/",
+					"$(SRCROOT)/../../../..",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(SRCROOT)/../../makefile/gen/lib/libtensorflow-core.a",
+				);
+				SDKROOT = macosx;
+				USE_HEADERMAP = YES;
+			};
+			name = Debug;
+		};
+		94454C271D0F4AF700E2B368 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../../makefile/gen/proto",
+					"$(SRCROOT)/../../makefile/downloads/eigen-eigen-5f86b31739cd",
+					"$(SRCROOT)/../../makefile/downloads",
+					"$(SRCROOT)/../../makefile/downloads/protobuf/src/",
+					"$(SRCROOT)/../../../..",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(SRCROOT)/../../makefile/gen/lib/libtensorflow-core.a",
+				);
+				SDKROOT = macosx;
+				USE_HEADERMAP = YES;
+			};
+			name = Release;
+		};
+		94454C291D0F4AF700E2B368 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				EXECUTABLE_PREFIX = lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		94454C2A1D0F4AF700E2B368 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				EXECUTABLE_PREFIX = lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		94454C1A1D0F4AF700E2B368 /* Build configuration list for PBXProject "tensorflow-api" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				94454C261D0F4AF700E2B368 /* Debug */,
+				94454C271D0F4AF700E2B368 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		94454C281D0F4AF700E2B368 /* Build configuration list for PBXNativeTarget "tensorflow-api" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				94454C291D0F4AF700E2B368 /* Debug */,
+				94454C2A1D0F4AF700E2B368 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 94454C171D0F4AF700E2B368 /* Project object */;
+}

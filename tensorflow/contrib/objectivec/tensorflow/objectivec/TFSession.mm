@@ -19,35 +19,94 @@
 
 
 #import "TFSession.h"
+#import "TFTypes.h"
 
 #include "tensorflow/core/public/session.h"
 
+#include <string>
+#include <vector>
+
 @interface TFSession() {
-    tensorflow::Session *session;
+    tensorflow::Session *tf_session;
 }
 
 @end
 
 @implementation TFSession
 
-- (instancetype)initWithSessionOptions:(TFSessionOptions *)options status:(TFStatus *)status
+- (instancetype)init
 {
-    status->status = tensorflow::Session.NewSession(options, &(self.session));
+    tf_session = nullptr;
+    tensorflow::SessionOptions sessionOptions;
+    tensorflow::Status status = tensorflow::NewSession(sessionOptions, &(tf_session));
+    //ToDo - Check for errors
+    
     return self;
 }
 
-- (void)closeSession:(TFStatus *)status
+- (void) loadGraph:(TFGraphDef *)graph didFailWithError:(NSError *__autoreleasing *)error
 {
-    status = self.session->close();
+    if(tf_session) {
+        tensorflow::Status status = tf_session->Create([graph getTFGraph]);
+        if(!status.ok()) {
+            NSString *errorMessage = [NSString stringWithFormat:@"Unable to load graph into session. TensorFlow error: %s", status.error_message().c_str()];
+            *error = [NSError errorWithDomain:TENSORFLOW code:TF_UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:errorMessage forKey:NSLocalizedDescriptionKey]];
+        }
+    } else {
+        *error = [NSError errorWithDomain:TENSORFLOW code:TF_UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:@"Unable to load graph into session. Session not initialized." forKey:NSLocalizedDescriptionKey]];
+    }
+
 }
 
-- (void)extendGraph:(NSData *)proto status:(TFStatus *)status
+- (NSArray *)runGraphWithInputs:(NSDictionary *)inputs outputNames:(NSArray *)outputNames targetNodeNames:(NSArray *)targetNodeNames didFailWithError:(NSError *__autoreleasing *)error
 {
-    GraphDef graph;
+    // Need to convert parameters to C++ containers before calling
+    // the Tensorflow library
     
-    tensorflow::ParseProtoUnlimited(&graph, proto.rawData, proto.length);
+    // Inputs
+    std::vector<std::pair<std::string, tensorflow::Tensor>> inputVector;
+    if(inputs != NULL) {
+        for(NSString *name in outputNames) {
+            std::string str_name = std::string([name UTF8String]);
+            tensorflow::Tensor inputTensor;
+            inputVector.push_back(std::make_pair(str_name, inputTensor));
+        }
+    }
     
-    status = self.session->Extend(graph)
+    // Output Names
+    std::vector<std::string> outputNamesVector;
+    if(outputNames != NULL) {
+        for(NSString *name in outputNames) {
+            std::string str_name = std::string([name UTF8String]);
+            outputNamesVector.push_back(str_name);
+        }
+    }
+    
+    // Target Node Names
+    std::vector<std::string> targetNodeNamesVector;
+    if(targetNodeNames != NULL) {
+        for(NSString *name in targetNodeNames) {
+            std::string str_name = std::string([name UTF8String]);
+            targetNodeNamesVector.push_back(str_name);
+        }
+    }
+    
+    // Output tensors
+    std::vector<tensorflow::Tensor> outputs;
+    
+    
+    // Run the graph
+    tf_session->Run(inputVector, outputNamesVector, targetNodeNamesVector, &outputs);
+    
+    // Convert the output to Objective C++
+    
+    
+    return NULL;
+}
+
+- (void)closeSession
+{
+    tf_session->Close();
 }
 
 @end

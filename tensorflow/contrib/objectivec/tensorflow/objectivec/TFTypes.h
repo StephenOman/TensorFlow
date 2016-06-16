@@ -22,29 +22,6 @@
 #ifndef TFTypes_h
 #define TFTypes_h
 
-typedef NS_ENUM(NSInteger, TFDataType) {
-    TF_FLOAT = 1,
-    TF_DOUBLE = 2,
-    TF_INT32 = 3,  // Int32 tensors are always in 'host' memory.
-    TF_UINT8 = 4,
-    TF_INT16 = 5,
-    TF_INT8 = 6,
-    TF_STRING = 7,
-    TF_COMPLEX64 = 8,  // Single-precision complex
-    TF_COMPLEX = 8,    // Old identifier kept for API backwards compatibility
-    TF_INT64 = 9,
-    TF_BOOL = 10,
-    TF_QINT8 = 11,     // Quantized int8
-    TF_QUINT8 = 12,    // Quantized uint8
-    TF_QINT32 = 13,    // Quantized int32
-    TF_BFLOAT16 = 14,  // Float32 truncated to 16 bits.  Only for cast ops.
-    TF_QINT16 = 15,    // Quantized int16
-    TF_QUINT16 = 16,   // Quantized uint16
-    TF_UINT16 = 17,
-    TF_COMPLEX128 = 18,  // Double-precision complex
-    TF_HALF = 19,
-};
-
 typedef NS_ENUM(NSInteger, TFCode) {
     TF_OK = 0,
     TF_CANCELLED = 1,
@@ -65,5 +42,6 @@ typedef NS_ENUM(NSInteger, TFCode) {
     TF_DATA_LOSS = 15,
 };
 
+#define TENSORFLOW @"TensorFlow"
 
 #endif /* TFTypes_h */

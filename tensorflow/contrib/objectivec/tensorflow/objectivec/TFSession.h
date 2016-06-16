@@ -19,24 +19,25 @@
 
 #import <Foundation/Foundation.h>
 
-#import "TFBuffer.h"
+#import "TFGraphDef.h"
 #import "TFTypes.h"
-#import "TFSessionOptions.h"
-#import "TFStatus.h"
 
 @interface TFSession : NSObject
 
-- (instancetype)initWithSessionOptions:(TFSessionOptions *)options status:(TFStatus *)status;
+- (instancetype)init;
 
-- (void)closeSession:(TFStatus *)status;
+- (void) loadGraph:(TFGraphDef *)graph didFailWithError:(NSError * __autoreleasing *) error;
 
-- (void)extendGraph:(NSData *)proto status:(TFStatus *)status;
+- (void)closeSession;
 
+- (NSArray *)runGraphWithInputs:(NSDictionary *)inputs outputNames:(NSArray *)outputNames targetNodeNames:(NSArray *)targetNodeNames didFailWithError:(NSError *__autoreleasing *)error;
+
+/*
 - (void)runGraph:(TFBuffer *)runOptions inNames:(NSArray *)inNames inTensors:(NSArray *)inputs \
     outNames:(NSMutableArray *)outNames outTensors:(NSMutableArray *)outTensors \
     targetNodes:(NSArray *)targetNodes metaData:(TFBuffer *)metaData status:(TFStatus *)status;
 
 // Partial Run API not implemented
-
+*/
 
 @end
