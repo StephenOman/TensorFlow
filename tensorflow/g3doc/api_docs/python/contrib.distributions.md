@@ -609,7 +609,7 @@ Note, the following methods of the base class aren't implemented:
   * log_cdf
 - - -
 
-#### `tf.contrib.distributions.Categorical.__init__(logits, name='Categorical')` {#Categorical.__init__}
+#### `tf.contrib.distributions.Categorical.__init__(logits, name='Categorical', dtype=tf.int32)` {#Categorical.__init__}
 
 Initialize Categorical distributions using class log-probabilities.
 
@@ -621,6 +621,7 @@ Initialize Categorical distributions using class log-probabilities.
       batch of independent distributions and the last dimension indexes
       into the classes.
 *  <b>`name`</b>: A name for this distribution (optional).
+*  <b>`dtype`</b>: The type of the event samples (default: int32).
 
 
 - - -
@@ -702,7 +703,7 @@ Log-probability of class `k`.
 ##### Args:
 
 
-*  <b>`k`</b>: `int32` or `int64` Tensor.
+*  <b>`k`</b>: `int32` or `int64` Tensor with shape = `self.batch_shape()`.
 *  <b>`name`</b>: A name for this operation (optional).
 
 ##### Returns:
@@ -754,7 +755,7 @@ Probability of class `k`.
 ##### Args:
 
 
-*  <b>`k`</b>: `int32` or `int64` Tensor.
+*  <b>`k`</b>: `int32` or `int64` Tensor with shape = `self.batch_shape()`.
 *  <b>`name`</b>: A name for this operation (optional).
 
 ##### Returns:
@@ -3178,44 +3179,64 @@ will broadcast in the case of multidimensional sets of parameters.
 
 
 
-## Other Functions and Classes
+## Kullback Leibler Divergence
+
 - - -
 
-### `tf.contrib.distributions.batch_index(vectors, indices, name=None)` {#batch_index}
+### `tf.contrib.distributions.kl(dist_a, dist_b, allow_nan=False, name=None)` {#kl}
 
-Indexes into a batch of vectors.
+Get the KL-divergence KL(dist_a || dist_b).
 
 ##### Args:
 
 
-*  <b>`vectors`</b>: An N-D Tensor.
-*  <b>`indices`</b>: A K-D integer Tensor, K <= N. The first K - 1 dimensions of indices
-      must be broadcastable to the first N - 1 dimensions of vectors.
-*  <b>`name`</b>: A name for this operation (optional).
+*  <b>`dist_a`</b>: instance of distributions.BaseDistribution.
+*  <b>`dist_b`</b>: instance of distributions.BaseDistribution.
+*  <b>`allow_nan`</b>: If False (default), a runtime error is raised
+    if the KL returns NaN values for any batch entry of the given
+    distributions.  If True, the KL may return a NaN for the given entry.
+*  <b>`name`</b>: (optional) Name scope to use for created operations.
 
 ##### Returns:
 
-  An N-D Tensor comprised of one element selected from each of the vectors.
+  A Tensor with the batchwise KL-divergence between dist_a and dist_b.
 
-##### Example usage:
+##### Raises:
 
-  vectors = [[[1, 2, 3], [4, 5, 6]],
-             [[7, 8, 9], [1, 2, 3]]]
 
-  batch_index(vectors, 0)
-  => [[1, 4],
-      [7, 1]]
+*  <b>`TypeError`</b>: If dist_a or dist_b is not an instance of BaseDistribution.
+*  <b>`NotImplementedError`</b>: If no KL method is defined for distribution types
+    of dist_a and dist_b.
 
-  batch_index(vectors, [0])
-  => [[[1], [4]],
-      [[7], [1]]]
 
-  batch_index(vectors, [0, 0, 2, 2])
-  => [[[1, 1, 3, 3], [4, 4, 6, 6]],
-      [[7, 7, 9, 9], [1, 1, 3, 3]]]
+- - -
 
-  batch_index(vectors, [[0, 0, 2, 2], [0, 1, 2, 0]])
-  => [[[1, 1, 3, 3], [4, 5, 6, 4]],
-      [[7, 7, 9, 9], [1, 2, 3, 1]]]
+### `class tf.contrib.distributions.RegisterKL` {#RegisterKL}
+
+Decorator to register a KL divergence implementation function.
+
+Usage:
+
+@distributions.RegisterKL(distributions.Normal, distributions.Normal)
+def _kl_normal_mvn(norm_a, norm_b):
+  # Return KL(norm_a || norm_b)
+- - -
+
+#### `tf.contrib.distributions.RegisterKL.__init__(dist_cls_a, dist_cls_b)` {#RegisterKL.__init__}
+
+Initialize the KL registrar.
+
+##### Args:
+
+
+*  <b>`dist_cls_a`</b>: the class of the first argument of the KL divergence.
+*  <b>`dist_cls_b`</b>: the class of the second argument of the KL divergence.
+
+##### Raises:
+
+
+*  <b>`TypeError`</b>: if dist_cls_a or dist_cls_b are not subclasses of
+    BaseDistribution.
+
 
 
