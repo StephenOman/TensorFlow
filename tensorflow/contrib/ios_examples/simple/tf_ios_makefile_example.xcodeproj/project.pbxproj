@@ -281,6 +281,7 @@
 =======
 >>>>>>> master
 					"$(SRCROOT)/../../makefile/gen/proto",
+					"$(SRCROOT)/../../makefile/downloads/eigen-latest",
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/RunModel-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 9.2;
@@ -314,6 +315,7 @@
 					"$(SRCROOT)/../../makefile/downloads/protobuf/src/",
 					"$(SRCROOT)/../../makefile/downloads",
 					"$(SRCROOT)/../../makefile/gen/proto",
+					"$(SRCROOT)/../../makefile/downloads/eigen-latest",
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/RunModel-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 9.2;
