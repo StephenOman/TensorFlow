@@ -285,11 +285,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/../../makefile/gen/proto",
-<<<<<<< HEAD
-					"$(SRCROOT)/../../makefile/downloads/eigen-eigen-5f86b31739cd",
-=======
 					"$(SRCROOT)/../../makefile/downloads/eigen-latest",
->>>>>>> master
 					"$(SRCROOT)/../../makefile/downloads",
 					"$(SRCROOT)/../../makefile/downloads/protobuf/src/",
 					"$(SRCROOT)/../../../..",
