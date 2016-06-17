@@ -32,72 +32,58 @@ from tensorflow.python.ops import logging_ops
 class LinearClassifier(dnn_linear_combined.DNNLinearCombinedClassifier):
   """Linear classifier model.
 
-    Example:
-    ```
-    installed_app_id = sparse_column_with_hash_bucket("installed_id", 1e6)
-    impression_app_id = sparse_column_with_hash_bucket("impression_id", 1e6)
+  Train a linear model to classify instances into one of multiple possible
+  classes. When number of possible classes is 2, this is binary classification.
 
-    installed_x_impression = crossed_column(
-        [installed_app_id, impression_app_id])
+  Example:
 
-    # Estimator using the default optimizer.
-    estimator = LinearClassifier(
-        feature_columns=[impression_app_id, installed_x_impression])
+  ```python
+  installed_app_id = sparse_column_with_hash_bucket("installed_id", 1e6)
+  impression_app_id = sparse_column_with_hash_bucket("impression_id", 1e6)
 
-    # Or estimator using the FTRL optimizer with regularization.
-    estimator = LinearClassifier(
-        feature_columns=[impression_app_id, installed_x_impression],
-        optimizer=tf.train.FtrlOptimizer(
-          learning_rate=0.1,
-          l1_regularization_strength=0.001
-        ))
+  installed_x_impression = crossed_column(
+      [installed_app_id, impression_app_id])
 
-    # Or estimator using the SDCAOptimizer.
-    estimator = LinearClassifier(
-       feature_columns=[impression_app_id, installed_x_impression],
-       optimizer=tf.contrib.learn.SDCAOptimizer(
-         example_id_column='example_id', symmetric_l2_regularization=2.0
-       ))
+  # Estimator using the default optimizer.
+  estimator = LinearClassifier(
+      feature_columns=[impression_app_id, installed_x_impression])
 
-    # Input builders
-    def input_fn_train: # returns x, y
-      ...
-    def input_fn_eval: # returns x, y
-      ...
-    estimator.fit(input_fn=input_fn_train)
-    estimator.evaluate(input_fn=input_fn_eval)
-    estimator.predict(x=x)
-    ```
+  # Or estimator using the FTRL optimizer with regularization.
+  estimator = LinearClassifier(
+      feature_columns=[impression_app_id, installed_x_impression],
+      optimizer=tf.train.FtrlOptimizer(
+        learning_rate=0.1,
+        l1_regularization_strength=0.001
+      ))
 
-    Input of `fit` and `evaluate` should have following features,
-      otherwise there will be a `KeyError`:
-        if `weight_column_name` is not `None`, a feature with
-          `key=weight_column_name` whose value is a `Tensor`.
-        for each `column` in `feature_columns`:
-        - if `column` is a `SparseColumn`, a feature with `key=column.name`
-          whose `value` is a `SparseTensor`.
-        - if `column` is a `RealValuedColumn, a feature with `key=column.name`
-          whose `value` is a `Tensor`.
-        - if `feauture_columns` is None, then `input` must contains only real
-          valued `Tensor`.
+  # Or estimator using the SDCAOptimizer.
+  estimator = LinearClassifier(
+     feature_columns=[impression_app_id, installed_x_impression],
+     optimizer=tf.contrib.learn.SDCAOptimizer(
+       example_id_column='example_id', symmetric_l2_regularization=2.0
+     ))
 
+  # Input builders
+  def input_fn_train: # returns x, y, where y is a tensor of dimension 1
+    ...
+  def input_fn_eval: # returns x, y, where y is a tensor of dimension 1
+    ...
+  estimator.fit(input_fn=input_fn_train)
+  estimator.evaluate(input_fn=input_fn_eval)
+  estimator.predict(x=x)
+  ```
 
-  Parameters:
-    feature_columns: An iterable containing all the feature columns used by the
-      model. All items in the set should be instances of classes derived from
-      `FeatureColumn`.
-    model_dir: Directory to save model parameters, graph and etc.
-    n_classes: number of target classes. Default is binary classification.
-    weight_column_name: A string defining feature column name representing
-      weights. It is used to down weight or boost examples during training. It
-      will be multiplied by the loss of the example.
-    optimizer: The optimizer used to train the model. If specified, it should be
-      either an instance of `tf.Optimizer` or the SDCAOptimizer. If `None`, the
-      Ftrl optimizer will be used.
-    gradient_clip_norm: A float > 0. If provided, gradients are clipped
-      to their global norm with this clipping ratio. See tf.clip_by_global_norm
-      for more details.
-    config: RunConfig object to configure the runtime settings.
+  Input of `fit` and `evaluate` should have following features,
+    otherwise there will be a `KeyError`:
+      if `weight_column_name` is not `None`, a feature with
+        `key=weight_column_name` whose value is a `Tensor`.
+      for each `column` in `feature_columns`:
+      - if `column` is a `SparseColumn`, a feature with `key=column.name`
+        whose `value` is a `SparseTensor`.
+      - if `column` is a `RealValuedColumn, a feature with `key=column.name`
+        whose `value` is a `Tensor`.
+      - if `feauture_columns` is `None`, then `input` must contains only real
+        valued `Tensor`.
   """
 
   def __init__(self,
@@ -107,7 +93,33 @@ class LinearClassifier(dnn_linear_combined.DNNLinearCombinedClassifier):
                weight_column_name=None,
                optimizer=None,
                gradient_clip_norm=None,
+               enable_centered_bias=True,
                config=None):
+    """Construct a `LinearClassifier` estimator object.
+
+    Args:
+      feature_columns: An iterable containing all the feature columns used by
+        the model. All items in the set should be instances of classes derived
+        from `FeatureColumn`.
+      model_dir: Directory to save model parameters, graph and etc.
+      n_classes: number of target classes. Default is binary classification.
+      weight_column_name: A string defining feature column name representing
+        weights. It is used to down weight or boost examples during training. It
+        will be multiplied by the loss of the example.
+      optimizer: The optimizer used to train the model. If specified, it should
+        be either an instance of `tf.Optimizer` or the SDCAOptimizer. If `None`,
+        the Ftrl optimizer will be used.
+      gradient_clip_norm: A `float` > 0. If provided, gradients are clipped
+        to their global norm with this clipping ratio. See
+        `tf.clip_by_global_norm` for more details.
+      enable_centered_bias: A bool. If True, estimator will learn a centered
+        bias variable for each class. Rest of the model structure learns the
+        residual after centered bias.
+      config: `RunConfig` object to configure the runtime settings.
+
+    Returns:
+      A `LinearClassifier` estimator.
+    """
     super(LinearClassifier, self).__init__(
         model_dir=model_dir,
         n_classes=n_classes,
@@ -115,6 +127,7 @@ class LinearClassifier(dnn_linear_combined.DNNLinearCombinedClassifier):
         linear_feature_columns=feature_columns,
         linear_optimizer=optimizer,
         gradient_clip_norm=gradient_clip_norm,
+        enable_centered_bias=enable_centered_bias,
         config=config)
 
   def _get_train_ops(self, features, targets):
@@ -159,69 +172,82 @@ class LinearClassifier(dnn_linear_combined.DNNLinearCombinedClassifier):
 class LinearRegressor(dnn_linear_combined.DNNLinearCombinedRegressor):
   """Linear regressor model.
 
-    Example:
-    ```
-    installed_app_id = sparse_column_with_hash_bucket("installed_id", 1e6)
-    impression_app_id = sparse_column_with_hash_bucket("impression_id", 1e6)
+  Train a linear regression model to predict target variable value given
+  observation of feature values.
 
-    installed_x_impression = crossed_column(
-        [installed_app_id, impression_app_id])
+  Example:
 
-    estimator = LinearRegressor(
-        feature_columns=[impression_app_id, installed_x_impression])
+  ```python
+  installed_app_id = sparse_column_with_hash_bucket("installed_id", 1e6)
+  impression_app_id = sparse_column_with_hash_bucket("impression_id", 1e6)
 
-    # Input builders
-    def input_fn_train: # returns x, y
-      ...
-    def input_fn_eval: # returns x, y
-      ...
-    estimator.fit(input_fn=input_fn_train)
-    estimator.evaluate(input_fn=input_fn_eval)
-    estimator.predict(x=x)
-    ```
+  installed_x_impression = crossed_column(
+      [installed_app_id, impression_app_id])
 
-    Input of `fit` and `evaluate` should have following features,
-      otherwise there will be a KeyError:
-        if `weight_column_name` is not None:
-          key=weight_column_name, value=a `Tensor`
-        for column in `feature_columns`:
-        - if isinstance(column, `SparseColumn`):
-            key=column.name, value=a `SparseTensor`
-        - if isinstance(column, `RealValuedColumn`):
-            key=column.name, value=a `Tensor`
-        - if `feauture_columns` is None:
-            input must contains only real valued `Tensor`.
+  estimator = LinearRegressor(
+      feature_columns=[impression_app_id, installed_x_impression])
 
-  Parameters:
-    feature_columns: An iterable containing all the feature columns used by the
-      model. All items in the set should be instances of classes derived from
-      `FeatureColumn`.
-    model_dir: Directory to save model parameters, graph and etc.
-    weight_column_name: A string defining feature column name representing
-      weights. It is used to down weight or boost examples during training. It
-      will be multiplied by the loss of the example.
-    optimizer: An instance of `tf.Optimizer` used to train the model. If `None`,
-      will use an Ftrl optimizer.
-    gradient_clip_norm: A float > 0. If provided, gradients are clipped
-      to their global norm with this clipping ratio. See tf.clip_by_global_norm
-      for more details.
-    config: RunConfig object to configure the runtime settings.
+  # Input builders
+  def input_fn_train: # returns x, y, where y is a tensor of dimension 1
+    ...
+  def input_fn_eval: # returns x, y, where y is a tensor of dimension 1
+    ...
+  estimator.fit(input_fn=input_fn_train)
+  estimator.evaluate(input_fn=input_fn_eval)
+  estimator.predict(x=x)
+  ```
+
+  Input of `fit` and `evaluate` should have following features,
+    otherwise there will be a KeyError:
+      if `weight_column_name` is not `None`:
+        key=weight_column_name, value=a `Tensor`
+      for column in `feature_columns`:
+      - if isinstance(column, `SparseColumn`):
+          key=column.name, value=a `SparseTensor`
+      - if isinstance(column, `RealValuedColumn`):
+          key=column.name, value=a `Tensor`
+      - if `feauture_columns` is `None`:
+          input must contains only real valued `Tensor`.
   """
 
   def __init__(self,
                feature_columns=None,
                model_dir=None,
-               n_classes=2,
                weight_column_name=None,
                optimizer=None,
                gradient_clip_norm=None,
+               enable_centered_bias=True,
                config=None):
+    """Construct a `LinearRegressor` estimator object.
+
+    Args:
+      feature_columns: An iterable containing all the feature columns used by
+        the model. All items in the set should be instances of classes derived
+        from `FeatureColumn`.
+      model_dir: Directory to save model parameters, graph and etc.
+      weight_column_name: A string defining feature column name representing
+        weights. It is used to down weight or boost examples during training. It
+        will be multiplied by the loss of the example.
+      optimizer: An instance of `tf.Optimizer` used to train the model. If
+        `None`, will use an Ftrl optimizer.
+      gradient_clip_norm: A `float` > 0. If provided, gradients are clipped
+        to their global norm with this clipping ratio. See
+        `tf.clip_by_global_norm` for more details.
+      enable_centered_bias: A bool. If True, estimator will learn a centered
+        bias variable for each class. Rest of the model structure learns the
+        residual after centered bias.
+      config: `RunConfig` object to configure the runtime settings.
+
+    Returns:
+      A `LinearRegressor` estimator.
+    """
     super(LinearRegressor, self).__init__(
         model_dir=model_dir,
         weight_column_name=weight_column_name,
         linear_feature_columns=feature_columns,
         linear_optimizer=optimizer,
         gradient_clip_norm=gradient_clip_norm,
+        enable_centered_bias=enable_centered_bias,
         config=config)
 
   def _get_train_ops(self, features, targets):

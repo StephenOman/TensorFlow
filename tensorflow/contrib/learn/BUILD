@@ -7,11 +7,6 @@ exports_files(["LICENSE"])
 
 package(default_visibility = ["//tensorflow:__subpackages__"])
 
-filegroup(
-    name = "datasets",
-    srcs = glob(["**/*.csv"]),
-)
-
 py_library(
     name = "learn",
     srcs = glob([
@@ -20,9 +15,11 @@ py_library(
         "__init__.py",
         "python/__init__.py",
     ],
-    data = [":datasets"],
     srcs_version = "PY2AND3",
-    deps = ["//tensorflow/python:framework"],
+    deps = [
+        "//tensorflow/contrib/learn/python/learn/datasets",
+        "//tensorflow/python:framework",
+    ],
 )
 
 py_test(
@@ -41,6 +38,20 @@ py_test(
     name = "data_feeder_test",
     size = "small",
     srcs = ["python/learn/tests/data_feeder_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":learn",
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework_test_lib",
+    ],
+)
+
+py_test(
+    name = "feeding_functions_test",
+    size = "small",
+    srcs = [
+        "python/learn/tests/dataframe/feeding_functions_test.py",
+    ],
     srcs_version = "PY2AND3",
     deps = [
         ":learn",
@@ -179,6 +190,7 @@ py_test(
     size = "medium",
     srcs = ["python/learn/tests/early_stopping_test.py"],
     srcs_version = "PY2AND3",
+    tags = ["manual"],  # http://b/28555477
     deps = [
         ":learn",
         "//tensorflow:tensorflow_py",
@@ -202,6 +214,18 @@ py_test(
     name = "experiment_test",
     size = "small",
     srcs = ["python/learn/tests/experiment_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":learn",
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework_test_lib",
+    ],
+)
+
+py_test(
+    name = "graph_actions_test",
+    size = "small",
+    srcs = ["python/learn/tests/graph_actions_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":learn",
@@ -258,6 +282,18 @@ py_test(
 )
 
 py_test(
+    name = "logistic_regressor_test",
+    size = "small",
+    srcs = ["python/learn/estimators/logistic_regressor_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":learn",
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework_test_lib",
+    ],
+)
+
+py_test(
     name = "dnn_linear_combined_test",
     size = "medium",
     srcs = ["python/learn/estimators/dnn_linear_combined_test.py"],
@@ -273,6 +309,18 @@ py_test(
     name = "dnn_test",
     size = "small",
     srcs = ["python/learn/estimators/dnn_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":learn",
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework_test_lib",
+    ],
+)
+
+py_test(
+    name = "rnn_test",
+    size = "medium",
+    srcs = ["python/learn/estimators/rnn_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":learn",
@@ -486,6 +534,29 @@ py_binary(
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow:tensorflow_py",
+    ],
+)
+
+py_binary(
+    name = "runner_flags_test_util",
+    srcs = [
+        "python/learn/tests/runner_flags_test_util.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":learn",
+        "//tensorflow:tensorflow_py",
+    ],
+)
+
+sh_test(
+    name = "runner_flags_test",
+    size = "small",
+    srcs = [
+        "python/learn/tests/runner_flags_test.sh",
+    ],
+    data = [
+        ":runner_flags_test_util",
     ],
 )
 

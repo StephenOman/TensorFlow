@@ -276,7 +276,10 @@
 					"$(SRCROOT)/../../../..",
 					"$(SRCROOT)/../../makefile/downloads/protobuf/src/",
 					"$(SRCROOT)/../../makefile/downloads",
+<<<<<<< HEAD
 					"$(SRCROOT)/../../makefile/downloads/eigen-eigen-5f86b31739cd",
+=======
+>>>>>>> master
 					"$(SRCROOT)/../../makefile/gen/proto",
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/RunModel-Info.plist";
@@ -310,7 +313,6 @@
 					"$(SRCROOT)/../../../..",
 					"$(SRCROOT)/../../makefile/downloads/protobuf/src/",
 					"$(SRCROOT)/../../makefile/downloads",
-					"$(SRCROOT)/../../makefile/downloads/eigen-eigen-d02e6a705c30",
 					"$(SRCROOT)/../../makefile/gen/proto",
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/RunModel-Info.plist";
