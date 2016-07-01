@@ -20,7 +20,6 @@
 #import <Foundation/Foundation.h>
 
 #import "TFGraphDef.h"
-#import "TFTypes.h"
 
 @interface TFSession : NSObject
 

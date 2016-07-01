@@ -23,6 +23,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "tensorflow/core/public/version.h"
+
 @interface TFGraphDef() {
     tensorflow::GraphDef tf_GraphDef;
 }
@@ -50,16 +52,16 @@
             if(buffer.open([filename cStringUsingEncoding:NSASCIIStringEncoding], std::ios::binary | std::ios::in)) {
                 std::istream input(&buffer);
                 if(!(tf_GraphDef.ParseFromIstream(&input))) {
-                    *error = [NSError errorWithDomain:TENSORFLOW code:TF_NOT_FOUND userInfo:[NSDictionary dictionaryWithObject:@"Unable to parse input file" forKey:NSLocalizedDescriptionKey]];
+                    *error = [NSError errorWithDomain:@TF_VERSION_STRING code:tensorflow::error::NOT_FOUND userInfo:[NSDictionary dictionaryWithObject:@"Unable to parse input file" forKey:NSLocalizedDescriptionKey]];
                 } else {
-                    *error = [NSError errorWithDomain:TENSORFLOW code:TF_UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:@"TF_GraphDef not initialized" forKey:NSLocalizedDescriptionKey]];
+                    *error = [NSError errorWithDomain:@TF_VERSION_STRING code:tensorflow::error::UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:@"TF_GraphDef not initialized" forKey:NSLocalizedDescriptionKey]];
                     
                 }
             } else {
-                *error = [NSError errorWithDomain:TENSORFLOW code:TF_DATA_LOSS userInfo:[NSDictionary dictionaryWithObject:@"Unable to load TensorFlow Graph. Error reading file." forKey:NSLocalizedDescriptionKey]];
+                *error = [NSError errorWithDomain:@TF_VERSION_STRING code:tensorflow::error::DATA_LOSS userInfo:[NSDictionary dictionaryWithObject:@"Unable to load TensorFlow Graph. Error reading file." forKey:NSLocalizedDescriptionKey]];
             }
         } else {
-            *error = [NSError errorWithDomain:TENSORFLOW code:TF_NOT_FOUND userInfo:[NSDictionary dictionaryWithObject:@"Unable to load TensorFlow Graph. File not found." forKey:NSLocalizedDescriptionKey]];
+            *error = [NSError errorWithDomain:@TF_VERSION_STRING code:tensorflow::error::NOT_FOUND userInfo:[NSDictionary dictionaryWithObject:@"Unable to load TensorFlow Graph. File not found." forKey:NSLocalizedDescriptionKey]];
         }
     } else {
         NSLog(@"%@", @"Invalid NSError argument");

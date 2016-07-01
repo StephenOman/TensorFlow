@@ -8,8 +8,6 @@
 
 #import "TFTensor.h"
 
-#include "tensorflow/core/framework/tensor.h"
-
 @interface TFTensor() {
 
     tensorflow::Tensor tensor;
@@ -19,8 +17,15 @@
 
 @implementation TFTensor
 
+- (tensorflow::Tensor) getNativeTensor
+{
+    return tensor;
+
+}
+
 - (instancetype)initWithDataType:(TFDataType)type dimLengths:(NSArray *) dimLengths numDimensions:(NSInteger)numDimensions data:(NSData *)data {
 
+    // Supported Data Types
     return self;
 }
 

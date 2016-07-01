@@ -19,9 +19,9 @@
 
 
 #import "TFSession.h"
-#import "TFTypes.h"
 
 #include "tensorflow/core/public/session.h"
+#include "tensorflow/core/public/version.h"
 
 #include <string>
 #include <vector>
@@ -50,10 +50,10 @@
         tensorflow::Status status = tf_session->Create([graph getTFGraph]);
         if(!status.ok()) {
             NSString *errorMessage = [NSString stringWithFormat:@"Unable to load graph into session. TensorFlow error: %s", status.error_message().c_str()];
-            *error = [NSError errorWithDomain:TENSORFLOW code:TF_UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:errorMessage forKey:NSLocalizedDescriptionKey]];
+            *error = [NSError errorWithDomain:@TF_VERSION_STRING code:tensorflow::error::UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:errorMessage forKey:NSLocalizedDescriptionKey]];
         }
     } else {
-        *error = [NSError errorWithDomain:TENSORFLOW code:TF_UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:@"Unable to load graph into session. Session not initialized." forKey:NSLocalizedDescriptionKey]];
+        *error = [NSError errorWithDomain:@TF_VERSION_STRING code:tensorflow::error::UNAVAILABLE userInfo:[NSDictionary dictionaryWithObject:@"Unable to load graph into session. Session not initialized." forKey:NSLocalizedDescriptionKey]];
     }
 
 }
@@ -68,6 +68,7 @@
     if(inputs != NULL) {
         for(NSString *name in outputNames) {
             std::string str_name = std::string([name UTF8String]);
+            // ToDo Wire up this var to the input Dictionary
             tensorflow::Tensor inputTensor;
             inputVector.push_back(std::make_pair(str_name, inputTensor));
         }

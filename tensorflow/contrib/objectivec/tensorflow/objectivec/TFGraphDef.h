@@ -20,10 +20,7 @@
 
 #import <Foundation/Foundation.h>
 
-#import "TFTypes.h"
-
 #include "tensorflow/core/public/session.h"
-
 
 @interface TFGraphDef : NSObject
 

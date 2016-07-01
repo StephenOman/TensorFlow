@@ -13,9 +13,9 @@
 		94454C3C1D0F4B3500E2B368 /* TFSessionOptions.mm in Sources */ = {isa = PBXBuildFile; fileRef = 94454C311D0F4B3500E2B368 /* TFSessionOptions.mm */; };
 		94454C3F1D0F4B3500E2B368 /* TFTensor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C341D0F4B3500E2B368 /* TFTensor.h */; };
 		94454C401D0F4B3500E2B368 /* TFTensor.mm in Sources */ = {isa = PBXBuildFile; fileRef = 94454C351D0F4B3500E2B368 /* TFTensor.mm */; };
-		94454C411D0F4B3500E2B368 /* TFTypes.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C361D0F4B3500E2B368 /* TFTypes.h */; };
 		94454C441D0F5CF700E2B368 /* TFGraphDef.h in Headers */ = {isa = PBXBuildFile; fileRef = 94454C421D0F5CF700E2B368 /* TFGraphDef.h */; };
 		94454C451D0F5CF700E2B368 /* TFGraphDef.mm in Sources */ = {isa = PBXBuildFile; fileRef = 94454C431D0F5CF700E2B368 /* TFGraphDef.mm */; };
+		94C7C1091D18073B000E669C /* TFTypes.h in Headers */ = {isa = PBXBuildFile; fileRef = 94C7C1081D18073B000E669C /* TFTypes.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,9 +26,9 @@
 		94454C311D0F4B3500E2B368 /* TFSessionOptions.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TFSessionOptions.mm; path = ../../objectivec/tensorflow/objectivec/TFSessionOptions.mm; sourceTree = "<group>"; };
 		94454C341D0F4B3500E2B368 /* TFTensor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFTensor.h; path = ../../objectivec/tensorflow/objectivec/TFTensor.h; sourceTree = "<group>"; };
 		94454C351D0F4B3500E2B368 /* TFTensor.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TFTensor.mm; path = ../../objectivec/tensorflow/objectivec/TFTensor.mm; sourceTree = "<group>"; };
-		94454C361D0F4B3500E2B368 /* TFTypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFTypes.h; path = ../../objectivec/tensorflow/objectivec/TFTypes.h; sourceTree = "<group>"; };
 		94454C421D0F5CF700E2B368 /* TFGraphDef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFGraphDef.h; path = ../../objectivec/tensorflow/objectivec/TFGraphDef.h; sourceTree = "<group>"; };
 		94454C431D0F5CF700E2B368 /* TFGraphDef.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = TFGraphDef.mm; path = ../../objectivec/tensorflow/objectivec/TFGraphDef.mm; sourceTree = "<group>"; };
+		94C7C1081D18073B000E669C /* TFTypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TFTypes.h; path = ../../objectivec/tensorflow/objectivec/TFTypes.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,13 +61,13 @@
 		94454C2B1D0F4B1300E2B368 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				94C7C1081D18073B000E669C /* TFTypes.h */,
 				94454C2E1D0F4B3500E2B368 /* TFSession.h */,
 				94454C2F1D0F4B3500E2B368 /* TFSession.mm */,
 				94454C301D0F4B3500E2B368 /* TFSessionOptions.h */,
 				94454C311D0F4B3500E2B368 /* TFSessionOptions.mm */,
 				94454C341D0F4B3500E2B368 /* TFTensor.h */,
 				94454C351D0F4B3500E2B368 /* TFTensor.mm */,
-				94454C361D0F4B3500E2B368 /* TFTypes.h */,
 				94454C421D0F5CF700E2B368 /* TFGraphDef.h */,
 				94454C431D0F5CF700E2B368 /* TFGraphDef.mm */,
 			);
@@ -81,11 +81,11 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				94C7C1091D18073B000E669C /* TFTypes.h in Headers */,
 				94454C441D0F5CF700E2B368 /* TFGraphDef.h in Headers */,
 				94454C3F1D0F4B3500E2B368 /* TFTensor.h in Headers */,
 				94454C391D0F4B3500E2B368 /* TFSession.h in Headers */,
 				94454C3B1D0F4B3500E2B368 /* TFSessionOptions.h in Headers */,
-				94454C411D0F4B3500E2B368 /* TFTypes.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
