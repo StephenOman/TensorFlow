@@ -121,6 +121,16 @@ Node* Var(Graph* g, const DataType dtype, const TensorShape& shape) {
   return ret;
 }
 
+Node* Var(Graph* g, const DataType dtype, const TensorShape& shape,
+          const string& name) {
+  Node* ret;
+  TF_CHECK_OK(NodeBuilder(name, "Variable")
+                  .Attr("dtype", dtype)
+                  .Attr("shape", shape)
+                  .Finalize(g, &ret));
+  return ret;
+}
+
 Node* Assign(Graph* g, Node* var, Node* val) {
   Node* ret;
   TF_CHECK_OK(NodeBuilder(g->NewName("n"), "Assign")
@@ -399,6 +409,37 @@ Node* Relu(Graph* g, Node* in) {
   TF_CHECK_OK(NodeBuilder(g->NewName("n"), "Relu")
                   .Input(in, 0)
                   .Attr("T", DT_FLOAT)
+                  .Finalize(g, &ret));
+  return ret;
+}
+
+Node* Relu6(Graph* g, Node* in) {
+  Node* ret;
+  TF_CHECK_OK(NodeBuilder(g->NewName("n"), "Relu6")
+                  .Input(in, 0)
+                  .Attr("T", DT_FLOAT)
+                  .Finalize(g, &ret));
+  return ret;
+}
+
+Node* BiasAdd(Graph* g, Node* value, Node* bias) {
+  Node* ret;
+  TF_CHECK_OK(NodeBuilder(g->NewName("n"), "BiasAdd")
+                  .Input(value)
+                  .Input(bias)
+                  .Attr("T", DT_FLOAT)
+                  .Finalize(g, &ret));
+  return ret;
+}
+
+Node* Conv2D(Graph* g, Node* in0, Node* in1) {
+  Node* ret;
+  TF_CHECK_OK(NodeBuilder(g->NewName("n"), "Conv2D")
+                  .Input(in0)
+                  .Input(in1)
+                  .Attr("T", DT_FLOAT)
+                  .Attr("strides", {1, 1, 1, 1})
+                  .Attr("padding", "SAME")
                   .Finalize(g, &ret));
   return ret;
 }

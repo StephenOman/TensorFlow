@@ -20,9 +20,14 @@ from __future__ import print_function
 
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
-
+from tensorflow.python.framework import tensor_util
+from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import variables
 
 __all__ = ['collect_named_outputs',
+           'constant_value',
+           'static_cond',
+           'smart_cond',
            'get_variable_collections',
            'two_element_tuple',
            'last_dimension',
@@ -52,9 +57,88 @@ def collect_named_outputs(collections, name, outputs):
   return outputs
 
 
+def constant_value(value_or_tensor_or_var, dtype=None):
+  """Returns value if value_or_tensor_or_var has a constant value.
+
+  Args:
+    value_or_tensor_or_var: A value, a `Tensor` or a `Variable`.
+    dtype: Optional `tf.dtype`, if set it would check it has the right
+      dtype.
+
+  Returns:
+    The constant value or None if it not constant.
+
+  Raises:
+    ValueError: if value_or_tensor_or_var is None or the tensor_variable has the
+    wrong dtype.
+  """
+  if value_or_tensor_or_var is None:
+    raise ValueError('value_or_tensor_or_var cannot be None')
+  value = value_or_tensor_or_var
+  if isinstance(value_or_tensor_or_var, (ops.Tensor, variables.Variable)):
+    if dtype and value_or_tensor_or_var.dtype != dtype:
+      raise ValueError('It has the wrong type %s instead of %s' % (
+          value_or_tensor_or_var.dtype, dtype))
+    if isinstance(value_or_tensor_or_var, variables.Variable):
+      value = None
+    else:
+      value = tensor_util.constant_value(value_or_tensor_or_var)
+  return value
+
+
+def static_cond(pred, fn1, fn2, name=None):
+  """Return either fn1() or fn2() based on the boolean value of `pred`.
+
+  Same signature as `control_flow_ops.cond()` but requires pred to be a bool.
+
+  Args:
+    pred: A value determining whether to return the result of `fn1` or `fn2`.
+    fn1: The callable to be performed if pred is true.
+    fn2: The callable to be performed if pred is false.
+    name: Optional name prefix for the returned tensors.
+
+  Returns:
+    Tensors returned by the call to either `fn1` or `fn2`.
+
+  Raises:
+    TypeError: if `fn1` or `fn2` is not callable.
+  """
+  if not callable(fn1):
+    raise TypeError('fn1 must be callable.')
+  if not callable(fn2):
+    raise TypeError('fn2 must be callable.')
+  if pred:
+    return fn1()
+  else:
+    return fn2()
+
+
+def smart_cond(pred, fn1, fn2, name=None):
+  """Return either fn1() or fn2() based on the boolean predicate/value `pred`.
+
+  If `pred` is bool or has a constant value it would use `static_cond`,
+  otherwise it would use `tf.cond`.
+
+  Args:
+    pred: A scalar determining whether to return the result of `fn1` or `fn2`.
+    fn1: The callable to be performed if pred is true.
+    fn2: The callable to be performed if pred is false.
+    name: Optional name prefix when using tf.cond
+  Returns:
+    Tensors returned by the call to either `fn1` or `fn2`.
+  """
+  pred_value = constant_value(pred)
+  if pred_value is not None:
+    # Use static_cond if pred has a constant value.
+    return static_cond(pred_value, fn1, fn2)
+  else:
+    # Use dynamic cond otherwise.
+    return control_flow_ops.cond(pred, fn1, fn2, name)
+
+
 def get_variable_collections(variables_collections, name):
   if isinstance(variables_collections, dict):
-    variable_collections = variables_collections[name]
+    variable_collections = variables_collections.get(name, None)
   else:
     variable_collections = variables_collections
   return variable_collections

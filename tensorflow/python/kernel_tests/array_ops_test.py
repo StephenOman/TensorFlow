@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import math
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -28,7 +29,33 @@ from tensorflow.python.framework import errors
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
-from tensorflow.python.platform import googletest
+
+
+class BatchMatrixTransposeTest(test_util.TensorFlowTestCase):
+
+  def testNonBatchMatrix(self):
+    matrix = [[1, 2, 3], [4, 5, 6]]
+    expected_transposed = [[1, 4], [2, 5], [3, 6]]
+    with self.test_session():
+      transposed = tf.batch_matrix_transpose(matrix)
+      self.assertAllEqual(expected_transposed, transposed.eval())
+
+  def testBatchMatrix(self):
+    matrix_0 = [[1, 2, 3], [4, 5, 6]]
+    matrix_0_t = [[1, 4], [2, 5], [3, 6]]
+    matrix_1 = [[11, 22, 33], [44, 55, 66]]
+    matrix_1_t = [[11, 44], [22, 55], [33, 66]]
+    batch_matrix = [matrix_0, matrix_1]
+    expected_transposed = [matrix_0_t, matrix_1_t]
+    with self.test_session():
+      transposed = tf.batch_matrix_transpose(batch_matrix)
+      self.assertAllEqual(expected_transposed, transposed.eval())
+
+  def testTensorWithStaticRankLessThanTwoRaisesBecauseNotAMatrix(self):
+    vector = [1, 2, 3]
+    with self.test_session():
+      with self.assertRaisesRegexp(ValueError, "should be a "):
+        tf.batch_matrix_transpose(vector)
 
 
 class BooleanMaskTest(test_util.TensorFlowTestCase):
@@ -145,13 +172,18 @@ class ReverseTest(test_util.TensorFlowTestCase):
         x_tf = array_ops.reverse(x_np, []).eval()
         self.assertAllEqual(x_tf, x_np)
 
-  def testReverse1DimAuto(self):
-    x_np = [1, 4, 9]
+  def _reverse1DimAuto(self, np_dtype):
+    x_np = np.array([1, 2, 3, 4, 5], dtype=np_dtype)
 
     for use_gpu in [False, True]:
       with self.test_session(use_gpu=use_gpu):
         x_tf = array_ops.reverse(x_np, [True]).eval()
         self.assertAllEqual(x_tf, np.asarray(x_np)[::-1])
+
+  def testReverse1DimAuto(self):
+    for dtype in [np.uint8, np.int8, np.int32, np.bool, np.float16,
+                  np.float32, np.float64, np.complex64, np.complex128]:
+      self._reverse1DimAuto(dtype)
 
   def testUnknownDims(self):
     data_t = tf.placeholder(tf.float32)
@@ -211,12 +243,12 @@ class MeshgridTest(test_util.TensorFlowTestCase):
 class StridedSliceChecker(object):
   """Check a given tensor against the numpy result."""
 
-  REF_TENSOR = np.arange(1, 19, dtype=np.int32).reshape(3, 2, 3)
-  REF_TENSOR_ALIGNED = np.arange(1, 97, dtype=np.int32).reshape(3, 4, 8)
+  REF_TENSOR = np.arange(1, 19, dtype=np.float32).reshape(3, 2, 3)
+  REF_TENSOR_ALIGNED = np.arange(1, 97, dtype=np.float32).reshape(3, 4, 8)
 
-  def __init__(self, test, x):
+  def __init__(self, test, x, tensor_type=tf.int32):
     self.test = test
-    self.x = tf.constant(x)
+    self.x = tf.cast(tf.constant(x, dtype=tf.float32), dtype=tensor_type)
     self.x_np = np.array(x)
 
   def __getitem__(self, spec):
@@ -233,25 +265,29 @@ class StridedSliceChecker(object):
 class StridedSliceTest(test_util.TensorFlowTestCase):
   """Test the strided slice operation with variants of slices."""
 
-  def testBasicSlice(self):
-    for use_gpu in [False, True]:
-      with self.test_session(use_gpu=use_gpu):
-        checker = StridedSliceChecker(self, StridedSliceChecker.REF_TENSOR)
-        _ = checker[:, :, :]
-        # Various ways of representing identity slice
-        _ = checker[:, :, :]
-        _ = checker[::, ::, ::]
-        _ = checker[::1, ::1, ::1]
-        # Not zero slice
-        _ = checker[::1, ::5, ::2]
-        # Reverse in each dimension independently
-        _ = checker[::-1, :, :]
-        _ = checker[:, ::-1, :]
-        _ = checker[:, :, ::-1]
-        ## negative index tests i.e. n-2 in first component
-        _ = checker[-2::-1, :, ::1]
-        # negative index tests i.e. n-2 in first component, and non unit stride
-        _ = checker[-2::-1, :, ::2]
+  def test_basic_slice(self):
+    for tensor_type in [tf.int32, tf.int64, tf.int16, tf.int8, tf.float32,
+                        tf.float64]:
+      for use_gpu in [False, True]:
+        with self.test_session(use_gpu=use_gpu):
+          checker = StridedSliceChecker(self,
+                                        StridedSliceChecker.REF_TENSOR,
+                                        tensor_type=tensor_type)
+          _ = checker[:, :, :]
+          # Various ways of representing identity slice
+          _ = checker[:, :, :]
+          _ = checker[::, ::, ::]
+          _ = checker[::1, ::1, ::1]
+          # Not zero slice
+          _ = checker[::1, ::5, ::2]
+          # Reverse in each dimension independently
+          _ = checker[::-1, :, :]
+          _ = checker[:, ::-1, :]
+          _ = checker[:, :, ::-1]
+          ## negative index tests i.e. n-2 in first component
+          _ = checker[-2::-1, :, ::1]
+          # negative index tests i.e. n-2 in first component, non-unit stride
+          _ = checker[-2::-1, :, ::2]
 
   def testDegenerateSlices(self):
     for use_gpu in [False, True]:
@@ -264,14 +300,14 @@ class StridedSliceTest(test_util.TensorFlowTestCase):
         # empty interval in every dimension
         _ = checker[-1:0, 2:2, 2:3:-1]
 
-  def testEllipse(self):
+  def testEllipsis(self):
     for use_gpu in [False, True]:
       with self.test_session(use_gpu=use_gpu):
         raw = [[[[[1, 2], [3, 4], [5, 6]]], [[[7, 8], [9, 10], [11, 12]]]]]
         checker = StridedSliceChecker(self, raw)
 
         _ = checker[0:]
-        # implicit ellipse
+        # implicit ellipsis
         _ = checker[0:, ...]
         # ellipsis alone
         _ = checker[...]
@@ -281,7 +317,7 @@ class StridedSliceTest(test_util.TensorFlowTestCase):
         _ = checker[..., 0:1]
         # ellipsis at middle
         _ = checker[0:1, ..., 0:1]
-        # multiple ellipsis not allowed
+        # multiple ellipses not allowed
         with self.assertRaisesRegexp(ValueError,
                                      "Multiple ellipses not allowed"):
           _ = checker[..., :, ...].eval()
@@ -305,14 +341,14 @@ class StridedSliceTest(test_util.TensorFlowTestCase):
         checker = StridedSliceChecker(self, raw)
         # new axis (followed by implicit ellipsis)
         _ = checker[np.newaxis]
-        # newaxis after ellipse
+        # newaxis after ellipsis
         _ = checker[..., np.newaxis]
-        # newaxis in between ellipse and explicit range
+        # newaxis in between ellipsis and explicit range
         _ = checker[..., np.newaxis, :]
         _ = checker[:, ..., np.newaxis, :, :]
         # Reverse final dimension with new axis
         _ = checker[:, :, np.newaxis, :, 2::-1]
-        # Ellipse in middle of two newaxis
+        # Ellipsis in middle of two newaxis
         _ = checker[np.newaxis, ..., np.newaxis]
 
   def testOptimizedCases(self):
@@ -383,5 +419,106 @@ class StridedSliceShapeTest(test_util.TensorFlowTestCase):
                               tensor_shape.TensorShape([5, None, 1, 4]))
 
 
+class GradSliceChecker(object):
+  """Tests that we can compute a gradient for var^2."""
+
+  def __init__(self, test, sess, var, varnp):
+    self.test = test
+    self.sess = sess
+    self.val = var * var
+    self.var = var
+    self.varnp = varnp
+
+  def __getitem__(self, spec):
+    val_grad_op = tf.gradients(self.val, self.var)
+    sliceval_grad_op = tf.gradients(
+        array_ops._NewSliceHelper(self.val, spec), self.var)
+    slice1_op = array_ops._NewSliceHelper(val_grad_op, spec)
+    slice2_op = array_ops._NewSliceHelper(sliceval_grad_op, spec)
+    val_grad, sliceval_grad, slice1, slice2 = self.sess.run(
+        [val_grad_op, sliceval_grad_op, slice1_op, slice2_op])
+    np_val_grad = (2 * self.varnp)
+    np_sliceval_grad = np.zeros(self.var.get_shape())
+    np_sliceval_grad[spec] = np.array(val_grad[0])[spec]
+    # make sure np val grad is correct
+    self.test.assertAllEqual(np_val_grad, val_grad[0])
+    # make sure slice gradient is correct
+    self.test.assertAllEqual(np_sliceval_grad, sliceval_grad[0])
+    # make sure val grad and sliceval grad are the same in sliced area
+    self.test.assertAllEqual(slice1, slice2)
+
+
+class StridedSliceGradTest(test_util.TensorFlowTestCase):
+  """Test that strided slice's custom gradient produces correct gradients."""
+
+  def testGradient(self):
+    for use_gpu in [False, True]:
+      with self.test_session(use_gpu=use_gpu) as sess:
+        var = tf.Variable(tf.reshape(tf.range(1, 97, 1), shape=(6, 4, 4)))
+        init = tf.initialize_all_variables()
+        sess.run(init)
+
+        grad = GradSliceChecker(self, sess, var,
+                                np.array(range(1, 97, 1)).reshape((6, 4, 4)))
+        _ = grad[2:6:2, 1:3, 1:3]
+        _ = grad[3:0:-2, 1:3, 1:3]
+        _ = grad[3:0:-2, tf.newaxis, 1:3, 2, tf.newaxis]
+        _ = grad[3:0:-2, 1:3, 2]
+
+
+class BenchmarkSlice(object):
+
+  def __init__(self, tensor):
+    self.tensor = tensor
+
+  def __getitem__(self, x):
+    return array_ops._NewSliceHelper(self.tensor, x)
+
+
+class StridedSliceBenchmark(tf.test.Benchmark):
+  """Benchmark new strided slice operation on non-trivial case."""
+
+  def run_and_time(self, slice_op):
+    tf.initialize_all_variables().run()
+    for _ in range(10):
+      _ = slice_op.eval()
+    iters = 1000
+    t0 = time.time()
+    for _ in range(iters):
+      slice_op.eval()
+    t1 = time.time()
+    self.report_benchmark(iters=iters, wall_time=(t1 - t0) / 1000.0)
+
+  def make_variable(self):
+    n = 256
+    shape = (n, n, n)
+    items = n**3
+    var = tf.Variable(
+        tf.reshape(
+            tf.linspace(1., float(items), items), shape),
+        dtype=tf.float32)
+    return var
+
+  def benchmark_strided_slice_skip(self):
+    with tf.Session():
+      var = self.make_variable()
+      helper = BenchmarkSlice(var)
+      slice_op = helper[::2, ::1, ::2]
+      self.run_and_time(slice_op)
+
+  def benchmark_strided_slice_easy(self):
+    with tf.Session():
+      var = self.make_variable()
+      helper = BenchmarkSlice(var)
+      slice_op = helper[3::1, 3::1, 3::1]
+      self.run_and_time(slice_op)
+
+  def benchmark_slice_easy(self):
+    with tf.Session():
+      var = self.make_variable()
+      slice_op = var[3::1, 3::1, 3::1]
+      self.run_and_time(slice_op)
+
+
 if __name__ == "__main__":
-  googletest.main()
+  tf.test.main()

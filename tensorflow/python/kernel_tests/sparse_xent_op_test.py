@@ -24,6 +24,7 @@ import time
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import sparse_ops
 
 
@@ -120,6 +121,13 @@ class SparseXentTest(tf.test.TestCase):
         tf.nn.sparse_softmax_cross_entropy_with_logits(
             tf.constant(1.0), tf.constant(0))
 
+  def testLabelsPlaceholderScalar(self):
+    with self.test_session():
+      labels = tf.placeholder(np.int32)
+      y = tf.nn.sparse_softmax_cross_entropy_with_logits([[7.]], labels)
+      with self.assertRaisesOpError("labels must be 1-D"):
+        y.eval(feed_dict={labels: 0})
+
   def testVector(self):
     with self.test_session():
       loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -144,6 +152,9 @@ class SparseXentTest(tf.test.TestCase):
       self._testAll(
           np.array([[1., 1., 1., 1.], [1., 2., 3., 4.]]).astype(np.float16),
           np.array([3, 0]).astype(label_dtype))
+
+  def testEmpty(self):
+    self._testXent(np.zeros((0, 3)), np.zeros((0,), dtype=np.int32))
 
   def testGradient(self):
     with self.test_session():
@@ -181,6 +192,20 @@ class SparseXentTest(tf.test.TestCase):
     labels = [[3, 2], [0, 3]]
     self._testHighDim(True, features, labels)
     self._testHighDim(False, features, labels)
+
+  def testScalarHandling(self):
+    with self.test_session(use_gpu=False) as sess:
+      with self.assertRaisesRegexp(tf.errors.InvalidArgumentError,
+                                   ".*labels must be 1-D.*"):
+        labels = tf.placeholder(tf.int32, shape=[None, 1])
+        logits = tf.placeholder(tf.float32, shape=[None, 3])
+        ce = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            logits,
+            tf.squeeze(labels))
+        labels_v2 = np.zeros((1, 1), dtype=np.int32)
+        logits_v2 = np.random.randn(1, 3)
+        sess.run([ce], feed_dict={labels: labels_v2,
+                                  logits: logits_v2})
 
 
 def _sparse_vs_dense_xent_benchmark_dense(labels, logits):

@@ -16,6 +16,7 @@ limitations under the License.
 
 #include <unordered_map>
 
+#include "tensorflow/core/framework/node_def_util.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
@@ -29,13 +30,26 @@ using shape_inference::Shape;
 using errors::Unknown;
 
 Status InferShapes(const string& op_name, const string& ins,
-                   const string& expected_outs) {
+                   const string& expected_outs, const NodeDef* node_def,
+                   const std::vector<const Tensor*>& input_tensors) {
   const OpRegistrationData* op_reg_data;
   TF_RETURN_IF_ERROR(OpRegistry::Global()->LookUp(op_name, &op_reg_data));
-  const int num_outputs = op_reg_data->op_def.output_arg_size();
 
   std::vector<string> ins_v = str_util::Split(ins, ';');
-  shape_inference::InferenceContext c(ins_v, num_outputs);
+  std::unique_ptr<const NodeDef> new_node_def;
+  if (node_def == nullptr) {
+    new_node_def.reset(new NodeDef);
+    node_def = new_node_def.get();
+  }
+
+  NameRangeMap inputs_name_map;
+  NameRangeMap outputs_name_map;
+  TF_RETURN_IF_ERROR(NameRangesForNode(*node_def, op_reg_data->op_def,
+                                       &inputs_name_map, &outputs_name_map));
+  const int num_outputs = op_reg_data->op_def.output_arg_size();
+
+  shape_inference::InferenceContext c(node_def, op_reg_data->op_def, ins_v,
+                                      input_tensors);
   TF_RETURN_IF_ERROR(op_reg_data->shape_inference_fn(&c));
 
   std::unordered_map<const Dimension*, std::pair<int, int>>
@@ -59,30 +73,35 @@ Status InferShapes(const string& op_name, const string& ins,
                    " vs ", num_outputs, ")");
   }
   for (int i = 0; i < num_outputs; ++i) {
-    string err_prefix = strings::StrCat("Output ", i);
     StringPiece expected(expected_outs_v[i]);
     const shape_inference::Shape* out = c.output(i);
+
+    string err_prefix = strings::StrCat("Output ", i);
+    string err_suffix =
+        strings::StrCat("; output shape was ", c.DebugString(out));
+
     const int in_index = gtl::FindWithDefault(shape_to_input_idx, out, -1);
     if (expected.starts_with("in")) {
       if (in_index == -1) {
-        return Unknown(err_prefix, " did not match any input shape");
+        return Unknown(err_prefix, " did not match any input shape",
+                       err_suffix);
       }
       auto v = str_util::Split(expected, '|');
       if (std::find(v.begin(), v.end(), strings::StrCat("in", in_index)) ==
           v.end()) {
         return Unknown(err_prefix, " matched input ", in_index,
-                       " and should have matched one of (", expected, ")");
+                       " and should have matched one of (", expected, ")",
+                       err_suffix);
       }
       continue;
     }
     if (in_index != -1) {
       return Unknown(err_prefix, " matched input ", in_index,
-                     " and should have not matched an input shape");
+                     " and should have not matched an input shape", err_suffix);
     }
     if (expected == "?") {
       if (c.RankKnown(out)) {
-        return Unknown(err_prefix, " expected to be unknown but was ",
-                       c.DebugString(out));
+        return Unknown(err_prefix, " expected to be unknown", err_suffix);
       }
       continue;
     }
@@ -96,11 +115,11 @@ Status InferShapes(const string& op_name, const string& ins,
     auto expected_dims = str_util::Split(expected, ',');
     if (!c.RankKnown(out)) {
       return Unknown(err_prefix, " expected rank ", expected_dims.size(),
-                     " but was ?");
+                     " but was ?", err_suffix);
     }
     if (c.Rank(out) != expected_dims.size()) {
       return Unknown(err_prefix, " expected rank ", expected_dims.size(),
-                     " but was ", c.Rank(out));
+                     " but was ", c.Rank(out), err_suffix);
     }
     for (int j = 0; j < expected_dims.size(); ++j) {
       err_prefix = strings::StrCat("Output dim ", i, ",", j);
@@ -112,37 +131,39 @@ Status InferShapes(const string& op_name, const string& ins,
         if (in_dim_idx.first != -1) {
           return Unknown(err_prefix,
                          " expected to be unknown but matched input d",
-                         in_dim_idx.first, "_", in_dim_idx.second);
+                         in_dim_idx.first, "_", in_dim_idx.second, err_suffix);
         } else if (c.ValueKnown(out_dim)) {
           return Unknown(err_prefix, " expected to be unknown but was ",
-                         c.Value(out_dim));
+                         c.Value(out_dim), err_suffix);
         }
       } else if (expected_dim.starts_with("d")) {
         // Compare the dimension values.
         auto v = str_util::Split(expected_dim, '|');
         if (in_dim_idx.first == -1) {
-          return Unknown(err_prefix, " did not match any input dim");
+          return Unknown(err_prefix, " did not match any input dim",
+                         err_suffix);
         }
         if (std::find(v.begin(), v.end(),
                       strings::StrCat("d", in_dim_idx.first, "_",
                                       in_dim_idx.second)) == v.end()) {
           return Unknown(err_prefix, " matched input d", in_dim_idx.first, "_",
                          in_dim_idx.second, " and should have matched one of ",
-                         expected_dim);
+                         expected_dim, err_suffix);
         }
       } else {
         // Parse it as a value.
         int64 value = -1;
         if (!strings::safe_strto64(expected_dim, &value)) {
-          return Unknown(err_prefix, " expected dim failed to parse as int64");
+          return Unknown(err_prefix, " expected dim failed to parse as int64",
+                         err_suffix);
         }
         if (in_dim_idx.first != -1) {
           return Unknown(err_prefix, " expected to be ", value,
                          " but matched input d", in_dim_idx.first, "_",
-                         in_dim_idx.second);
+                         in_dim_idx.second, err_suffix);
         } else if (value != c.Value(out_dim)) {
           return Unknown(err_prefix, " expected to be ", value, " but was ",
-                         c.DebugString(out_dim));
+                         c.DebugString(out_dim), err_suffix);
         }
       }
     }

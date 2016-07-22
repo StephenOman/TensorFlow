@@ -21,9 +21,10 @@ The utilities here assume (and do not check) that the nested structures form a
 'tree', i.e. no references in the structure of the input of these functions
 should be recursive.
 
+@@assert_same_structure
 @@is_sequence
 @@flatten
-@flatten_dict_items
+@@flatten_dict_items
 @@pack_sequence_as
 """
 
@@ -82,18 +83,58 @@ def is_sequence(seq):
 def flatten(nest):
   """Returns a flat sequence from a given nested structure.
 
+  If `nest` is not a sequence, this returns a single-element list: `[nest]`.
+
   Args:
-    nest: an arbitrarily nested structure.
+    nest: an arbitrarily nested structure or a scalar object.
+      Note, numpy arrays are considered scalars.
 
   Returns:
-    The flattened version of the input.
+    A Python list, the flattened version of the input.
+  """
+  return list(_yield_flat_nest(nest)) if is_sequence(nest) else [nest]
+
+
+def _recursive_assert_same_structure(nest1, nest2):
+  is_sequence_nest1 = is_sequence(nest1)
+  if is_sequence_nest1 != is_sequence(nest2):
+    raise ValueError(
+        "The two structures don't have the same nested structure. "
+        "First structure: %s, second structure: %s." % (nest1, nest2))
+
+  if is_sequence_nest1:
+    type_nest1 = type(nest1)
+    type_nest2 = type(nest2)
+    if type_nest1 != type_nest2:
+      raise TypeError(
+          "The two structures don't have the same sequence type. First "
+          "structure has type %s, while second structure has type %s."
+          % (type_nest1, type_nest2))
+
+    for n1, n2 in zip(nest1, nest2):
+      _recursive_assert_same_structure(n1, n2)
+
+
+def assert_same_structure(nest1, nest2):
+  """Asserts that two structures are nested in the same way.
+
+  Args:
+    nest1: an arbitrarily nested structure.
+    nest2: an arbitrarily nested structure.
 
   Raises:
-    TypeError: If the input is not a sequence.
+    ValueError: If the two structures do not have the same number of elements or
+      if the two structures are not nested in the same way.
+    TypeError: If the two structures differ in the type of sequence in any of
+      their substructures.
   """
-  if not is_sequence(nest):
-    raise TypeError("input must be a sequence, but received %s" % nest)
-  return _sequence_like(nest, list(_yield_flat_nest(nest)))
+  len_nest1 = len(flatten(nest1)) if is_sequence(nest1) else 1
+  len_nest2 = len(flatten(nest2)) if is_sequence(nest2) else 1
+  if len_nest1 != len_nest2:
+    raise ValueError("The two structures don't have the same number of "
+                     "elements. First structure: %s, second structure: %s."
+                     % (nest1, nest2))
+  _recursive_assert_same_structure(nest1, nest2)
 
 
 def flatten_dict_items(dictionary):
@@ -186,8 +227,12 @@ def _packed_nest_with_indices(structure, flat, index):
 def pack_sequence_as(structure, flat_sequence):
   """Returns a given flattened sequence packed into a nest.
 
+  If `structure` is a scalar, `flat_sequence` must be a single-element list;
+  in this case the return value is `flat_sequence[0]`.
+
   Args:
-    structure: tuple or list constructed of scalars and/or other tuples/lists.
+    structure: tuple or list constructed of scalars and/or other tuples/lists,
+      or a scalar.  Note: numpy arrays are considered scalars.
     flat_sequence: flat sequence to pack.
 
   Returns:
@@ -195,13 +240,16 @@ def pack_sequence_as(structure, flat_sequence):
       `structure`.
 
   Raises:
-    TypeError: If structure or flat_sequence is not a tuple or list.
     ValueError: If nest and structure have different element counts.
   """
-  if not is_sequence(structure):
-    raise TypeError("structure must be a sequence")
   if not is_sequence(flat_sequence):
     raise TypeError("flat_sequence must be a sequence")
+
+  if not is_sequence(structure):
+    if len(flat_sequence) != 1:
+      raise ValueError("Structure is a scalar but len(flat_sequence) == %d > 1"
+                       % len(flat_sequence))
+    return flat_sequence[0]
 
   flat_structure = flatten(structure)
   if len(flat_structure) != len(flat_sequence):

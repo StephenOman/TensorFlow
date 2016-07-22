@@ -29,12 +29,12 @@ py_library(
         ":client_testlib",
         ":framework",
         ":framework_test_lib",
+        ":gradient_checker",
         ":platform",
         ":platform_test",
         ":summary",
         ":training",
         "//tensorflow/contrib:contrib_py",
-        "//tensorflow/python/kernel_tests:gradient_checker",
     ],
 )
 
@@ -253,6 +253,7 @@ py_library(
     ],
     srcs_version = "PY2AND3",
     deps = [
+        ":device_lib",
         ":framework_test_lib",
         ":platform_test",
     ],
@@ -539,11 +540,23 @@ tf_gen_op_wrapper_py(
 tf_gen_op_wrapper_py(
     name = "data_flow_ops",
     hidden = [
+        "Barrier",
+        "BarrierClose",
+        "BarrierIncompleteSize",
+        "BarrierInsertMany",
+        "BarrierReadySize",
+        "BarrierTakeMany",
+        "PriorityQueue",
         "FIFOQueue",
         "HashTable",
         "InitializeTable",
+        "InitializeTableFromTextFile",
+        "LookupTableExport",
         "LookupTableFind",
+        "LookupTableInsert",
         "LookupTableSize",
+        "MutableHashTable",
+        "MutableHashTableOfTensors",
         "Mutex",
         "MutexAcquire",
         "MutexRelease",
@@ -657,6 +670,8 @@ tf_gen_op_wrapper_py(
         "MatMul",
         "Sigmoid",
         "Tanh",
+        "SigmoidGrad",
+        "TanhGrad",
     ],
     require_shape_functions = True,
 )
@@ -705,6 +720,7 @@ tf_gen_op_wrapper_py(
         "RandomUniformInt",
         "RandomShuffle",
         "RandomStandardNormal",
+        "ParameterizedTruncatedNormal",
         "TruncatedNormal",
     ],
     require_shape_functions = True,
@@ -854,6 +870,18 @@ py_library(
 )
 
 py_library(
+    name = "gradient_checker",
+    srcs = [
+        "ops/gradient_checker.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":framework",
+        ":ops",
+    ],
+)
+
+py_library(
     name = "training",
     srcs = glob(
         ["training/**/*.py"],
@@ -888,7 +916,10 @@ py_library(
 
 py_library(
     name = "util",
-    srcs = glob(["util/**/*.py"]),
+    srcs = glob(
+        ["util/**/*.py"],
+        exclude = ["util/example_parser*"],
+    ),
     srcs_version = "PY2AND3",
     deps = ["@protobuf//:protobuf_python"],
 )
@@ -902,6 +933,18 @@ py_test(
     deps = [
         ":util",
         "//tensorflow:tensorflow_py",
+    ],
+)
+
+py_library(
+    name = "util_example_parser_configuration",
+    srcs = ["util/example_parser_configuration.py"],
+    srcs_version = "PY2AND3",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/core:protos_all_py",
+        "//tensorflow/python:platform",
     ],
 )
 
@@ -932,6 +975,21 @@ py_test(
         ":compare_test_proto_py",
         ":platform_test",
         ":util",
+    ],
+)
+
+py_test(
+    name = "util_example_parser_configuration_test",
+    size = "small",
+    srcs = ["util/example_parser_configuration_test.py"],
+    main = "util/example_parser_configuration_test.py",
+    srcs_version = "PY2AND3",
+    deps = [
+        ":framework_test_lib",
+        ":platform_test",
+        ":util_example_parser_configuration",
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:platform",
     ],
 )
 
@@ -1013,11 +1071,11 @@ tf_py_wrap_cc(
         "framework/python_op_gen.i",
         "lib/core/py_func.i",
         "lib/core/strings.i",
+        "lib/io/file_io.i",
         "lib/io/py_record_reader.i",
         "lib/io/py_record_writer.i",
         "platform/base.i",
         "platform/numpy.i",
-        "training/saver_io.i",
         "training/server_lib.i",
         "util/port.i",
         "util/py_checkpoint_reader.i",
@@ -1121,6 +1179,17 @@ py_test(
     deps = [
         ":framework",
         ":framework_test_lib",
+        "//tensorflow:tensorflow_py",
+    ],
+)
+
+py_test(
+    name = "file_io_test",
+    size = "small",
+    srcs = ["lib/io/file_io_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":lib",
         "//tensorflow:tensorflow_py",
     ],
 )

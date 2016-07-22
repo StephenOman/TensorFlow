@@ -13,18 +13,13 @@ licenses(["notice"])  # Apache 2.0
 load("//tensorflow:tensorflow.bzl", "py_tests")
 load("//tensorflow:tensorflow.bzl", "cuda_py_tests")
 
-py_library(
-    name = "gradient_checker",
-    srcs = ["gradient_checker.py"],
-    srcs_version = "PY2AND3",
-)
-
 py_tests(
     name = "cpu_only_kernel_tests",
     size = "small",
     srcs = [
         "as_string_op_test.py",
         "attention_ops_test.py",
+        "barrier_ops_test.py",
         "bcast_ops_test.py",
         "benchmark_test.py",
         "candidate_sampler_ops_test.py",
@@ -44,13 +39,14 @@ py_tests(
         "io_ops_test.py",
         "listdiff_op_test.py",
         "logging_ops_test.py",
-        "lrn_op_test.py",
         "matrix_inverse_op_test.py",
         "matrix_solve_ls_op_test.py",
         "matrix_solve_op_test.py",
         "matrix_triangular_solve_op_test.py",
+        "parameterized_truncated_normal_op_test.py",
         "parsing_ops_test.py",
         "partitioned_variables_test.py",
+        "priority_queue_test.py",
         "random_shuffle_queue_test.py",
         "save_restore_ops_test.py",
         "segment_reduction_ops_test.py",
@@ -96,7 +92,6 @@ cuda_py_tests(
         "check_ops_test.py",
         "constant_op_test.py",
         "control_flow_ops_py_test.py",
-        "conv_ops_test.py",
         "cross_grad_test.py",
         "denormal_test.py",
         "dense_update_ops_no_tsan_test.py",
@@ -110,10 +105,10 @@ cuda_py_tests(
         "functional_ops_test.py",
         "gather_nd_op_test.py",
         "gather_op_test.py",
-        "gradient_checker_test.py",
         "gradient_correctness_test.py",
         "init_ops_test.py",
         "linalg_ops_test.py",
+        "lrn_op_test.py",
         "matmul_op_test.py",
         "morphological_ops_test.py",
         "multinomial_op_test.py",
@@ -133,6 +128,7 @@ cuda_py_tests(
         "reverse_sequence_op_test.py",
         "rnn_cell_test.py",
         "scalar_strict_test.py",
+        "scan_ops_test.py",
         "session_ops_test.py",
         "shape_ops_test.py",
         "softmax_op_test.py",
@@ -164,6 +160,7 @@ cuda_py_tests(
     size = "medium",
     srcs = [
         "concat_op_test.py",
+        "conv_ops_test.py",
         "division_future_test.py",
         "fft_ops_test.py",
         "pooling_ops_test.py",

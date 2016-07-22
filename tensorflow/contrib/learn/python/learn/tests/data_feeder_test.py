@@ -1,4 +1,3 @@
-# pylint: disable=g-bad-file-header
 # Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +23,7 @@ import six
 
 import tensorflow as tf
 # pylint: disable=wildcard-import
-from tensorflow.contrib.learn.python.learn.io import *
+from tensorflow.contrib.learn.python.learn.learn_io import *
 # pylint: enable=wildcard-import
 
 

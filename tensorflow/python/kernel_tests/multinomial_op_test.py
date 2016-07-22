@@ -47,6 +47,7 @@ class MultinomialTest(tf.test.TestCase):
   use_gpu = False
 
   def testSmallEntropy(self):
+    tf.set_random_seed(1618)
     with self.test_session(use_gpu=self.use_gpu):
       # A logit value of -10 corresponds to a probability of ~5e-5.
       logits = tf.constant([[-10., 10., -10.], [-10., -10., 10.]])
@@ -165,6 +166,20 @@ class MultinomialTest(tf.test.TestCase):
     diff = actual - expected
     chi2 = np.sum(diff * diff / expected, axis=0)
     return chi2
+
+  def testEmpty(self):
+    classes = 5
+    with self.test_session(use_gpu=self.use_gpu):
+      for batch in 0, 3:
+        for samples in 0, 7:
+          x = tf.multinomial(tf.zeros([batch, classes]), samples).eval()
+          self.assertEqual(x.shape, (batch, samples))
+
+  def testEmptyClasses(self):
+    with self.test_session(use_gpu=self.use_gpu):
+      x = tf.multinomial(tf.zeros([5, 0]), 7)
+      with self.assertRaisesOpError("num_classes should be positive"):
+        x.eval()
 
 
 class MultinomialGpuTest(MultinomialTest):

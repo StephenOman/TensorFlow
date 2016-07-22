@@ -19,7 +19,6 @@ from __future__ import print_function
 
 import contextlib
 import os
-import threading
 import time
 
 from tensorflow.core.framework.summary_pb2 import Summary
@@ -42,7 +41,7 @@ class Supervisor(object):
   """A training helper that checkpoints models and computes summaries.
 
   The Supervisor is a small wrapper around a `Coordinator`, a `Saver`,
-  and a `SessionManager` that takes care of common needs of Tensorflow
+  and a `SessionManager` that takes care of common needs of TensorFlow
   training programs.
 
   #### Use for a single program
@@ -52,7 +51,7 @@ class Supervisor(object):
     ...add operations to the graph...
     # Create a Supervisor that will checkpoint the model in '/tmp/mydir'.
     sv = Supervisor(logdir='/tmp/mydir')
-    # Get a Tensorflow session managed by the supervisor.
+    # Get a TensorFlow session managed by the supervisor.
     with sv.managed_session(FLAGS.master) as sess:
       # Use the session to train the graph.
       while not sv.should_stop():
@@ -210,12 +209,6 @@ class Supervisor(object):
   # and 'global_step' parameters of Supervisor.__init__() to indicate that
   # the default behavior should be used.
   USE_DEFAULT = 0
-
-  # Protects _TENSORFLOW_LAUNCHED
-  _launch_lock = threading.Lock()
-
-  # True if we have already launched the tensorflow in-process server.
-  _TENSORFLOW_LAUNCHED = False
 
   def __init__(self, graph=None, ready_op=USE_DEFAULT, is_chief=True,
                init_op=USE_DEFAULT, init_feed_dict=None,

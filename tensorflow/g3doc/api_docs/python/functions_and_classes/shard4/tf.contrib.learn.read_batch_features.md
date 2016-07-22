@@ -30,11 +30,13 @@ All ops are added to the default graph.
 *  <b>`queue_capacity`</b>: Capacity for input queue.
 *  <b>`reader_num_threads`</b>: The number of threads to read examples.
 *  <b>`parser_num_threads`</b>: The number of threads to parse examples.
+    records to read at once
 *  <b>`name`</b>: Name of resulting op.
 
 ##### Returns:
 
   A dict of `Tensor` or `SparseTensor` objects for each in `features`.
+  If `keep_keys` is `True`, returns tuple of string `Tensor` and above dict.
 
 ##### Raises:
 

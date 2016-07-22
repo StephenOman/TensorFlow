@@ -179,6 +179,9 @@ if [[ "${DO_PIP_BUILD}" == "1" ]]; then
   export TF_BUILD_IS_OPT="OPT"
   export TF_BUILD_IS_PIP="PIP"
 
+  export TF_BUILD_APPEND_CI_DOCKER_EXTRA_PARAMS=\
+"-e TF_CUDA_COMPUTE_CAPABILITIES=3.0,3.5,5.2"
+
   pushd "${SCRIPT_DIR}/../../../"
   rm -rf pip_test/whl &&
   tensorflow/tools/ci_build/ci_parameterized_build.sh
@@ -190,14 +193,15 @@ if [[ "${DO_PIP_BUILD}" == "1" ]]; then
     die "FAIL: Failed to build pip file locally"
   fi
 
-  PIP_WHL=$(ls pip_test/whl/*.whl)
+  PIP_WHL=$(ls pip_test/whl/*.whl | head -1)
   if [[ -z "${PIP_WHL}" ]]; then
     die "ERROR: Cannot locate the locally-built pip whl file"
   fi
   echo "Locally-built PIP whl file is at: ${PIP_WHL}"
 
   # Copy the pip file to tmp directory
-  cp "${PIP_WHL}" "${TMP_DIR}/"
+  cp "${PIP_WHL}" "${TMP_DIR}/" || \
+      die "ERROR: Failed to copy wheel file: ${PIP_WHL}"
 
   # Use string replacement to put the correct file name into the Dockerfile
   PIP_WHL=$(basename "${PIP_WHL}")

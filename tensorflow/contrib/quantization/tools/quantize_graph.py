@@ -15,7 +15,7 @@
 r"""Transforms a float-trained graph into an equivalent quantized version.
 
 An example of command-line usage is:
-bazel build tensorflow/contrib/quantization/tools/:quantize_graph \
+bazel build tensorflow/contrib/quantization/tools:quantize_graph \
 && bazel-bin/tensorflow/contrib/quantization/tools/quantize_graph \
 --input=tensorflow_inception_graph.pb
 --output_node_names="softmax2" --print_nodes --output=/tmp/quantized_graph.pb \
@@ -243,8 +243,10 @@ def quantize_weight_eightbit(input_node, quantization_mode):
   if min_value == max_value:
     if abs(min_value) < 0.000001:
       max_value = min_value + 1.0
-    else:
+    elif min_value > 0:
       max_value = 2 * min_value
+    else:
+      max_value = min_value / 2.0
 
   sess = tf.Session()
   with sess.as_default():

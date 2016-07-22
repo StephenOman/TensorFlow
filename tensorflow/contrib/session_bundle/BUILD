@@ -1,4 +1,4 @@
-# Description: Tensorflow Serving session bundle.
+# Description: TensorFlow Serving session bundle.
 
 package(
     default_visibility = ["//visibility:public"],
@@ -32,7 +32,7 @@ py_library(
     deps = [
         ":gc",
         ":manifest_proto_py",
-        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework",
     ],
 )
 
@@ -57,7 +57,7 @@ py_library(
     srcs = ["gc.py"],
     srcs_version = "PY2AND3",
     deps = [
-        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework",
     ],
 )
 
@@ -74,6 +74,22 @@ py_test(
     ],
 )
 
+filegroup(
+    name = "session_bundle_srcs",
+    srcs = [
+        "session_bundle.cc",
+        "session_bundle.h",
+    ],
+)
+
+filegroup(
+    name = "signature_srcs",
+    srcs = [
+        "signature.cc",
+        "signature.h",
+    ],
+)
+
 cc_library(
     name = "session_bundle",
     srcs = ["session_bundle.cc"],
@@ -86,6 +102,24 @@ cc_library(
         "//tensorflow/core:lib",
         "//tensorflow/core:protos_all_cc",
         "//tensorflow/core:tensorflow_opensource",
+    ],
+)
+
+# This is a lite version of the session_bundle target that does not link in any
+# Tensorflow ops in order to minimize its size. Clients using this should link
+# any required ops manually.
+cc_library(
+    name = "session_bundle_lite",
+    srcs = ["session_bundle.cc"],
+    hdrs = ["session_bundle.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":manifest_proto_cc",
+        ":signature_lite",
+        "//tensorflow/core:core_cpu",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:protos_all_cc",
     ],
 )
 
@@ -121,6 +155,22 @@ cc_library(
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:tensorflow_opensource",
+    ],
+)
+
+# This is a lite version of the signature target that does not link in any
+# Tensorflow ops in order to minimize its size. Clients using this should
+# link any required ops manually.
+cc_library(
+    name = "signature_lite",
+    srcs = ["signature.cc"],
+    hdrs = ["signature.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":manifest_proto_cc",
+        "//tensorflow/core:core_cpu",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
     ],
 )
 
