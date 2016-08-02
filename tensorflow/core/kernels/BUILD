@@ -423,6 +423,7 @@ tf_kernel_libraries(
         "//tensorflow/core:lib_internal",
         "//tensorflow/core:proto_text",
         "//tensorflow/core:protos_all_cc",
+        "//tensorflow/core/debug:debug_io_utils",
         "//third_party/eigen3",
     ],
 )
@@ -480,7 +481,7 @@ tf_cc_test(
 
 tf_cc_test(
     name = "example_parsing_ops_test",
-    size = "small",
+    size = "large",
     deps = [
         ":example_parsing_ops",
         ":ops_testutil",
@@ -500,6 +501,23 @@ tf_cuda_cc_test(
     size = "small",
     deps = [
         ":gather_op",
+        ":ops_testutil",
+        ":ops_util",
+        "//tensorflow/core:core_cpu",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:protos_all_cc",
+        "//tensorflow/core:test",
+        "//tensorflow/core:test_main",
+        "//tensorflow/core:testlib",
+    ],
+)
+
+tf_cuda_cc_test(
+    name = "gather_nd_op_test",
+    size = "small",
+    deps = [
+        ":gather_nd_op",
         ":ops_testutil",
         ":ops_util",
         "//tensorflow/core:core_cpu",
@@ -1007,7 +1025,6 @@ tf_kernel_libraries(
         "matrix_triangular_solve_op",
     ],
     deps = [
-        ":binary_linalg_ops_common",
         ":linalg_ops_common",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
@@ -1016,7 +1033,6 @@ tf_kernel_libraries(
     ],
 )
 
-# TODO(josh11b): Should these two *linalg_ops_common libraries be merged?
 cc_library(
     name = "linalg_ops_common",
     srcs = ["linalg_ops_common.cc"],
@@ -1024,17 +1040,7 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         "//tensorflow/core:framework",
-        "//third_party/eigen3",
-    ],
-)
-
-cc_library(
-    name = "binary_linalg_ops_common",
-    srcs = ["binary_linalg_ops_common.cc"],
-    hdrs = ["binary_linalg_ops_common.h"],
-    visibility = ["//visibility:private"],
-    deps = [
-        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
         "//third_party/eigen3",
     ],
 )
@@ -1046,6 +1052,7 @@ tf_kernel_libraries(
         "summary_audio_op",
         "summary_image_op",
         "summary_op",
+        "summary_tensor_op",
     ],
     deps = [
         "//tensorflow/core:framework",
@@ -2016,7 +2023,6 @@ filegroup(
             # Ops which we are currently excluding because they are likely
             # not used on Android. Those ops also do not compile if included,
             # unless we add the additional deps they need.
-            "strided_slice_op.*",
             "tf_record_reader_op.*",
             "string_to_hash_bucket_op.*",
             "text_line_reader_op.*",
@@ -2032,6 +2038,8 @@ filegroup(
             "whole_file_read_ops.*",
             "sample_distorted_bounding_box_op.*",
             "ctc_loss_op.*",
+            # Excluded due to experimental status:
+            "debug_ops.*",
             # Ops excluded because they do not build correctly for Android.
             # See b/29213790
             "sparse_matmul_op.*",

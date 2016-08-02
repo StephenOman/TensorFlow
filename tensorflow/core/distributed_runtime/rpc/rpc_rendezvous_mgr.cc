@@ -310,6 +310,7 @@ void RpcRemoteRendezvous::RecvFromRemoteAsync(
   RegisterCall(call);
 
   // Start "call".
+  Ref();
   call->Start([this, call]() {
     // Removes "call" from active_. Prevent StartAbort().
     DeregisterCall(call);
@@ -325,6 +326,7 @@ void RpcRemoteRendezvous::RecvFromRemoteAsync(
     cache_->ReleaseWorker(call->src_worker_, call->wi_);
     call->wi_ = nullptr;
     call_freelist_.Release(call);
+    Unref();
   });
 }
 

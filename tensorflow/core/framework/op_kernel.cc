@@ -93,6 +93,10 @@ OpKernel::OpKernel(OpKernelConstruction* context)
                                    &output_name_map_));
   OP_REQUIRES_OK(context, CheckOpDeprecation(context->op_def(),
                                              context->graph_def_version()));
+
+  // Kernels executing on GPU tie very few resources on the CPU where the
+  // scheduler runs: we consider them as inexpensive.
+  expensive_ = context->device_type() != DeviceType(DEVICE_GPU);
 }
 
 OpKernel::~OpKernel() {}
@@ -194,6 +198,7 @@ Status OpKernelConstruction::allocate_persistent(
 OpKernelContext::OpKernelContext(Params* params)
     : OpKernelContext(
           params, static_cast<int>(params->op_kernel->output_types().size())) {}
+
 OpKernelContext::OpKernelContext(Params* params, int noutputs)
     : params_(params), outputs_(noutputs) {
   Allocator* eigen_gpu_allocator = get_allocator(AllocatorAttributes());
@@ -201,8 +206,7 @@ OpKernelContext::OpKernelContext(Params* params, int noutputs)
   params_->device->ReinitializeGpuDevice(this, params_->eigen_gpu_device,
                                          params_->op_device_context,
                                          eigen_gpu_allocator);
-  record_tensor_accesses_ = params_->device->RequiresRecordingAccessedTensors();
-  if (record_tensor_accesses_) {
+  if (params_->record_tensor_accesses) {
     referenced_tensors_.Init();
   }
 }
@@ -213,7 +217,7 @@ OpKernelContext::~OpKernelContext() {
       delete value.tensor;
     }
   }
-  if (record_tensor_accesses_) referenced_tensors_.Destroy();
+  if (params_->record_tensor_accesses) referenced_tensors_.Destroy();
 }
 
 Allocator* OpKernelContext::get_allocator(AllocatorAttributes attr) {

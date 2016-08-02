@@ -37,6 +37,18 @@ py_test(
 )
 
 py_test(
+    name = "load_csv_test",
+    size = "small",
+    srcs = ["python/learn/tests/load_csv_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":learn",
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework_test_lib",
+    ],
+)
+
+py_test(
     name = "data_feeder_test",
     size = "small",
     srcs = ["python/learn/tests/data_feeder_test.py"],
@@ -80,6 +92,18 @@ py_test(
     name = "dataframe_test",
     size = "medium",
     srcs = ["python/learn/tests/dataframe/dataframe_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":learn",
+        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:framework_test_lib",
+    ],
+)
+
+py_test(
+    name = "estimator_utils_test",
+    size = "medium",
+    srcs = ["python/learn/tests/dataframe/estimator_utils_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":learn",
@@ -223,9 +247,9 @@ py_test(
 )
 
 py_test(
-    name = "compare_test",
+    name = "binary_transform_test",
     size = "small",
-    srcs = ["python/learn/tests/dataframe/compare_test.py"],
+    srcs = ["python/learn/tests/dataframe/binary_transform_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":learn",
@@ -251,7 +275,10 @@ py_test(
     size = "medium",
     srcs = ["python/learn/tests/early_stopping_test.py"],
     srcs_version = "PY2AND3",
-    tags = ["manual"],  # http://b/28555477
+    tags = [
+        "manual",
+        "noasan",  # http://b/28555477
+    ],
     deps = [
         ":learn",
         "//tensorflow:tensorflow_py",
@@ -432,6 +459,7 @@ py_test(
     size = "medium",
     srcs = ["python/learn/estimators/linear_test.py"],
     srcs_version = "PY2AND3",
+    tags = ["noasan"],  # http://b/30035845
     deps = [
         ":learn",
         "//tensorflow:tensorflow_py",
@@ -605,19 +633,6 @@ py_test(
     deps = [
         ":learn",
         "//tensorflow:tensorflow_py",
-        "//tensorflow/python:framework_test_lib",
-    ],
-)
-
-py_test(
-    name = "checkpoints_test",
-    size = "small",
-    srcs = ["python/learn/utils/checkpoints_test.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":learn",
-        "//tensorflow:tensorflow_py",
-        "//tensorflow/python:framework",
         "//tensorflow/python:framework_test_lib",
     ],
 )

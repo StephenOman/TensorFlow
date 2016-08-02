@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import six
+
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -73,13 +75,14 @@ def rnn(cell, inputs, initial_state=None, dtype=None,
   """Creates a recurrent neural network specified by RNNCell `cell`.
 
   The simplest form of RNN network generated is:
+  ```py
     state = cell.zero_state(...)
     outputs = []
     for input_ in inputs:
       output, state = cell(input_, state)
       outputs.append(output)
     return (outputs, state)
-
+  ```
   However, a few other options are available:
 
   An initial state can be provided.
@@ -521,7 +524,15 @@ def bidirectional_rnn(cell_fw, cell_bw, inputs,
   if not inputs:
     raise ValueError("inputs must not be empty")
 
-  name = scope or "BiRNN"
+  if scope is None:
+    name = "BiRNN"
+  elif isinstance(scope, six.string_types):
+    name = scope
+  elif isinstance(scope, vs.VariableScope):
+    name = scope.name
+  else:
+    raise TypeError("scope must be a string or an instance of VariableScope")
+
   # Forward direction
   with vs.variable_scope(name + "_FW") as fw_scope:
     output_fw, output_state_fw = rnn(cell_fw, inputs, initial_state_fw, dtype,
@@ -634,7 +645,15 @@ def bidirectional_dynamic_rnn(cell_fw, cell_bw, inputs, sequence_length=None,
   if not isinstance(cell_bw, rnn_cell.RNNCell):
     raise TypeError("cell_bw must be an instance of RNNCell")
 
-  name = scope or "BiRNN"
+  if scope is None:
+    name = "BiRNN"
+  elif isinstance(scope, six.string_types):
+    name = scope
+  elif isinstance(scope, vs.VariableScope):
+    name = scope.name
+  else:
+    raise TypeError("scope must be a string or an instance of VariableScope")
+
   # Forward direction
   with vs.variable_scope(name + "_FW") as fw_scope:
     output_fw, output_state_fw = dynamic_rnn(

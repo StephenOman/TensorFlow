@@ -49,10 +49,11 @@
 # to run.
 #
 
-# Constants:
 # Fixed naming patterns for wheel (.whl) files given different python versions
-declare -A WHL_TAGS
-WHL_TAGS=(["2.7"]="cp27-none" ["3.4"]="cp34-cp34m" ["3.5"]="cp35-cp35m")
+if [[ $(uname) == "Linux" ]]; then
+  declare -A WHL_TAGS
+  WHL_TAGS=(["2.7"]="cp27-none" ["3.4"]="cp34-cp34m" ["3.5"]="cp35-cp35m")
+fi
 
 
 INSTALL_EXTRA_PIP_PACKAGES=${TF_BUILD_INSTALL_EXTRA_PIP_PACKAGES}
@@ -105,7 +106,8 @@ fi
 
 PIP_BUILD_TARGET="//tensorflow/tools/pip_package:build_pip_package"
 GPU_FLAG=""
-if [[ ${CONTAINER_TYPE} == "cpu" ]]; then
+if [[ ${CONTAINER_TYPE} == "cpu" ]] || \
+   [[ ${CONTAINER_TYPE} == "debian.jessie.cpu" ]]; then
   bazel build -c opt ${MAVX_FLAG} ${PIP_BUILD_TARGET} || \
       die "Build failed."
 elif [[ ${CONTAINER_TYPE} == "gpu" ]]; then

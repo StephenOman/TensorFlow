@@ -185,7 +185,10 @@ def register_dense_tensor_like_type(tensor_type):
 
 
 class Tensor(object):
-  """Represents a value produced by an `Operation`.
+  """Represents one of the outputs of an `Operation`.
+
+  *Note:* the `Tensor` class will be replaced by `Output` in the future.
+  Currently these two are aliases for each other.
 
   A `Tensor` is a symbolic handle to one of the outputs of an
   `Operation`. It does not hold the values of that operation's output,
@@ -554,6 +557,10 @@ class Tensor(object):
 
     """
     return _eval_using_default_session(self, feed_dict, self.graph, session)
+
+
+# TODO(josh11b): Switch everyone from "Tensor" to "Output" to match C++ API.
+Output = Tensor
 
 
 def _TensorTensorConversionFunction(t, dtype=None, name=None, as_ref=False):
@@ -1968,6 +1975,7 @@ class Graph(object):
     # Functions defined in the graph
     self._functions = collections.OrderedDict()
     self._function_gradient = collections.OrderedDict()
+    self._function_python_gradient = collections.OrderedDict()
     # Default GraphDef versions
     self._graph_def_versions = versions_pb2.VersionDef(
         producer=versions.GRAPH_DEF_VERSION,
@@ -2187,7 +2195,8 @@ class Graph(object):
     """
     return self._functions[name]
 
-  def _add_function(self, function_def, grad_function_name=None):
+  def _add_function(self, function_def, grad_function_name=None,
+                    python_grad_func=None):
     """Adds a function to the graph.
 
     The function is specified as a [`FunctionDef`]
@@ -2203,20 +2212,30 @@ class Graph(object):
       grad_function_name: If not None, this specifies the name of a function
                           that shall be used as the gradient function of
                           the function being added.
+      python_grad_func: If not None, specifies the gradient function with the
+                        same interface as expected by `tf.RegisterGradient`.
+                        No more than one of {grad_function_name,
+                        python_grad_func} may be specified.
+
 
     Raises:
       ValueError: if another function is defined with the same name.
     """
-    previous_def = self._functions.get(function_def.signature.name, None)
+    name = function_def.signature.name
+    previous_def = self._functions.get(name, None)
     if previous_def:
       if previous_def != function_def:
         raise ValueError("Another function is already defined with that name")
       else:
         # No need to add again.
         return
-    self._functions[function_def.signature.name] = function_def
+    self._functions[name] = function_def
+    if grad_function_name is not None and python_grad_func is not None:
+      raise ValueError("Gradient defined twice for function %s" % name)
     if grad_function_name is not None:
-      self._function_gradient[function_def.signature.name] = grad_function_name
+      self._function_gradient[name] = grad_function_name
+    if python_grad_func is not None:
+      self._function_python_gradient[name] = python_grad_func
 
   # Helper functions to create operations.
   def create_op(self, op_type, inputs, dtypes,
@@ -4063,3 +4082,14 @@ def get_from_proto_function(collection_name):
     return _proto_function_registry.lookup(collection_name)[2]
   except LookupError:
     return None
+
+
+def _operation_conversion_error(op, dtype=None, name=None, as_ref=False):
+  """Produce a nice error if someone converts an Operation to a Tensor."""
+  raise TypeError(
+      ("Can't convert Operation '%s' to Tensor "
+       "(target dtype=%r, name=%r, as_ref=%r)") %
+      (op.name, dtype, name, as_ref))
+
+
+register_tensor_conversion_function(Operation, _operation_conversion_error)

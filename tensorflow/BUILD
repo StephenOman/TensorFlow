@@ -71,6 +71,7 @@ filegroup(
     name = "all_opensource_files",
     data = [
         ":all_files",
+        "//tensorflow/c:all_files",
         "//tensorflow/cc:all_files",
         "//tensorflow/contrib:all_files",
         "//tensorflow/contrib/copy_graph:all_files",
@@ -103,6 +104,7 @@ filegroup(
         "//tensorflow/contrib/testing:all_files",
         "//tensorflow/contrib/util:all_files",
         "//tensorflow/core:all_files",
+        "//tensorflow/core/debug:all_files",
         "//tensorflow/core/distributed_runtime:all_files",
         "//tensorflow/core/distributed_runtime/rpc:all_files",
         "//tensorflow/core/kernels:all_files",

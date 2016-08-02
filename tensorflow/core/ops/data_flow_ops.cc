@@ -13,9 +13,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/op.h"
+#include "tensorflow/core/framework/op_def_builder.h"
+#include "tensorflow/core/framework/shape_inference.h"
 
 namespace tensorflow {
+
+using shape_inference::Dimension;
+using shape_inference::InferenceContext;
+using shape_inference::Shape;
 
 // --------------------------------------------------------------------------
 
@@ -125,6 +132,7 @@ REGISTER_OP("RandomShuffleQueue")
     .Attr("container: string = ''")
     .Attr("shared_name: string = ''")
     .SetIsStateful()
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 A queue that randomizes the order of elements.
 
@@ -156,6 +164,7 @@ REGISTER_OP("FIFOQueue")
     .Attr("container: string = ''")
     .Attr("shared_name: string = ''")
     .SetIsStateful()
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 A queue that produces elements in first-in first-out order.
 
@@ -181,6 +190,7 @@ REGISTER_OP("PaddingFIFOQueue")
     .Attr("container: string = ''")
     .Attr("shared_name: string = ''")
     .SetIsStateful()
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 A queue that produces elements in first-in first-out order.
 
@@ -214,6 +224,7 @@ REGISTER_OP("PriorityQueue")
     .Attr("container: string = ''")
     .Attr("shared_name: string = ''")
     .SetIsStateful()
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 A queue that produces elements sorted by the first component value.
 
@@ -242,6 +253,7 @@ REGISTER_OP("QueueEnqueue")
     .Input("components: Tcomponents")
     .Attr("Tcomponents: list(type) >= 1")
     .Attr("timeout_ms: int = -1")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Enqueues a tuple of one or more tensors in the given queue.
 
@@ -263,6 +275,7 @@ REGISTER_OP("QueueEnqueueMany")
     .Input("components: Tcomponents")
     .Attr("Tcomponents: list(type) >= 1")
     .Attr("timeout_ms: int = -1")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Enqueues zero or more tuples of one or more tensors in the given queue.
 
@@ -289,6 +302,7 @@ REGISTER_OP("QueueDequeue")
     .Output("components: component_types")
     .Attr("component_types: list(type) >= 1")
     .Attr("timeout_ms: int = -1")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Dequeues a tuple of one or more tensors from the given queue.
 
@@ -313,6 +327,7 @@ REGISTER_OP("QueueDequeueMany")
     .Output("components: component_types")
     .Attr("component_types: list(type) >= 1")
     .Attr("timeout_ms: int = -1")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Dequeues n tuples of one or more tensors from the given queue.
 
@@ -345,6 +360,7 @@ REGISTER_OP("QueueDequeueUpTo")
     .Output("components: component_types")
     .Attr("component_types: list(type) >= 1")
     .Attr("timeout_ms: int = -1")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Dequeues n tuples of one or more tensors from the given queue.
 
@@ -395,6 +411,7 @@ cancel_pending_enqueues: If true, all pending enqueue requests that are
 REGISTER_OP("QueueSize")
     .Input("handle: Ref(string)")
     .Output("size: int32")
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 Computes the number of elements in the given queue.
 
@@ -409,6 +426,7 @@ REGISTER_OP("Stack")
     .Attr("elem_type: type")
     .Attr("stack_name: string = ''")
     .SetIsStateful()
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 A stack that produces elements in first-in last-out order.
 
@@ -424,6 +442,7 @@ REGISTER_OP("StackPush")
     .Output("output: T")
     .Attr("T: type")
     .Attr("swap_memory: bool = false")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Push an element onto the stack.
 
@@ -437,6 +456,7 @@ REGISTER_OP("StackPop")
     .Input("handle: Ref(string)")
     .Output("elem: elem_type")
     .Attr("elem_type: type")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Pop the element at the top of the stack.
 
@@ -703,6 +723,7 @@ REGISTER_OP("Barrier")
     .Attr("capacity: int = -1")
     .Attr("container: string = ''")
     .Attr("shared_name: string = ''")
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 Defines a barrier that persists across different graph executions.
 
@@ -759,6 +780,7 @@ REGISTER_OP("BarrierTakeMany")
     .Attr("allow_small_batch: bool = false")
     .Attr("wait_for_incomplete: bool = false")
     .Attr("timeout_ms: int = -1")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Takes the given number of completed elements from a barrier.
 
@@ -809,6 +831,7 @@ cancel_pending_enqueues: If true, all pending enqueue requests that are
 REGISTER_OP("BarrierReadySize")
     .Input("handle: Ref(string)")
     .Output("size: int32")
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 Computes the number of complete elements in the given barrier.
 
@@ -820,6 +843,7 @@ size: The number of complete elements (i.e. those with all of their value
 REGISTER_OP("BarrierIncompleteSize")
     .Input("handle: Ref(string)")
     .Output("size: int32")
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 Computes the number of incomplete elements in the given barrier.
 
@@ -837,6 +861,13 @@ REGISTER_OP("LookupTableFind")
     .Output("values: Tout")
     .Attr("Tin: type")
     .Attr("Tout: type")
+    .SetShapeFn([](InferenceContext* c) {
+      const Shape* unused;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 0, &unused));
+      c->set_output(0, c->UnknownShape());
+      return Status::OK();
+    })
     .Doc(R"doc(
 Looks up keys in a table, outputs the corresponding values.
 
@@ -858,6 +889,12 @@ REGISTER_OP("LookupTableInsert")
     .Input("values: Tout")
     .Attr("Tin: type")
     .Attr("Tout: type")
+    .SetShapeFn([](InferenceContext* c) {
+      const Shape* unused;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
+      TF_RETURN_IF_ERROR(c->Merge(c->input(1), c->input(2), &unused));
+      return Status::OK();
+    })
     .Doc(R"doc(
 Updates the table to associates keys with values.
 
@@ -872,6 +909,12 @@ values: Same shape as `keys`.  Values to associate with keys.
 REGISTER_OP("LookupTableSize")
     .Input("table_handle: Ref(string)")
     .Output("size: int64")
+    .SetShapeFn([](InferenceContext* c) {
+      const Shape* unused;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
+      c->set_output(0, c->Scalar());
+      return Status::OK();
+    })
     .Doc(R"doc(
 Computes the number of elements in the given table.
 
@@ -885,6 +928,17 @@ REGISTER_OP("LookupTableExport")
     .Output("values: Tvalues")
     .Attr("Tkeys: type")
     .Attr("Tvalues: type")
+    .SetShapeFn([](InferenceContext* c) {
+      const Shape* unused;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
+
+      const Shape* values = c->UnknownShape();
+      TF_RETURN_IF_ERROR(c->WithRankAtLeast(values, 1, &values));
+      const Shape* keys = c->Vector(c->Dim(values, 0));
+      c->set_output(0, keys);
+      c->set_output(1, values);
+      return Status::OK();
+    })
     .Doc(R"doc(
 Outputs all keys and values in the table.
 
@@ -969,6 +1023,14 @@ REGISTER_OP("InitializeTable")
     .Input("values: Tval")
     .Attr("Tkey: type")
     .Attr("Tval: type")
+    .SetShapeFn([](InferenceContext* c) {
+      const Shape* unused;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
+      const Shape* keys;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 1, &keys));
+      TF_RETURN_IF_ERROR(c->Merge(keys, c->input(2), &keys));
+      return Status::OK();
+    })
     .Doc(R"doc(
 Table initializer that takes two tensors for keys and values respectively.
 
@@ -984,6 +1046,12 @@ REGISTER_OP("InitializeTableFromTextFile")
     .Attr("value_index: int >= -2")
     .Attr("vocab_size: int >= -1 = -1")
     .Attr("delimiter: string = '\t'")
+    .SetShapeFn([](InferenceContext* c) {
+      const Shape* unused;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 0, &unused));
+      return Status::OK();
+    })
     .Doc(R"doc(
 Initializes a table from a text file.
 
@@ -1011,6 +1079,7 @@ REGISTER_OP("GetSessionHandle")
     .Input("value: T")
     .Output("handle: string")
     .Attr("T: type")
+    .SetShapeFn(shape_inference::ScalarShape)
     .Doc(R"doc(
 Store the input tensor in the state of the current session.
 
@@ -1022,6 +1091,7 @@ REGISTER_OP("GetSessionTensor")
     .Input("handle: string")
     .Output("value: dtype")
     .Attr("dtype: type")
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Get the value of the tensor specified by its handle.
 

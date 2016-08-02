@@ -75,6 +75,7 @@ import abc
 import collections
 import math
 
+from tensorflow.contrib.framework.python.framework import checkpoint_utils
 from tensorflow.contrib.framework.python.ops import variables as contrib_variables
 from tensorflow.contrib.layers.python.layers import embedding_ops
 from tensorflow.contrib.layers.python.ops import bucketization_op
@@ -149,6 +150,7 @@ class _FeatureColumn(object):
     raise ValueError("Calling an abstract method.")
 
 
+# TODO(b/30410315): Support warm starting in all feature columns.
 class _SparseColumn(_FeatureColumn,
                     collections.namedtuple("_SparseColumn",
                                            ["column_name", "is_integerized",
@@ -568,7 +570,8 @@ def weighted_sparse_column(sparse_id_column,
 
 class _EmbeddingColumn(_FeatureColumn, collections.namedtuple(
     "_EmbeddingColumn",
-    ["sparse_id_column", "dimension", "combiner", "initializer"])):
+    ["sparse_id_column", "dimension", "combiner", "initializer",
+     "ckpt_to_load_from", "tensor_name_in_ckpt"])):
   """Represents an embedding column.
 
   Args:
@@ -586,15 +589,31 @@ class _EmbeddingColumn(_FeatureColumn, collections.namedtuple(
       variable initialization. If not specified, defaults to
       `tf.truncated_normal_initializer` with mean 0.0 and standard deviation
       1/sqrt(sparse_id_column.length).
+    ckpt_to_load_from: (Optional). String representing checkpoint name/pattern
+      to restore the column weights. Required if `tensor_name_in_ckpt` is not
+      None.
+    tensor_name_in_ckpt: (Optional). Name of the `Tensor` in the provided
+      checkpoint from which to restore the column weights. Required if
+      `ckpt_to_load_from` is not None.
+
+  Raises:
+    ValueError: if `initializer` is specified and is not callable. Also,
+      if only one of `ckpt_to_load_from` and `tensor_name_in_ckpt` is specified.
   """
 
   def __new__(cls,
               sparse_id_column,
               dimension,
               combiner="mean",
-              initializer=None):
+              initializer=None,
+              ckpt_to_load_from=None,
+              tensor_name_in_ckpt=None):
     if initializer is not None and not callable(initializer):
       raise ValueError("initializer must be callable if specified.")
+
+    if (ckpt_to_load_from is None) != (tensor_name_in_ckpt is None):
+      raise ValueError("Must specify both `ckpt_to_load_from` and "
+                       "`tensor_name_in_ckpt` or none of them.")
     if initializer is None:
       stddev = 1 / math.sqrt(sparse_id_column.length)
       # TODO(b/25671353): Better initial value?
@@ -602,7 +621,8 @@ class _EmbeddingColumn(_FeatureColumn, collections.namedtuple(
                                                           stddev=stddev)
     return super(_EmbeddingColumn, cls).__new__(cls, sparse_id_column,
                                                 dimension, combiner,
-                                                initializer)
+                                                initializer, ckpt_to_load_from,
+                                                tensor_name_in_ckpt)
 
   @property
   def name(self):
@@ -645,7 +665,7 @@ class _EmbeddingColumn(_FeatureColumn, collections.namedtuple(
                          input_tensor,
                          weight_collections=None,
                          trainable=True):
-    output, _ = _create_embedding_lookup(
+    output, embedding_weights = _create_embedding_lookup(
         input_tensor=self.sparse_id_column.id_tensor(input_tensor),
         weight_tensor=self.sparse_id_column.weight_tensor(input_tensor),
         vocab_size=self.length,
@@ -655,6 +675,13 @@ class _EmbeddingColumn(_FeatureColumn, collections.namedtuple(
         combiner=self.combiner,
         trainable=trainable,
         name=self.name + "_weights")
+    if self.ckpt_to_load_from is not None:
+      weights_to_restore = embedding_weights
+      if len(embedding_weights) == 1:
+        weights_to_restore = embedding_weights[0]
+      checkpoint_utils.init_from_checkpoint(
+          self.ckpt_to_load_from,
+          {self.tensor_name_in_ckpt: weights_to_restore})
     return output
 
   # pylint: disable=unused-argument
@@ -670,12 +697,15 @@ class _EmbeddingColumn(_FeatureColumn, collections.namedtuple(
 def embedding_column(sparse_id_column,
                      dimension,
                      combiner="mean",
-                     initializer=None):
+                     initializer=None,
+                     ckpt_to_load_from=None,
+                     tensor_name_in_ckpt=None):
   """Creates an _EmbeddingColumn.
 
   Args:
     sparse_id_column: A _SparseColumn which is created by `sparse_column_with_*`
-      functions. Note that `combiner` defined in `sparse_id_column` is ignored.
+      or crossed_column functions. Note that `combiner` defined in
+      `sparse_id_column` is ignored.
     dimension: An integer specifying dimension of the embedding.
     combiner: A string specifying how to reduce if there are multiple entries
       in a single row. Currently "mean", "sqrtn" and "sum" are supported. Each
@@ -688,11 +718,18 @@ def embedding_column(sparse_id_column,
       variable initialization. If not specified, defaults to
       `tf.truncated_normal_initializer` with mean 0.0 and standard deviation
       1/sqrt(sparse_id_column.length).
+    ckpt_to_load_from: (Optional). String representing checkpoint name/pattern
+      to restore the column weights. Required if `tensor_name_in_ckpt` is not
+      None.
+    tensor_name_in_ckpt: (Optional). Name of the `Tensor` in the provided
+      checkpoint from which to restore the column weights. Required if
+      `ckpt_to_load_from` is not None.
 
   Returns:
     An _EmbeddingColumn.
   """
-  return _EmbeddingColumn(sparse_id_column, dimension, combiner, initializer)
+  return _EmbeddingColumn(sparse_id_column, dimension, combiner, initializer,
+                          ckpt_to_load_from, tensor_name_in_ckpt)
 
 
 class _HashedEmbeddingColumn(collections.namedtuple(
@@ -1087,7 +1124,8 @@ def bucketized_column(source_column, boundaries):
 
 
 class _CrossedColumn(_FeatureColumn, collections.namedtuple(
-    "_CrossedColumn", ["columns", "hash_bucket_size", "combiner"])):
+    "_CrossedColumn", ["columns", "hash_bucket_size", "combiner",
+                       "ckpt_to_load_from", "tensor_name_in_ckpt"])):
   """Represents a cross transformation also known as composition or union.
 
   Instances of this class are immutable. It crosses given `columns`. Crossed
@@ -1124,13 +1162,19 @@ class _CrossedColumn(_FeatureColumn, collections.namedtuple(
         * "mean": do l1 normalization
         * "sqrtn": do l2 normalization
       For more information: `tf.embedding_lookup_sparse`.
+    ckpt_to_load_from: (Optional). String representing checkpoint name/pattern
+      to restore the column weights. Required if `tensor_name_in_ckpt` is not
+      None.
+    tensor_name_in_ckpt: (Optional). Name of the `Tensor` in the provided
+      checkpoint from which to restore the column weights. Required if
+      `ckpt_to_load_from` is not None.
 
   Raises:
     TypeError: if all items in columns are not an instance of _SparseColumn,
       _CrossedColumn, or _BucketizedColumn or
       hash_bucket_size is not an int.
-    ValueError: if hash_bucket_size is not > 1 or
-      len(columns) is not > 1.
+    ValueError: if hash_bucket_size is not > 1 or len(columns) is not > 1. Also,
+      if only one of `ckpt_to_load_from` and `tensor_name_in_ckpt` is specified.
   """
 
   @staticmethod
@@ -1138,7 +1182,8 @@ class _CrossedColumn(_FeatureColumn, collections.namedtuple(
     return isinstance(column,
                       (_SparseColumn, _CrossedColumn, _BucketizedColumn))
 
-  def __new__(cls, columns, hash_bucket_size, combiner="sum"):
+  def __new__(cls, columns, hash_bucket_size, combiner="sum",
+              ckpt_to_load_from=None, tensor_name_in_ckpt=None):
     for column in columns:
       if not _CrossedColumn._is_crossable(column):
         raise TypeError("columns should be a set of "
@@ -1154,10 +1199,16 @@ class _CrossedColumn(_FeatureColumn, collections.namedtuple(
     if hash_bucket_size < 2:
       raise ValueError("hash_bucket_size should be at least 2.")
 
+    if (ckpt_to_load_from is None) != (tensor_name_in_ckpt is None):
+      raise ValueError("Must specify both `ckpt_to_load_from` and "
+                       "`tensor_name_in_ckpt` or none of them.")
+
     sorted_columns = sorted([column for column in columns],
                             key=lambda column: column.name)
     return super(_CrossedColumn, cls).__new__(cls, tuple(sorted_columns),
-                                              hash_bucket_size, combiner)
+                                              hash_bucket_size, combiner,
+                                              ckpt_to_load_from,
+                                              tensor_name_in_ckpt)
 
   @property
   def name(self):
@@ -1180,6 +1231,15 @@ class _CrossedColumn(_FeatureColumn, collections.namedtuple(
   def key(self):
     """Returns a string which will be used as a key when we do sorting."""
     return "{}".format(self)
+
+  def id_tensor(self, input_tensor):
+    """Returns the id tensor from the given transformed input_tensor."""
+    return input_tensor
+
+  # pylint: disable=unused-argument
+  def weight_tensor(self, input_tensor):
+    """Returns the weight tensor from the given transformed input_tensor."""
+    return None
 
   def insert_transformed_feature(self, columns_to_tensors):
     """Handles cross transformation."""
@@ -1223,7 +1283,7 @@ class _CrossedColumn(_FeatureColumn, collections.namedtuple(
                       num_outputs=1,
                       weight_collections=None,
                       trainable=True):
-    return _create_embedding_lookup(
+    output, embedding_weights = _create_embedding_lookup(
         input_tensor=input_tensor,
         weight_tensor=None,
         vocab_size=self.length,
@@ -1233,9 +1293,19 @@ class _CrossedColumn(_FeatureColumn, collections.namedtuple(
         combiner=self.combiner,
         trainable=trainable,
         name=self.name + "_weights")
+    if self.ckpt_to_load_from is not None:
+      weights_to_restore = embedding_weights
+      if len(embedding_weights) == 1:
+        weights_to_restore = embedding_weights[0]
+      checkpoint_utils.init_from_checkpoint(
+          self.ckpt_to_load_from,
+          {self.tensor_name_in_ckpt: weights_to_restore})
+    return output, embedding_weights
 
 
-def crossed_column(columns, hash_bucket_size, combiner="sum"):
+def crossed_column(columns, hash_bucket_size, combiner="sum",
+                   ckpt_to_load_from=None,
+                   tensor_name_in_ckpt=None):
   """Creates a _CrossedColumn.
 
   Args:
@@ -1243,6 +1313,12 @@ def crossed_column(columns, hash_bucket_size, combiner="sum"):
       _SparseColumn, _CrossedColumn, or _BucketizedColumn.
     hash_bucket_size: An int that is > 1. The number of buckets.
     combiner: A combiner string, supports sum, mean, sqrtn.
+    ckpt_to_load_from: (Optional). String representing checkpoint name/pattern
+      to restore the column weights. Required if `tensor_name_in_ckpt` is not
+      None.
+    tensor_name_in_ckpt: (Optional). Name of the `Tensor` in the provided
+      checkpoint from which to restore the column weights. Required if
+      `ckpt_to_load_from` is not None.
 
   Returns:
     A _CrossedColumn.
@@ -1254,7 +1330,90 @@ def crossed_column(columns, hash_bucket_size, combiner="sum"):
     ValueError: if hash_bucket_size is not > 1 or
       len(columns) is not > 1.
   """
-  return _CrossedColumn(columns, hash_bucket_size, combiner=combiner)
+  return _CrossedColumn(columns, hash_bucket_size, combiner=combiner,
+                        ckpt_to_load_from=ckpt_to_load_from,
+                        tensor_name_in_ckpt=tensor_name_in_ckpt)
+
+
+class DataFrameColumn(_FeatureColumn,
+                      collections.namedtuple("DataFrameColumn",
+                                             ["name", "series"])):
+  """Represents a feature column produced from a `DataFrame`.
+
+  Instances of this class are immutable.  A `DataFrame` column may be dense or
+  sparse, and may have any shape, with the constraint that dimension 0 is
+  batch_size.
+
+  Args:
+    name: a name for this column
+    series: a `Series` to be wrapped, which has already had its base features
+      substituted with `PredefinedSeries`.
+  """
+
+  def __new__(cls, name, series):
+    return super(DataFrameColumn, cls).__new__(cls, name, series)
+
+  @property
+  def config(self):
+    return self.series.required_base_features()
+
+  @property
+  def key(self):
+    """Returns a string which will be used as a key when we do sorting."""
+    return self.name
+
+  def insert_transformed_feature(self, columns_to_tensors):
+    # The cache must already contain mappings from the expected base feature
+    # names to Tensors.
+
+    # Passing columns_to_tensors as the cache here means that multiple outputs
+    # of the transform will be cached, keyed by the repr of their associated
+    # TransformedSeries.
+    # The specific requested output ends up in columns_to_tensors twice: once
+    # keyed by the TransformedSeries repr, and once keyed by this
+    # DataFrameColumn instance.
+    columns_to_tensors[self] = self.series.build(columns_to_tensors)
+
+  # pylint: disable=unused-argument
+  def to_dnn_input_layer(self,
+                         input_tensor,
+                         weight_collections=None,
+                         trainable=True):
+    return input_tensor
+
+  # TODO(soergel): This mirrors RealValuedColumn for now, but should become
+  # better abstracted with less code duplication when we add other kinds.
+  def to_weighted_sum(self,
+                      input_tensor,
+                      num_outputs=1,
+                      weight_collections=None,
+                      trainable=True):
+    def _weight(name):
+      return variable_scope.get_variable(
+          name,
+          shape=[self.dimension, num_outputs],
+          initializer=array_ops.zeros_initializer,
+          collections=_add_variable_collection(weight_collections))
+
+    if self.name:
+      with variable_scope.variable_op_scope([input_tensor], None, self.name):
+        weight = _weight("weight")
+    else:
+      # Old behavior to support a subset of old checkpoints.
+      weight = _weight("_weight")
+
+    # The _RealValuedColumn has the shape of [batch_size, column.dimension].
+    log_odds_by_dim = math_ops.matmul(input_tensor, weight)
+    return log_odds_by_dim, [weight]
+
+  def __eq__(self, other):
+    if isinstance(other, self.__class__):
+      return self.__dict__ == other.__dict__
+    else:
+      return False
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
 
 
 def _get_feature_config(feature_column):
