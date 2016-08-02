@@ -20,10 +20,12 @@ from __future__ import print_function
 
 from tensorflow.contrib.ffmpeg.ops import gen_decode_audio_op_py
 from tensorflow.contrib.ffmpeg.ops import gen_encode_audio_op_py
+from tensorflow.python.framework import errors
 from tensorflow.python.framework import load_library
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.platform import resource_loader
+from tensorflow.python.platform import tf_logging as logging
 
 
 @ops.RegisterShape('DecodeAudio')
@@ -65,7 +67,8 @@ def decode_audio(contents, file_format=None, samples_per_second=None,
   Returns:
     A rank 2 tensor that has time along dimension 0 and channels along
     dimension 1. Dimension 0 will be `samples_per_second * length` wide, and
-    dimension 1 will be `channel_count` wide.
+    dimension 1 will be `channel_count` wide. If ffmpeg fails to decode the
+    audio then an empty tensor will be returned.
   """
   return gen_decode_audio_op_py.decode_audio(
       contents, file_format=file_format, samples_per_second=samples_per_second,
@@ -119,15 +122,18 @@ def _load_library(name, op_list=None):
   Raises:
     NameError if one of the required ops is missing.
   """
-  filename = resource_loader.get_path_to_datafile(name)
-  library = load_library.load_op_library(filename)
-  for expected_op in (op_list or []):
-    for lib_op in library.OP_LIST.op:
-      if lib_op.name == expected_op:
-        break
-    else:
-      raise NameError('Could not find operator %s in dynamic library %s' %
-                      (expected_op, name))
+  try:
+    filename = resource_loader.get_path_to_datafile(name)
+    library = load_library.load_op_library(filename)
+    for expected_op in (op_list or []):
+      for lib_op in library.OP_LIST.op:
+        if lib_op.name == expected_op:
+          break
+      else:
+        raise NameError('Could not find operator %s in dynamic library %s' %
+                        (expected_op, name))
+  except errors.NotFoundError:
+    logging.warning('%s file could not be loaded.', name)
 
 
 _load_library('ffmpeg.so', ['DecodeAudio', 'EncodeAudio'])

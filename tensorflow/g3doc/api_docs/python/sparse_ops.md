@@ -9,7 +9,7 @@ Note: Functions taking `Tensor` arguments can also take anything accepted by
 
 ## Sparse Tensor Representation
 
-Tensorflow supports a `SparseTensor` representation for data that is sparse
+TensorFlow supports a `SparseTensor` representation for data that is sparse
 in multiple dimensions. Contrast this representation with `IndexedSlices`,
 which is efficient for representing tensors that are sparse in their first
 dimension, and dense along all other dimensions.
@@ -20,7 +20,7 @@ dimension, and dense along all other dimensions.
 
 Represents a sparse tensor.
 
-Tensorflow represents a sparse tensor as three separate dense tensors:
+TensorFlow represents a sparse tensor as three separate dense tensors:
 `indices`, `values`, and `shape`.  In Python, the three tensors are
 collected into a `SparseTensor` class for ease of use.  If you have separate
 `indices`, `values`, and `shape` tensors, wrap them in a `SparseTensor`
@@ -1153,5 +1153,67 @@ B dense [k, n]
     A = A.H if adjoint_a else A
     B = B.H if adjoint_b else B
     return A*B
+
+
+- - -
+
+### `tf.sparse_maximum(sp_a, sp_b, name=None)` {#sparse_maximum}
+
+Returns the element-wise max of two SparseTensors.
+
+Assumes the two SparseTensors have the same shape, i.e., no broadcasting.
+Example:
+
+```python
+sp_zero = ops.SparseTensor([[0]], [0], [7])
+sp_one = ops.SparseTensor([[1]], [1], [7])
+res = tf.sparse_maximum(sp_zero, sp_one).eval()
+# "res" should be equal to SparseTensor([[0], [1]], [0, 1], [7]).
+```
+
+##### Args:
+
+
+*  <b>`sp_a`</b>: a `SparseTensor` operand whose dtype is real, and indices
+    lexicographically ordered.
+*  <b>`sp_b`</b>: the other `SparseTensor` operand with the same requirements (and the
+    same shape).
+*  <b>`name`</b>: optional name of the operation.
+
+##### Returns:
+
+
+*  <b>`output`</b>: the output SparseTensor.
+
+
+- - -
+
+### `tf.sparse_minimum(sp_a, sp_b, name=None)` {#sparse_minimum}
+
+Returns the element-wise min of two SparseTensors.
+
+Assumes the two SparseTensors have the same shape, i.e., no broadcasting.
+Example:
+
+```python
+sp_zero = ops.SparseTensor([[0]], [0], [7])
+sp_one = ops.SparseTensor([[1]], [1], [7])
+res = tf.sparse_minimum(sp_zero, sp_one).eval()
+# "res" should be equal to SparseTensor([[0], [1]], [0, 0], [7]).
+```
+
+##### Args:
+
+
+*  <b>`sp_a`</b>: a `SparseTensor` operand whose dtype is real, and indices
+    lexicographically ordered.
+*  <b>`sp_b`</b>: the other `SparseTensor` operand with the same requirements (and the
+    same shape).
+*  <b>`name`</b>: optional name of the operation.
+
+##### Returns:
+
+
+*  <b>`output`</b>: the output SparseTensor.
 
 

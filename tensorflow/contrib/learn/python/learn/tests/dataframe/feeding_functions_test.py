@@ -1,4 +1,3 @@
-# pylint: disable=g-bad-file-header
 # Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +19,15 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import tensorflow.contrib.learn.python.learn.dataframe.queues.feeding_functions as ff
+
+# pylint: disable=g-import-not-at-top
+try:
+  import pandas as pd
+  HAS_PANDAS = True
+except ImportError:
+  HAS_PANDAS = False
 
 
 def vals_to_list(a):
@@ -72,6 +77,8 @@ class _FeedingFunctionsTestCase(tf.test.TestCase):
     self.assertEqual(expected, vals_to_list(actual))
 
   def testPandasFeedFnBatchOne(self):
+    if not HAS_PANDAS:
+      return
     array1 = np.arange(32, 64)
     array2 = np.arange(64, 96)
     df = pd.DataFrame({"a": array1, "b": array2}, index=np.arange(96, 128))
@@ -88,6 +95,8 @@ class _FeedingFunctionsTestCase(tf.test.TestCase):
       self.assertEqual(expected, vals_to_list(actual))
 
   def testPandasFeedFnBatchFive(self):
+    if not HAS_PANDAS:
+      return
     array1 = np.arange(32, 64)
     array2 = np.arange(64, 96)
     df = pd.DataFrame({"a": array1, "b": array2}, index=np.arange(96, 128))
@@ -105,6 +114,8 @@ class _FeedingFunctionsTestCase(tf.test.TestCase):
     self.assertEqual(expected, vals_to_list(actual))
 
   def testPandasFeedFnBatchOneHundred(self):
+    if not HAS_PANDAS:
+      return
     array1 = np.arange(32, 64)
     array2 = np.arange(64, 96)
     df = pd.DataFrame({"a": array1, "b": array2}, index=np.arange(96, 128))

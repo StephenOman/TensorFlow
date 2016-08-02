@@ -205,7 +205,7 @@ class DType(object):
         (bool, string, complex64, complex128)):
       raise TypeError("Cannot find maximum value of %s." % self)
 
-    # there is no simple way to get the min value of a dtype, we have to check
+    # there is no simple way to get the max value of a dtype, we have to check
     # float and int types separately
     try:
       return np.finfo(self.as_numpy_dtype()).max
@@ -240,8 +240,13 @@ class DType(object):
 
   def __eq__(self, other):
     """Returns True iff this DType refers to the same type as `other`."""
-    return (other is not None
-            and self._type_enum == as_dtype(other).as_datatype_enum)
+    if other is None:
+      return False
+    try:
+      dtype = as_dtype(other).as_datatype_enum
+      return self._type_enum == dtype
+    except TypeError:
+      return False
 
   def __ne__(self, other):
     """Returns True iff self != other."""

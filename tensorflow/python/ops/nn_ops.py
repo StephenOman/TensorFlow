@@ -297,6 +297,73 @@ def conv2d_transpose(value,
                                             name=name)
 
 
+def conv3d_transpose(value,
+                     filter,
+                     output_shape,
+                     strides,
+                     padding="SAME",
+                     name=None):
+  """The transpose of `conv3d`.
+
+  This operation is sometimes called "deconvolution" after [Deconvolutional
+  Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf), but is
+  actually the transpose (gradient) of `conv3d` rather than an actual
+  deconvolution.
+
+  Args:
+    value: A 5-D `Tensor` of type `float` and shape
+      `[batch, depth, height, width, in_channels]`.
+    filter: A 5-D `Tensor` with the same type as `value` and shape
+      `[depth, height, width, output_channels, in_channels]`.  `filter`'s
+      `in_channels` dimension must match that of `value`.
+    output_shape: A 1-D `Tensor` representing the output shape of the
+      deconvolution op.
+    strides: A list of ints. The stride of the sliding window for each
+      dimension of the input tensor.
+    padding: A string, either `'VALID'` or `'SAME'`. The padding algorithm.
+      See the [comment here](https://www.tensorflow.org/api_docs/python/nn.html#convolution)
+    name: Optional name for the returned tensor.
+
+  Returns:
+    A `Tensor` with the same type as `value`.
+
+  Raises:
+    ValueError: If input/output depth does not match `filter`'s shape, or if
+      padding is other than `'VALID'` or `'SAME'`.
+  """
+  with ops.op_scope([value, filter, output_shape], name,
+                    "conv3d_transpose") as name:
+    value = ops.convert_to_tensor(value, name="value")
+    filter = ops.convert_to_tensor(filter, name="filter")
+    if not value.get_shape()[4].is_compatible_with(filter.get_shape()[4]):
+      raise ValueError("input channels does not match filter's input channels, "
+                       "{} != {}".format(value.get_shape()[4], filter.get_shape(
+                       )[4]))
+
+    output_shape_ = ops.convert_to_tensor(output_shape, name="output_shape")
+    if not output_shape_.get_shape().is_compatible_with(tensor_shape.vector(5)):
+      raise ValueError("output_shape must have shape (5,), got {}"
+                       .format(output_shape_.get_shape()))
+
+    if isinstance(output_shape, (list, np.ndarray)):
+      # output_shape's shape should be == [5] if reached this point.
+      if not filter.get_shape()[3].is_compatible_with(output_shape[4]):
+        raise ValueError(
+            "output_shape does not match filter's output channels, "
+            "{} != {}".format(output_shape[4], filter.get_shape()[3]))
+
+    if padding != "VALID" and padding != "SAME":
+      raise ValueError("padding must be either VALID or SAME:"
+                       " {}".format(padding))
+
+    return gen_nn_ops.conv3d_backprop_input_v2(input_sizes=output_shape_,
+                                               filter=filter,
+                                               out_backprop=value,
+                                               strides=strides,
+                                               padding=padding,
+                                               name=name)
+
+
 # pylint: disable=protected-access
 def bias_add(value, bias, data_format=None, name=None):
   """Adds `bias` to `value`.
@@ -399,7 +466,7 @@ def softmax_cross_entropy_with_logits(logits, labels, name=None):
   output of `softmax`, as it will produce incorrect results.
 
   `logits` and `labels` must have the same shape `[batch_size, num_classes]`
-  and the same dtype (either `float32` or `float64`).
+  and the same dtype (either `float16`, `float32`, or `float64`).
 
   Args:
     logits: Unscaled log probabilities.
@@ -414,11 +481,18 @@ def softmax_cross_entropy_with_logits(logits, labels, name=None):
   # could break users who call this with bad labels, but disregard the bad
   # results.
 
+  logits = ops.convert_to_tensor(logits)
+  precise_logits = math_ops.cast(logits, dtypes.float32) if (
+      logits.dtype == dtypes.float16) else logits
+
   # The second output tensor contains the gradients.  We use it in
   # _CrossEntropyGrad() in nn_grad but not here.
   cost, unused_backprop = gen_nn_ops._softmax_cross_entropy_with_logits(
-      logits, labels, name=name)
-  return cost
+      precise_logits, labels, name=name)
+  if logits.dtype == dtypes.float16:
+    return math_ops.cast(cost, dtypes.float16)
+  else:
+    return cost
 
 
 def sparse_softmax_cross_entropy_with_logits(logits, labels, name=None):
@@ -469,6 +543,8 @@ def sparse_softmax_cross_entropy_with_logits(logits, labels, name=None):
                     "SparseSoftmaxCrossEntropyWithLogits"):
     labels = ops.convert_to_tensor(labels)
     logits = ops.convert_to_tensor(logits)
+    precise_logits = math_ops.cast(logits, dtypes.float32) if (
+        dtypes.as_dtype(logits.dtype) == dtypes.float16) else logits
 
     # Store label shape for result later.
     labels_static_shape = labels.get_shape()
@@ -485,20 +561,27 @@ def sparse_softmax_cross_entropy_with_logits(logits, labels, name=None):
     # Check if no reshapes are required.
     if logits.get_shape().ndims == 2:
       cost, _ = gen_nn_ops._sparse_softmax_cross_entropy_with_logits(
-          logits, labels, name=name)
-      return cost
+          precise_logits, labels, name=name)
+      if logits.dtype == dtypes.float16:
+        return math_ops.cast(cost, dtypes.float16)
+      else:
+        return cost
+
     # Reshape logits to 2 dim, labels to 1 dim.
     num_classes = array_ops.gather(array_ops.shape(logits),
                                    array_ops.rank(logits) - 1)
-    logits = array_ops.reshape(logits, [-1, num_classes])
+    precise_logits = array_ops.reshape(precise_logits, [-1, num_classes])
     labels = array_ops.reshape(labels, [-1])
     # The second output tensor contains the gradients.  We use it in
     # _CrossEntropyGrad() in nn_grad but not here.
     cost, _ = gen_nn_ops._sparse_softmax_cross_entropy_with_logits(
-        logits, labels, name=name)
+        precise_logits, labels, name=name)
     cost = array_ops.reshape(cost, labels_shape)
     cost.set_shape(labels_static_shape)
-    return cost
+    if logits.dtype == dtypes.float16:
+      return math_ops.cast(cost, dtypes.float16)
+    else:
+      return cost
 
 
 @ops.RegisterShape("SparseSoftmaxCrossEntropyWithLogits")
@@ -1042,7 +1125,7 @@ def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
                                                dtype=x.dtype)
     # 0. if [keep_prob, 1.0) and 1. if [1.0, 1.0 + keep_prob)
     binary_tensor = math_ops.floor(random_tensor)
-    ret = x * math_ops.inv(keep_prob) * binary_tensor
+    ret = math_ops.div(x, keep_prob) * binary_tensor
     ret.set_shape(x.get_shape())
     return ret
 

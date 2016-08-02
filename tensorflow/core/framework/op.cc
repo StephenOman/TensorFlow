@@ -47,17 +47,12 @@ OpRegistry::~OpRegistry() {
   for (const auto& e : registry_) delete e.second;
 }
 
-void OpRegistry::Register(std::unique_ptr<OpRegistrationData> op_reg_data) {
-  OpRegistrationData* raw_ptr = op_reg_data.get();
-
+void OpRegistry::Register(OpRegistrationDataFactory op_data_factory) {
   mutex_lock lock(mu_);
   if (initialized_) {
-    TF_QCHECK_OK(RegisterAlreadyLocked(std::move(op_reg_data)));
+    TF_QCHECK_OK(RegisterAlreadyLocked(op_data_factory));
   } else {
-    deferred_.push_back(std::move(op_reg_data));
-  }
-  if (watcher_) {
-    watcher_(raw_ptr->op_def);
+    deferred_.push_back(op_data_factory);
   }
 }
 
@@ -69,7 +64,7 @@ Status OpRegistry::LookUp(const string& op_type_name,
   bool first_call = false;
   {  // Scope for lock.
     mutex_lock lock(mu_);
-    first_call = CallDeferred();
+    first_call = MustCallDeferred();
     res = gtl::FindWithDefault(registry_, op_type_name, nullptr);
     // Note: Can't hold mu_ while calling Export() below.
   }
@@ -98,7 +93,7 @@ Status OpRegistry::LookUp(const string& op_type_name,
 
 void OpRegistry::GetRegisteredOps(std::vector<OpDef>* op_defs) {
   mutex_lock lock(mu_);
-  CallDeferred();
+  MustCallDeferred();
   for (const auto& p : registry_) {
     op_defs->push_back(p.second->op_def);
   }
@@ -116,7 +111,7 @@ Status OpRegistry::SetWatcher(const Watcher& watcher) {
 
 void OpRegistry::Export(bool include_internal, OpList* ops) const {
   mutex_lock lock(mu_);
-  CallDeferred();
+  MustCallDeferred();
 
   std::vector<std::pair<string, const OpRegistrationData*>> sorted(
       registry_.begin(), registry_.end());
@@ -133,6 +128,21 @@ void OpRegistry::Export(bool include_internal, OpList* ops) const {
   }
 }
 
+void OpRegistry::DeferRegistrations() {
+  mutex_lock lock(mu_);
+  initialized_ = false;
+}
+
+void OpRegistry::ClearDeferredRegistrations() {
+  mutex_lock lock(mu_);
+  deferred_.clear();
+}
+
+Status OpRegistry::ProcessRegistrations() const {
+  mutex_lock lock(mu_);
+  return CallDeferred();
+}
+
 string OpRegistry::DebugString(bool include_internal) const {
   OpList op_list;
   Export(include_internal, &op_list);
@@ -143,27 +153,51 @@ string OpRegistry::DebugString(bool include_internal) const {
   return ret;
 }
 
-bool OpRegistry::CallDeferred() const {
+bool OpRegistry::MustCallDeferred() const {
   if (initialized_) return false;
   initialized_ = true;
   for (int i = 0; i < deferred_.size(); ++i) {
-    TF_QCHECK_OK(RegisterAlreadyLocked(std::move(deferred_[i])));
+    TF_QCHECK_OK(RegisterAlreadyLocked(deferred_[i]));
   }
   deferred_.clear();
   return true;
 }
 
-Status OpRegistry::RegisterAlreadyLocked(
-    std::unique_ptr<OpRegistrationData> op_reg_data) const {
-  TF_RETURN_IF_ERROR(ValidateOpDef(op_reg_data->op_def));
-
-  if (gtl::InsertIfNotPresent(&registry_, op_reg_data->op_def.name(),
-                              op_reg_data.get())) {
-    op_reg_data.release();  // Ownership transferred to op_registry
-    return Status::OK();
-  } else {
-    return errors::AlreadyExists("Op with name ", op_reg_data->op_def.name());
+Status OpRegistry::CallDeferred() const {
+  if (initialized_) return Status::OK();
+  initialized_ = true;
+  for (int i = 0; i < deferred_.size(); ++i) {
+    Status s = RegisterAlreadyLocked(deferred_[i]);
+    if (!s.ok()) {
+      return s;
+    }
   }
+  deferred_.clear();
+  return Status::OK();
+}
+
+Status OpRegistry::RegisterAlreadyLocked(
+    OpRegistrationDataFactory op_data_factory) const {
+  std::unique_ptr<OpRegistrationData> op_reg_data(new OpRegistrationData);
+  Status s = op_data_factory(op_reg_data.get());
+  if (s.ok()) {
+    s = ValidateOpDef(op_reg_data->op_def);
+    if (s.ok() &&
+        !gtl::InsertIfNotPresent(&registry_, op_reg_data->op_def.name(),
+                                 op_reg_data.get())) {
+      s = errors::AlreadyExists("Op with name ", op_reg_data->op_def.name());
+    }
+  }
+  Status watcher_status = s;
+  if (watcher_) {
+    watcher_status = watcher_(s, op_reg_data->op_def);
+  }
+  if (s.ok()) {
+    op_reg_data.release();
+  } else {
+    op_reg_data.reset();
+  }
+  return watcher_status;
 }
 
 // static
@@ -202,9 +236,10 @@ Status OpListOpRegistry::LookUp(const string& op_type_name,
 namespace register_op {
 OpDefBuilderReceiver::OpDefBuilderReceiver(
     const OpDefBuilderWrapper<true>& wrapper) {
-  std::unique_ptr<OpRegistrationData> data(new OpRegistrationData);
-  wrapper.builder().Finalize(data.get());
-  OpRegistry::Global()->Register(std::move(data));
+  OpRegistry::Global()->Register(
+      [wrapper](OpRegistrationData* op_reg_data) -> Status {
+        return wrapper.builder().Finalize(op_reg_data);
+      });
 }
 }  // namespace register_op
 

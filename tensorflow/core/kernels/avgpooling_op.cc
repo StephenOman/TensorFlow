@@ -39,6 +39,7 @@ limitations under the License.
 #if GOOGLE_CUDA
 #include "tensorflow/core/kernels/maxpooling_op_gpu.h"
 #include "tensorflow/core/kernels/pooling_ops_common_gpu.h"
+#include "tensorflow/core/util/use_cudnn.h"
 #endif  // GOOGLE_CUDA
 
 namespace tensorflow {
@@ -150,7 +151,7 @@ class AvgPoolingOp<GPUDevice, T> : public UnaryOp<T> {
 
     TensorShape output_shape = params.forward_output_shape();
 
-    if (data_format_ == FORMAT_NCHW) {
+    if (internal::AvgPoolUseCudnn() || data_format_ == FORMAT_NCHW) {
       DnnPoolingOp<T>::Compute(
           context, perftools::gputools::dnn::PoolingMode::kAverage, ksize_,
           stride_, padding_, data_format_, tensor_in, output_shape);
@@ -271,11 +272,13 @@ class AvgPoolingGradOp : public OpKernel {
                 errors::Unimplemented("Non-spatial pooling is not "
                                       "yet supported. Volunteers? :)"));
 
-    int out_height, out_width, pad_rows, pad_cols;
-    OP_REQUIRES_OK(
-        context, Get2dOutputSize(in_rows, in_cols, window_rows, window_cols,
-                                 row_stride, col_stride, padding_, &out_height,
-                                 &out_width, &pad_rows, &pad_cols));
+    int64 out_height, out_width, pad_rows, pad_cols;
+    OP_REQUIRES_OK(context,
+                   GetWindowedOutputSize(in_rows, window_rows, row_stride,
+                                         padding_, &out_height, &pad_rows));
+    OP_REQUIRES_OK(context,
+                   GetWindowedOutputSize(in_cols, window_cols, col_stride,
+                                         padding_, &out_width, &pad_cols));
 
     const T* out_backprop_ptr = out_backprop.flat<T>().data();
     T* input_backprop_ptr = output->flat<T>().data();
@@ -503,11 +506,13 @@ class AvgPoolingGradOpCustomGPUKernel : public OpKernel {
                   errors::Unimplemented("Non-spatial pooling is not "
                                         "yet supported. Volunteers? :)"));
 
-      int out_height, out_width, pad_rows, pad_cols;
-      OP_REQUIRES_OK(context, Get2dOutputSize(
-                                  in_rows, in_cols, window_rows, window_cols,
-                                  row_stride, col_stride, padding_, &out_height,
-                                  &out_width, &pad_rows, &pad_cols));
+      int64 out_height, out_width, pad_rows, pad_cols;
+      OP_REQUIRES_OK(context,
+                     GetWindowedOutputSize(in_rows, window_rows, row_stride,
+                                           padding_, &out_height, &pad_rows));
+      OP_REQUIRES_OK(context,
+                     GetWindowedOutputSize(in_cols, window_cols, col_stride,
+                                           padding_, &out_width, &pad_cols));
 
       RunAvePoolBackwardNHWC<T>(out_backprop.flat<T>().data(),  // top_diff
                                 out_backprop_batch,             // num

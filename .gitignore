@@ -25,3 +25,5 @@ node_modules
 /_python_build
 *.pyc
 __pycache__
+
+tensorflow/contrib/makefile/tf_cc_files.txt

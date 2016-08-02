@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+
 import tensorflow as tf
 
 
@@ -34,6 +36,12 @@ class FeatureColumnTest(tf.test.TestCase):
     a = tf.contrib.layers.sparse_column_with_hash_bucket("aaa",
                                                          hash_bucket_size=100)
     self.assertEqual(a.name, "aaa")
+
+  def testWeightedSparseColumn(self):
+    ids = tf.contrib.layers.sparse_column_with_keys(
+        "ids", ["marlo", "omar", "stringer"])
+    weighted_ids = tf.contrib.layers.weighted_sparse_column(ids, "weights")
+    self.assertEqual(weighted_ids.name, "ids_weighted_by_weights")
 
   def testEmbeddingColumn(self):
     a = tf.contrib.layers.sparse_column_with_hash_bucket("aaa",
@@ -170,6 +178,26 @@ class FeatureColumnTest(tf.test.TestCase):
           set([b, tf.contrib.layers.real_valued_column("real")]),
           hash_bucket_size=10000)
 
+  def testWeightedSparseColumnDtypes(self):
+    ids = tf.contrib.layers.sparse_column_with_keys(
+        "ids", ["marlo", "omar", "stringer"])
+    weighted_ids = tf.contrib.layers.weighted_sparse_column(ids, "weights")
+    self.assertDictEqual(
+        {"ids": tf.VarLenFeature(tf.string),
+         "weights": tf.VarLenFeature(tf.float32)},
+        weighted_ids.config)
+
+    weighted_ids = tf.contrib.layers.weighted_sparse_column(ids, "weights",
+                                                            dtype=tf.int32)
+    self.assertDictEqual(
+        {"ids": tf.VarLenFeature(tf.string),
+         "weights": tf.VarLenFeature(tf.int32)},
+        weighted_ids.config)
+
+    with self.assertRaises(ValueError):
+      weighted_ids = tf.contrib.layers.weighted_sparse_column(ids, "weights",
+                                                              dtype=tf.string)
+
   def testRealValuedColumnDtypes(self):
     rvc = tf.contrib.layers.real_valued_column("rvc")
     self.assertDictEqual(
@@ -207,6 +235,10 @@ class FeatureColumnTest(tf.test.TestCase):
             "sparse_column_for_embedding",
             hash_bucket_size=10),
         dimension=4)
+    sparse_id_col = tf.contrib.layers.sparse_column_with_keys(
+        "id_column", ["marlo", "omar", "stringer"])
+    weighted_id_col = tf.contrib.layers.weighted_sparse_column(
+        sparse_id_col, "id_weights_column")
     real_valued_col1 = tf.contrib.layers.real_valued_column(
         "real_valued_column1")
     real_valued_col2 = tf.contrib.layers.real_valued_column(
@@ -223,7 +255,7 @@ class FeatureColumnTest(tf.test.TestCase):
                                                          hash_bucket_size=100)
     cross_col = tf.contrib.layers.crossed_column(
         set([a, b]), hash_bucket_size=10000)
-    feature_columns = set([sparse_col, embedding_col,
+    feature_columns = set([sparse_col, embedding_col, weighted_id_col,
                            real_valued_col1, real_valued_col2,
                            bucketized_col1, bucketized_col2,
                            cross_col])
@@ -231,6 +263,8 @@ class FeatureColumnTest(tf.test.TestCase):
     self.assertDictEqual({
         "sparse_column": tf.VarLenFeature(tf.string),
         "sparse_column_for_embedding": tf.VarLenFeature(tf.string),
+        "id_column": tf.VarLenFeature(tf.string),
+        "id_weights_column": tf.VarLenFeature(tf.float32),
         "real_valued_column1": tf.FixedLenFeature([1], dtype=tf.float32),
         "real_valued_column2": tf.FixedLenFeature([5], dtype=tf.float32),
         "real_valued_column_for_bucketization1":
@@ -290,6 +324,107 @@ class FeatureColumnTest(tf.test.TestCase):
     self.assertTrue(placeholder.name.startswith(u"Placeholder"))
     self.assertEqual(tf.float32, placeholder.dtype)
     self.assertEqual([None, 1], placeholder.get_shape().as_list())
+
+  def testInitEmbeddingColumnWeightsFromCkpt(self):
+    sparse_col = tf.contrib.layers.sparse_column_with_hash_bucket(
+        column_name="object_in_image",
+        hash_bucket_size=4)
+    # Create _EmbeddingColumn which randomly initializes embedding of size
+    # [4, 16].
+    embedding_col = tf.contrib.layers.embedding_column(sparse_col, dimension=16)
+
+    # Creating a SparseTensor which has all the ids possible for the given
+    # vocab.
+    input_tensor = tf.SparseTensor(indices=[[0, 0], [1, 1], [2, 2], [3, 3]],
+                                   values=[0, 1, 2, 3],
+                                   shape=[4, 4])
+
+    # Invoking 'embedding_column.to_dnn_input_layer' will create the embedding
+    # variable. Creating under scope 'run_1' so as to prevent name conflicts
+    # when creating embedding variable for 'embedding_column_pretrained'.
+    with tf.variable_scope("run_1"):
+      # This will return a [4, 16] tensor which is same as embedding variable.
+      embeddings = embedding_col.to_dnn_input_layer(input_tensor)
+
+    save = tf.train.Saver()
+    checkpoint_path = os.path.join(self.get_temp_dir(), "model.ckpt")
+
+    with self.test_session() as sess:
+      sess.run(tf.initialize_all_variables())
+      saved_embedding = embeddings.eval()
+      save.save(sess, checkpoint_path)
+
+    embedding_col_initialized = tf.contrib.layers.embedding_column(
+        sparse_id_column=sparse_col,
+        dimension=16,
+        ckpt_to_load_from=checkpoint_path,
+        tensor_name_in_ckpt="run_1/object_in_image_embedding_weights")
+
+    with tf.variable_scope("run_2"):
+      # This will initialize the embedding from provided checkpoint and return a
+      # [4, 16] tensor which is same as embedding variable. Since we didn't
+      # modify embeddings, this should be same as 'saved_embedding'.
+      pretrained_embeddings = embedding_col_initialized.to_dnn_input_layer(
+          input_tensor)
+
+    with self.test_session() as sess:
+      sess.run(tf.initialize_all_variables())
+      loaded_embedding = pretrained_embeddings.eval()
+
+    self.assertAllClose(saved_embedding, loaded_embedding)
+
+  def testInitCrossedColumnWeightsFromCkpt(self):
+    sparse_col_1 = tf.contrib.layers.sparse_column_with_hash_bucket(
+        column_name="col_1", hash_bucket_size=4)
+    sparse_col_2 = tf.contrib.layers.sparse_column_with_hash_bucket(
+        column_name="col_2", hash_bucket_size=4)
+
+    crossed_col = tf.contrib.layers.crossed_column(
+        columns=[sparse_col_1, sparse_col_2],
+        hash_bucket_size=4)
+
+    input_tensor = tf.SparseTensor(indices=[[0, 0], [1, 1], [2, 2], [3, 3]],
+                                   values=[0, 1, 2, 3],
+                                   shape=[4, 4])
+
+    # Invoking 'crossed_col.to_weighted_sum' will create the crossed column
+    # weights variable.
+    with tf.variable_scope("run_1"):
+      # Returns looked up column weights which is same as crossed column weights
+      # as well as actual references to weights variables.
+      col_weights, weights = crossed_col.to_weighted_sum(input_tensor)
+      # Update the weights since default initializer initializes all weights to
+      # 0.0.
+      for weight in weights:
+        assign_op = tf.assign(weight, weight + 0.5)
+
+    save = tf.train.Saver()
+    checkpoint_path = os.path.join(self.get_temp_dir(), "model.ckpt")
+
+    with self.test_session() as sess:
+      sess.run(tf.initialize_all_variables())
+      sess.run(assign_op)
+      saved_col_weights = col_weights.eval()
+      save.save(sess, checkpoint_path)
+
+    crossed_col_initialized = tf.contrib.layers.crossed_column(
+        columns=[sparse_col_1, sparse_col_2],
+        hash_bucket_size=4,
+        ckpt_to_load_from=checkpoint_path,
+        tensor_name_in_ckpt="run_1/col_1_X_col_2_weights")
+
+    with tf.variable_scope("run_2"):
+      # This will initialize the crossed column weights from provided checkpoint
+      # and return a [4, 1] tensor which is same as weights variable. Since we
+      # won't modify weights, this should be same as 'saved_col_weights'.
+      col_weights_from_ckpt, _ = crossed_col_initialized.to_weighted_sum(
+          input_tensor)
+
+    with self.test_session() as sess:
+      sess.run(tf.initialize_all_variables())
+      loaded_col_weights = col_weights_from_ckpt.eval()
+
+    self.assertAllClose(saved_col_weights, loaded_col_weights)
 
 
 if __name__ == "__main__":
