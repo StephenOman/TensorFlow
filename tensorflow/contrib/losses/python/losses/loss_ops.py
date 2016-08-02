@@ -25,6 +25,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
+from tensorflow.python.ops import nn_ops
 
 
 __all__ = ["absolute_difference",
@@ -33,6 +34,7 @@ __all__ = ["absolute_difference",
            "get_losses",
            "get_regularization_losses",
            "get_total_loss",
+           "hinge_loss",
            "log_loss",
            "sigmoid_cross_entropy",
            "softmax_cross_entropy",
@@ -120,6 +122,7 @@ def _compute_weighted_loss(losses, weight):
     ValueError: If the weight shape is not compatible with the losses shape or
       if the number of dimensions (rank) of either losses or weight is missing.
   """
+  input_dtype = losses.dtype
   losses = math_ops.to_float(losses)
   weight = math_ops.to_float(ops.convert_to_tensor(weight))
 
@@ -131,6 +134,8 @@ def _compute_weighted_loss(losses, weight):
   total_loss = _scale_losses(losses, weight)
   num_present = _num_present(losses, weight)
   mean_loss = _safe_mean(total_loss, num_present)
+  # convert the result back to the input type
+  mean_loss = math_ops.cast(mean_loss, input_dtype)
   add_loss(mean_loss)
   return mean_loss
 
@@ -356,7 +361,8 @@ def softmax_cross_entropy(logits, onehot_labels, weight=1.0,
     onehot_labels = math_ops.cast(onehot_labels, logits.dtype)
 
     if label_smoothing > 0:
-      num_classes = math_ops.to_float(array_ops.shape(onehot_labels)[1])
+      num_classes = math_ops.cast(
+          array_ops.shape(onehot_labels)[1], logits.dtype)
       smooth_positives = 1.0 - label_smoothing
       smooth_negatives = label_smoothing / num_classes
       onehot_labels = onehot_labels * smooth_positives + smooth_negatives
@@ -404,6 +410,31 @@ def log_loss(predictions, targets, weight=1.0, epsilon=1e-7, scope=None):
         math_ops.log(predictions + epsilon)) - math_ops.mul(
             (1 - targets), math_ops.log(1 - predictions + epsilon))
     return _compute_weighted_loss(losses, weight)
+
+
+def hinge_loss(logits, target, scope=None):
+  """Method that returns the loss tensor for hinge loss.
+
+  Args:
+    logits: The logits, a float tensor.
+    target: The ground truth output tensor. Its shape should match the shape of
+      logits. The values of the tensor are expected to be 0.0 or 1.0.
+    scope: The scope for the operations performed in computing the loss.
+
+  Returns:
+    A `Tensor` of same shape as logits and target representing the loss values
+      across the batch.
+
+  Raises:
+    ValueError: If the shapes of `logits` and `target` don't match.
+  """
+  with ops.op_scope([logits, target], scope, "hinge_loss") as scope:
+    logits.get_shape().assert_is_compatible_with(target.get_shape())
+    # We first need to convert binary labels to -1/1 labels (as floats).
+    target = math_ops.to_float(target)
+    all_ones = array_ops.ones_like(target)
+    labels = math_ops.sub(2 * target, all_ones)
+    return nn_ops.relu(math_ops.sub(all_ones, math_ops.mul(labels, logits)))
 
 
 def sum_of_squares(predictions, targets, weight=1.0, scope=None):
@@ -556,4 +587,3 @@ def cosine_distance(predictions, targets, dim, weight=1.0, scope=None):
     radial_diffs = math_ops.mul(predictions, targets)
     losses = 1 - math_ops.reduce_sum(radial_diffs, reduction_indices=[dim,])
     return _compute_weighted_loss(losses, weight)
-

@@ -562,6 +562,94 @@ tf.slice(input, [1, 0, 0], [2, 1, 3]) ==> [[[3, 3, 3]],
 
 - - -
 
+### `tf.strided_slice(input_, begin, end, strides, begin_mask=0, end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=0, name=None)` {#strided_slice}
+
+Extracts a strided slice from a tensor.
+
+To a first order, this operation extracts a slice of size `end - begin`
+from a tensor `input`
+starting at the location specified by `begin`. The slice continues by adding
+`stride` to the `begin` index until all dimensions are not less than `end`.
+Note that components of stride can be negative, which causes a reverse
+slice.
+
+This operation can be thought of an encoding of a numpy style sliced
+range. Given a python slice input[<spec0>, <spec1>, ..., <specn>]
+this function will be called as follows.
+
+`begin`, `end`, and `strides` will be all length n. n is in general
+not the same dimensionality as `input`.
+
+For the ith spec,
+`begin_mask`, `end_mask`, `ellipsis_mask`, `new_axis_mask`,
+and `shrink_axis_mask` will have the ith bit corrsponding to
+the ith spec.
+
+If the ith bit of `begin_mask` is non-zero, `begin[i]` is ignored and
+the fullest possible range in that dimension is used instead.
+`end_mask` works analogously, except with the end range.
+
+`foo[5:,:,:3]` on a 7x8x9 tensor is equivalent to `foo[5:7,0:8,0:3]`.
+`foo[::-1]` reverses a tensor with shape 8.
+
+
+If the ith bit of `ellipsis_mask`, as many unspecified dimensions
+as needed will be inserted between other dimensions. Only one
+non-zero bit is allowed in `ellipsis_mask`.
+
+For example `foo[3:5,...,4:5]` on a shape 10x3x3x10 tensor is
+equivalent to `foo[3:5,:,:,4:5]` and
+`foo[3:5,...]` is equivalent to `foo[3:5,:,:,:]`.
+
+If the ith bit of `new_axis_mask` is one, then a `begin`,
+`end`, and `stride` are ignored and a new length 1 dimension is
+added at this point in the output tensor.
+
+For example `foo[3:5,4]` on a 10x8 tensor produces a shape 2 tensor
+whereas `foo[3:5,4:5]` produces a shape 2x1 tensor with shrink_mask
+being 1<<1 == 2.
+
+If the ith bit of `shrink_axis_mask` is one, then `begin`,
+`end[i]`, and `stride[i]` are used to do a slice in the appropriate
+dimension, but the output tensor will be reduced in dimensionality
+by one. This is only valid if the ith entry of slice[i]==1.
+
+NOTE: `begin` and `end` are zero-indexed`.
+`strides` entries must be non-zero.
+
+
+```
+# 'input' is [[[1, 1, 1], [2, 2, 2]],
+#             [[3, 3, 3], [4, 4, 4]],
+#             [[5, 5, 5], [6, 6, 6]]]
+tf.slice(input, [1, 0, 0], [2, 1, 3], [1, 1, 1]) ==> [[[3, 3, 3]]]
+tf.slice(input, [1, 0, 0], [2, 2, 3], [1, 1, 1]) ==> [[[3, 3, 3],
+                                                       [4, 4, 4]]]
+tf.slice(input, [1, 1, 0], [2, -1, 3], [1, -1, 1]) ==>[[[4, 4, 4],
+                                                        [3, 3, 3]]]
+```
+
+##### Args:
+
+
+*  <b>`input_`</b>: A `Tensor`.
+*  <b>`begin`</b>: An `int32` or `int64` `Tensor`.
+*  <b>`end`</b>: An `int32` or `int64` `Tensor`.
+*  <b>`strides`</b>: An `int32` or `int64` `Tensor`.
+*  <b>`begin_mask`</b>: An `int32` mask.
+*  <b>`end_mask`</b>: An `int32` mask.
+*  <b>`ellipsis_mask`</b>: An `int32` mask.
+*  <b>`new_axis_mask`</b>: An `int32` mask.
+*  <b>`shrink_axis_mask`</b>: An `int32` mask.
+*  <b>`name`</b>: A name for the operation (optional).
+
+##### Returns:
+
+  A `Tensor` the same type as `input`.
+
+
+- - -
+
 ### `tf.split(split_dim, num_split, value, name='split')` {#split}
 
 Splits a tensor into `num_split` tensors along one dimension.
@@ -977,7 +1065,7 @@ reverse(t, dims) ==> [[[[8, 9, 10, 11],
 ##### Args:
 
 
-*  <b>`tensor`</b>: A `Tensor`. Must be one of the following types: `uint8`, `int8`, `int32`, `bool`, `half`, `float32`, `float64`.
+*  <b>`tensor`</b>: A `Tensor`. Must be one of the following types: `uint8`, `int8`, `int32`, `bool`, `half`, `float32`, `float64`, `complex64`, `complex128`.
     Up to 8-D.
 *  <b>`dims`</b>: A `Tensor` of type `bool`. 1-D. The dimensions to reverse.
 *  <b>`name`</b>: A name for the operation (optional).
@@ -1522,33 +1610,100 @@ this operation will permute `params` accordingly.
 
 ### `tf.gather_nd(params, indices, name=None)` {#gather_nd}
 
-Gather values from `params` according to `indices`.
+Gather values or slices from `params` according to `indices`.
+
+`params` is a Tensor of rank `R` and `indices` is a Tensor of rank `M`.
 
 `indices` must be integer tensor, containing indices into `params`.
-It must be shape `[d_0, ..., d_N, R]` where `R` is the rank of `params`.
-The innermost dimension of `indices` (with length `R`) corresponds to the
-indices of `params`.
+It must be shape `[d_0, ..., d_N, R]` where `0 < R <= M`.
 
-Produces an output tensor with shape `[d_0, ..., d_{n-1}]` where:
+The innermost dimension of `indices` (with length `R`) corresponds to
+indices into elements (if `R = M`) or slices (if `R < M`) along the `N`th
+dimension of `params`.
 
-    output[i, j, k, ...] = params[indices[i, j, k, ..., :]]
+Produces an output tensor with shape
 
-e.g. for `indices` a matrix:
+    [d_0, ..., d_{n-1}, params.shape[R], ..., params.shape[M-1]].
 
-    output[i] = params[indices[i, :]]
+Some examples below.
+
+Simple indexing into a matrix:
+
+    indices = [[0, 0], [1, 1]]
+    params = [['a', 'b'], ['c', 'd']]
+    output = ['a', 'd']
+
+Slice indexing into a matrix:
+
+    indices = [[1], [0]]
+    params = [['a', 'b'], ['c', 'd']]
+    output = [['c', 'd'], ['a', 'b']]
+
+Indexing into a 3-tensor:
+
+    indices = [[1]]
+    params = [[['a0', 'b0'], ['c0', 'd0']],
+              [['a1', 'b1'], ['c1', 'd1']]]
+    output = [[['a1', 'b1'], ['c1', 'd1']]]
+
+
+    indices = [[0, 1], [1, 0]]
+    params = [[['a0', 'b0'], ['c0', 'd0']],
+              [['a1', 'b1'], ['c1', 'd1']]]
+    output = [['c0', 'd0'], ['a1', 'b1']]
+
+
+    indices = [[0, 0, 1], [1, 0, 1]]
+    params = [[['a0', 'b0'], ['c0', 'd0']],
+              [['a1', 'b1'], ['c1', 'd1']]]
+    output = ['b0', 'b1']
+
+Batched indexing into a matrix:
+
+    indices = [[[0, 0]], [[0, 1]]]
+    params = [['a', 'b'], ['c', 'd']]
+    output = [['a'], ['b']]
+
+Batched slice indexing into a matrix:
+
+    indices = [[[1]], [[0]]]
+    params = [['a', 'b'], ['c', 'd']]
+    output = [[['c', 'd']], [['a', 'b']]]
+
+Batched indexing into a 3-tensor:
+
+    indices = [[[1]], [[0]]]
+    params = [[['a0', 'b0'], ['c0', 'd0']],
+              [['a1', 'b1'], ['c1', 'd1']]]
+    output = [[[['a1', 'b1'], ['c1', 'd1']]],
+              [[['a0', 'b0'], ['c0', 'd0']]]]
+
+
+    indices = [[[0, 1], [1, 0]], [[0, 0], [1, 1]]]
+    params = [[['a0', 'b0'], ['c0', 'd0']],
+              [['a1', 'b1'], ['c1', 'd1']]]
+    output = [[['c0', 'd0'], ['a1', 'b1']],
+              [['a0', 'b0'], ['c1', 'd1']]]
+
+
+    indices = [[[0, 0, 1], [1, 0, 1]], [[0, 1, 1], [1, 1, 0]]]
+    params = [[['a0', 'b0'], ['c0', 'd0']],
+              [['a1', 'b1'], ['c1', 'd1']]]
+    output = [['b0', 'b1'], ['d0', 'c1']]
 
 ##### Args:
 
 
-*  <b>`params`</b>: A `Tensor`. R-D.  The tensor from which to gather values.
+*  <b>`params`</b>: A `Tensor`. `M-D`.  The tensor from which to gather values.
 *  <b>`indices`</b>: A `Tensor`. Must be one of the following types: `int32`, `int64`.
-    (N+1)-D.  Index tensor having shape `[d_0, ..., d_N, R]`.
+    `(N+1)-D`.  Index tensor having shape `[d_0, ..., d_N, R]`.
 *  <b>`name`</b>: A name for the operation (optional).
 
 ##### Returns:
 
   A `Tensor`. Has the same type as `params`.
-  N-D.  Values from `params` gathered from indices given by `indices`.
+  `(N+M-R)-D`.  Values from `params` gathered from indices given by
+  `indices`.
 
 
 - - -

@@ -20,12 +20,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import inspect
+
 from tensorflow.contrib.framework.python.ops import variables as contrib_variables
 from tensorflow.contrib.learn.python.learn import coordinated_session
 from tensorflow.contrib.learn.python.learn import monitored_session
 from tensorflow.contrib.learn.python.learn import recoverable_session
 from tensorflow.contrib.learn.python.learn import summary_writer_cache
 from tensorflow.core.util.event_pb2 import SessionLog
+from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import data_flow_ops
@@ -82,8 +85,6 @@ class Scaffold(object):
 
   """
   # TODO(touts): consider adding the output dir and summary writer (cached)?
-  # TODO(touts): consider finalizeing the graph?  (If the graph is
-  # modified later, the cached parts could be wrong.)
   # TODO(touts): I do not think we should pass keep_checkpoint_max here.
   # TODO(touts): Add individual static functions for init_op(), etc. that
   # implement the caching logic.
@@ -122,8 +123,8 @@ class Scaffold(object):
       global_step_tensor = contrib_variables.get_or_create_global_step()
     self.global_step_tensor = global_step_tensor
     if init_op is None:
-      init_op = Scaffold._get_or_default(
-          ops.GraphKeys.INIT_OP, variables.initialize_all_variables)
+      init_op = Scaffold._get_or_default('init_op', ops.GraphKeys.INIT_OP,
+                                         variables.initialize_all_variables)
     self.init_op = init_op
     self.init_feed_dict = init_feed_dict
     # NOTE(touts): modifying the init function to be passed the scaffold is a
@@ -134,28 +135,42 @@ class Scaffold(object):
       self.init_fn = None
     if ready_op is None:
       ready_op = Scaffold._get_or_default(
-          ops.GraphKeys.READY_OP, variables.report_uninitialized_variables)
+          'ready_op', ops.GraphKeys.READY_OP,
+          variables.report_uninitialized_variables)
     self.ready_op = ready_op
     if local_init_op is None:
-      local_init_op = Scaffold._get_or_default(
-          ops.GraphKeys.LOCAL_INIT_OP, Scaffold._default_local_init_op)
+      local_init_op = Scaffold._get_or_default('local_init_op',
+                                               ops.GraphKeys.LOCAL_INIT_OP,
+                                               Scaffold._default_local_init_op)
     self.local_init_op = local_init_op
     if summary_op is None:
-      summary_op = Scaffold._get_or_default(
-          ops.GraphKeys.SUMMARY_OP, logging_ops.merge_all_summaries)
+      summary_op = Scaffold._get_or_default('summary_op',
+                                            ops.GraphKeys.SUMMARY_OP,
+                                            logging_ops.merge_all_summaries)
+    self.summary_op = summary_op
     # pylint: disable=g-long-lambda
     if saver is None:
       saver = Scaffold._get_or_default(
+          'saver',
           ops.GraphKeys.SAVERS,
           lambda: training_saver.Saver(sharded=True,
                                        max_to_keep=keep_checkpoint_max))
     # pylint: enable=g-long-lambda
     self.saver = saver
 
+    ops.get_default_graph().finalize()
+
   @staticmethod
-  def _get_or_default(collection_key, default_constructor):
+  def _get_or_default(arg_name, collection_key, default_constructor):
+    """Get from cache or create a default operation."""
     elements = ops.get_collection(collection_key)
     if elements:
+      if len(elements) > 1:
+        raise RuntimeError('More than one item in the collection "%s". '
+                           'Please indicate which one to use by passing it to '
+                           'the tf.Scaffold constructor as:  '
+                           'tf.Scaffold(%s=item to use)', collection_key,
+                           arg_name)
       return elements[0]
     op = default_constructor()
     if op is not None:
@@ -168,21 +183,34 @@ class Scaffold(object):
                                   data_flow_ops.initialize_all_tables())
 
 
+def _call_monitor_end(monitor, sess):
+  # TODO(ispir): Remove following check when switch to MonitorV2
+  if 'session' in inspect.getargspec(monitor.end).args:
+    monitor.end(session=sess)
+  else:
+    monitor.end()
+
+
+# TODO(ispir): Document this class after interface is finalized.
+# mention StopIteration and OutOfRangeError
 class SupervisedSession(object):
   """Session-like object that supports recovery and monitors.
 
 
   """
 
-  def __init__(self, master, is_chief=True, checkpoint_dir=None,
-               monitors=None, scaffold=None, config=None,
-               clean_stop_exception_types=None):
+  def __init__(self,
+               master,
+               is_chief=True,
+               checkpoint_dir=None,
+               monitors=None,
+               scaffold=None,
+               config=None):
     self._graph = ops.get_default_graph()
     self._master = master
     self._checkpoint_dir = checkpoint_dir
     self._is_chief = is_chief
     self._config = config
-    self._clean_stop_exception_types = clean_stop_exception_types
     self._monitors = monitors or []
     self._scaffold = scaffold or Scaffold()
     # Finalize and write the graph.
@@ -196,7 +224,7 @@ class SupervisedSession(object):
     # Call the begin() method of monitors.
     self._init_step = self._tf_sess.run(self._scaffold.global_step_tensor)
     for monitor in self._monitors:
-      monitor.begin(max_steps=None, init_step=self._init_step)
+      monitor.begin(max_steps=None)
     # Write the graph out, note: this uses self._init_step.
     self.write_graph()
 
@@ -218,14 +246,14 @@ class SupervisedSession(object):
           self._master, config=self._config)
     # Keep the tf_sess for quick runs of global step when needed.
     self._tf_sess = tf_sess
-    self._coord = coordinator.Coordinator(
-        clean_stop_exception_types=self._clean_stop_exception_types)
-    self._coordinated_threads_to_join = queue_runner.start_queue_runners(
-        sess=tf_sess, coord=self._coord)
+    # We don't want coordinator to suppress any exception.
+    coord = coordinator.Coordinator(clean_stop_exception_types=[])
+    coordinated_threads_to_join = queue_runner.start_queue_runners(sess=tf_sess,
+                                                                   coord=coord)
     return coordinated_session.CoordinatedSession(
         monitored_session.MonitoredSession(tf_sess, self._monitors,
                                            self._scaffold.global_step_tensor),
-        self._coord, self._coordinated_threads_to_join)
+        coord, coordinated_threads_to_join)
 
   @property
   def scaffold(self):
@@ -258,12 +286,17 @@ class SupervisedSession(object):
     return True
 
   def close(self):
-    # Run the Monitor.end() methods.
-    for monitor in self._monitors:
-      monitor.end(self._tf_sess)
-    self._sess.close()
-    self._sess = None
-    self._tf_sess = None
+    self._close_internal()
+
+  def _close_internal(self, exception_type=None):
+    try:
+      if not exception_type:
+        for monitor in self._monitors:
+          _call_monitor_end(monitor, self._tf_sess)
+    finally:
+      self._sess.close()
+      self._sess = None
+      self._tf_sess = None
 
   def _is_closed(self):
     """Return True if the supervised session is closed.  For tests only.
@@ -277,17 +310,12 @@ class SupervisedSession(object):
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
-    if exception_type:
-      self._coord.request_stop((exception_type, exception_value, traceback))
-    else:
-      self._coord.request_stop()
-    try:
-      self._coord.join(self._coordinated_threads_to_join)
-      # If coord does not raise an exception, we return True to indicate
-      # "no exception to raise".
-      return True
-    finally:
-      self.close()
+    if exception_type in [errors.OutOfRangeError, StopIteration]:
+      # TODO(ispir): log error if Coordinator hasn't done already.
+      exception_type = None
+    self._close_internal(exception_type)
+    # __exit__ should return True to suppress an exception.
+    return exception_type is None
 
   def write_graph(self):
     """Saves current graph."""

@@ -7,7 +7,7 @@ Note: Functions taking `Tensor` arguments can also take anything accepted by
 
 [TOC]
 
-## Activation Functions
+## Activation Functions.
 
 The activation ops provide different types of nonlinearities for use in neural
 networks.  These include smooth nonlinearities (`sigmoid`, `tanh`, `elu`,
@@ -367,8 +367,9 @@ same horizontal and vertical strides, `strides = [1, stride, stride, 1]`.
     `[filter_height, filter_width, in_channels, channel_multiplier]`.
 *  <b>`strides`</b>: 1-D of size 4.  The stride of the sliding window for each
     dimension of `input`.
-*  <b>`padding`</b>: A string, either `'VALID'` or `'SAME'`.  The padding algorithm.
-    See the [comment here](https://www.tensorflow.org/api_docs/python/nn.html#convolution)
+*  <b>`padding`</b>: A string, either `'VALID'` or `'SAME'`. The padding algorithm.
+    See the [comment
+      here](https://www.tensorflow.org/api_docs/python/nn.html#convolution)
 *  <b>`name`</b>: A name for this operation (optional).
 
 ##### Returns:
@@ -413,7 +414,8 @@ horizontal and vertical strides, `strides = [1, stride, stride, 1]`.
 *  <b>`strides`</b>: 1-D of size 4.  The strides for the depthwise convolution for
     each dimension of `input`.
 *  <b>`padding`</b>: A string, either `'VALID'` or `'SAME'`.  The padding algorithm.
-    See the [comment here](https://www.tensorflow.org/api_docs/python/nn.html#convolution)
+    See the [comment
+      here](https://www.tensorflow.org/api_docs/python/nn.html#convolution)
 *  <b>`name`</b>: A name for this operation (optional).
 
 ##### Returns:
@@ -1058,8 +1060,8 @@ When using these moments for batch normalization (see
 *  <b>`shift`</b>: A `Tensor` containing the value by which to shift the data for
     numerical stability, or `None` if no shift is to be performed. A shift
     close to the true mean provides the most numerically stable results.
-*  <b>`keep_dims`</b>: produce moments with the same dimensionality as the input.
 *  <b>`name`</b>: Name used to scope the operations that compute the moments.
+*  <b>`keep_dims`</b>: produce moments with the same dimensionality as the input.
 
 ##### Returns:
 
@@ -1093,6 +1095,53 @@ Computes half the L2 norm of a tensor without the `sqrt`:
 ##### Returns:
 
   A `Tensor`. Has the same type as `t`. 0-D.
+
+
+- - -
+
+### `tf.nn.log_poisson_loss(log_input, targets, compute_full_loss=False, name=None)` {#log_poisson_loss}
+
+Computes log poisson loss given `log_input`.
+
+Gives the log-likelihood loss between the prediction and the target under the
+assumption that the target has a poisson distribution.
+Caveat: By default, this is not the exact loss, but the loss minus a
+  constant term [log(z!)]. That has no effect for optimization, but
+  does not play well with relative loss comparisons. To compute an
+  approximation of the log factorial term, specify
+  compute_full_loss=True to enable Stirling's Approximation.
+
+For brevity, let `c = log(x) = log_input`, `z = targets`.  The log poisson
+loss is
+
+      -log(exp(-x) * (x^z) / z!)
+    = -log(exp(-x) * (x^z)) + log(z!)
+    ~ -log(exp(-x)) - log(x^z) [+ z * log(z) - z + 0.5 * log(2 * pi * z)]
+        [ Note the second term is the Stirling's Approximation for log(z!).
+          It is invariant to x and does not affect optimization, though
+          important for correct relative loss comparisons. It is only
+          computed when compute_full_loss == True. ]
+    = x - z * log(x) [+ z * log(z) - z + 0.5 * log(2 * pi * z)]
+    = exp(c) - z * c [+ z * log(z) - z + 0.5 * log(2 * pi * z)]
+
+##### Args:
+
+
+*  <b>`log_input`</b>: A `Tensor` of type `float32` or `float64`.
+*  <b>`targets`</b>: A `Tensor` of the same type and shape as `log_input`.
+*  <b>`compute_full_loss`</b>: whether to compute the full loss. If false, a constant
+    term is dropped in favor of more efficient optimization.
+*  <b>`name`</b>: A name for the operation (optional).
+
+##### Returns:
+
+  A `Tensor` of the same shape as `log_input` with the componentwise
+  logistic losses.
+
+##### Raises:
+
+
+*  <b>`ValueError`</b>: If `log_input` and `targets` do not have the same shape.
 
 
 
@@ -1219,7 +1268,7 @@ on `logits` internally for efficiency.  Do not call this op with the
 output of `softmax`, as it will produce incorrect results.
 
 `logits` and `labels` must have the same shape `[batch_size, num_classes]`
-and the same dtype (either `float32` or `float64`).
+and the same dtype (either `float16`, `float32`, or `float64`).
 
 ##### Args:
 
@@ -1582,15 +1631,15 @@ automatically performed.
 
 Creates a recurrent neural network specified by RNNCell `cell`.
 
-##### The simplest form of RNN network generated is:
-
+The simplest form of RNN network generated is:
+```py
   state = cell.zero_state(...)
   outputs = []
   for input_ in inputs:
     output, state = cell(input_, state)
     outputs.append(output)
   return (outputs, state)
-
+```
 However, a few other options are available:
 
 An initial state can be provided.
@@ -2411,9 +2460,9 @@ Batch normalization.
 
 As described in http://arxiv.org/abs/1502.03167.
 Normalizes a tensor by `mean` and `variance`, and applies (optionally) a
-`scale` \\(\gamma\\) to it, as well as an `offset` \\(\beta\\):
+`scale` \\\\(\gamma\\\\) to it, as well as an `offset` \\\\(\\beta\\\\):
 
-\\(\frac{\gamma(x-\mu)}{\sigma}+\beta\\)
+\\\\(\\frac{\gamma(x-\mu)}{\sigma}+\\beta\\\\)
 
 `mean`, `variance`, `offset` and `scale` are all expected to be of one of two
 shapes:
@@ -2440,9 +2489,9 @@ shapes:
 *  <b>`x`</b>: Input `Tensor` of arbitrary dimensionality.
 *  <b>`mean`</b>: A mean `Tensor`.
 *  <b>`variance`</b>: A variance `Tensor`.
-*  <b>`offset`</b>: An offset `Tensor`, often denoted \\(\beta\\) in equations, or
+*  <b>`offset`</b>: An offset `Tensor`, often denoted \\\\(\\beta\\\\) in equations, or
     None. If present, will be added to the normalized tensor.
-*  <b>`scale`</b>: A scale `Tensor`, often denoted \\(\gamma\\) in equations, or
+*  <b>`scale`</b>: A scale `Tensor`, often denoted \\\\(\gamma\\\\) in equations, or
     `None`. If present, the scale is applied to the normalized tensor.
 *  <b>`variance_epsilon`</b>: A small float number to avoid dividing by 0.
 *  <b>`name`</b>: A name for this operation (optional).
