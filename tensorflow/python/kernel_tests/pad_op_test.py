@@ -61,9 +61,9 @@ class PadOpTest(tf.test.TestCase):
             [[1, 1], [1, 2]],
             mode="symmetric"))
 
-  def _testPad(self, np_inputs, paddings, mode, use_gpu=False):
+  def _testPad(self, np_inputs, paddings, mode):
     np_val = self._npPad(np_inputs, paddings, mode=mode)
-    with self.test_session(use_gpu=use_gpu):
+    with self.test_session():
       tf_val = tf.pad(np_inputs, paddings, mode=mode)
       out = tf_val.eval()
     self.assertAllEqual(np_val, out)
@@ -86,10 +86,12 @@ class PadOpTest(tf.test.TestCase):
 
   def _testAll(self, np_inputs, paddings):
     for mode in ("CONSTANT", "REFLECT", "SYMMETRIC"):
-      self._testPad(np_inputs, paddings, mode=mode, use_gpu=False)
-      self._testPad(np_inputs, paddings, mode=mode, use_gpu=True)
-      if np_inputs.dtype == np.float32:
-        self._testGradient(np_inputs, paddings, mode=mode)
+      # Zero-sized input is not allowed for REFLECT mode, but we still want
+      # zero-sized input test cases for the other modes.
+      if np_inputs.size or mode != "REFLECT":
+        self._testPad(np_inputs, paddings, mode=mode)
+        if np_inputs.dtype == np.float32:
+          self._testGradient(np_inputs, paddings, mode=mode)
 
   def testInputDims(self):
     with self.test_session():
@@ -157,18 +159,26 @@ class PadOpTest(tf.test.TestCase):
     # TODO(touts): Figure out why the padding tests do not work on GPU
     # for int types and rank > 2.
     for t in [np.int32, np.int64]:
-      self._testAll((np.random.rand(4, 4, 3) * 100).astype(t),
+      self._testAll(np.random.randint(-100, 100, (4, 4, 3)).astype(t),
                     [[1, 0], [2, 3], [0, 2]])
+      self._testAll(np.random.randint(-100, 100, (4, 2, 1, 3)).astype(t),
+                    [[0, 0], [0, 0], [0, 0], [0, 0]])
 
   def testFloatTypes(self):
     for t in [np.float32, np.float64]:
       self._testAll(np.random.rand(2, 5).astype(t),
                     [[1, 0], [2, 0]])
+      self._testAll(np.random.rand(2, 3, 4).astype(t),
+                    [[0, 0], [0, 0], [0, 0]])
+      self._testAll(np.random.rand(0, 3, 4).astype(t),
+                    [[0, 0], [2, 1], [2, 3]])
 
   def testComplexTypes(self):
     for t in [np.complex64, np.complex128]:
       x = np.random.rand(2, 5).astype(t)
-      self._testAll(x + 1j *x, [[1, 0], [2, 0]])
+      self._testAll(x + 1j * x, [[1, 0], [2, 0]])
+      x = np.random.rand(3, 2, 1, 1).astype(t)
+      self._testAll(x + 1j * x, [[0, 0], [0, 0], [0, 0], [0, 0]])
 
   def testShapeFunctionEdgeCases(self):
     # Unknown paddings shape.
@@ -189,12 +199,11 @@ class PadOpTest(tf.test.TestCase):
   def testScalars(self):
     paddings = np.zeros((0, 2), dtype=np.int32)
     inp = np.asarray(7)
-    for use_gpu in False, True:
-      with self.test_session(use_gpu=use_gpu):
-        tf_val = tf.pad(inp, paddings)
-        out = tf_val.eval()
-      self.assertAllEqual(inp, out)
-      self.assertShapeEqual(inp, tf_val)
+    with self.test_session():
+      tf_val = tf.pad(inp, paddings)
+      out = tf_val.eval()
+    self.assertAllEqual(inp, out)
+    self.assertShapeEqual(inp, tf_val)
 
 
 if __name__ == "__main__":

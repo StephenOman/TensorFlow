@@ -20,10 +20,10 @@ import time
 
 import tensorflow as tf
 # importing to get flags.
-from tensorflow.contrib.learn.python.learn import runner_flags  # pylint: disable=unused-import
+from tensorflow.contrib.learn.python.learn import learn_runner  # pylint: disable=unused-import
 
 
-class TestEstimator(object):
+class TestEstimator(tf.contrib.learn.Evaluable, tf.contrib.learn.Trainable):
 
   def __init__(self):
     self.eval_count = 0
@@ -76,6 +76,7 @@ class ExperimentTest(tf.test.TestCase):
     ex = tf.contrib.learn.Experiment(est,
                                      train_input_fn='train_input',
                                      eval_input_fn='eval_input')
+    tf.flags.DEFINE_integer('task', 0, 'task')
     for task in [0, 1, 3]:
       start = time.time()
       tf.flags.FLAGS.task = task

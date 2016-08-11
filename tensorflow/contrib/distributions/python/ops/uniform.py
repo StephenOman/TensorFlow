@@ -67,14 +67,14 @@ class Uniform(distribution.Distribution):
     ```
 
     Args:
-      a: `float` or `double` tensor, the minimum endpoint.
-      b: `float` or `double` tensor, the maximum endpoint. Must be > `a`.
-      validate_args: Whether to assert that `a > b`. If `validate_args` is False
-        and inputs are invalid, correct behavior is not guaranteed.
-      allow_nan_stats:  Boolean, default False.  If False, raise an exception if
-        a statistic (e.g. mean/mode/etc...) is undefined for any batch member.
-        If True, batch members with valid parameters leading to undefined
-        statistics will return NaN for this statistic.
+      a: Floating point tensor, the minimum endpoint.
+      b: Floating point tensor, the maximum endpoint. Must be > `a`.
+      validate_args: Whether to assert that `a > b`. If `validate_args` is
+        `False` and inputs are invalid, correct behavior is not guaranteed.
+      allow_nan_stats:  Boolean, default `False`.  If `False`, raise an
+        exception if a statistic (e.g. mean/mode/etc...) is undefined for any
+        batch member.  If `True`, batch members with valid parameters leading to
+        undefined statistics will return NaN for this statistic.
       name: The name to prefix Ops created by this distribution class.
 
     Raises:
@@ -82,9 +82,10 @@ class Uniform(distribution.Distribution):
     """
     self._allow_nan_stats = allow_nan_stats
     self._validate_args = validate_args
-    with ops.op_scope([a, b], name):
-      with ops.control_dependencies([check_ops.assert_less(a, b)] if
-                                    validate_args else []):
+    with ops.name_scope(name, values=[a, b]):
+      with ops.control_dependencies([check_ops.assert_less(
+          a, b, message="uniform not defined when a > b.")] if validate_args
+                                    else []):
         a = array_ops.identity(a, name="a")
         b = array_ops.identity(b, name="b")
 
@@ -116,7 +117,7 @@ class Uniform(distribution.Distribution):
 
   def batch_shape(self, name="batch_shape"):
     with ops.name_scope(self.name):
-      with ops.op_scope([], name):
+      with ops.name_scope(name):
         return array_ops.shape(self._ones())
 
   def get_batch_shape(self):
@@ -124,7 +125,7 @@ class Uniform(distribution.Distribution):
 
   def event_shape(self, name="event_shape"):
     with ops.name_scope(self.name):
-      with ops.op_scope([], name):
+      with ops.name_scope(name):
         return constant_op.constant([], dtype=dtypes.int32)
 
   def get_event_shape(self):
@@ -150,7 +151,7 @@ class Uniform(distribution.Distribution):
           will return `nan`.
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self.a, self.b, x], name):
+      with ops.name_scope(name, values=[self.a, self.b, x]):
         x = ops.convert_to_tensor(x, name="x")
         if x.dtype != self.dtype:
           raise TypeError("Input x dtype does not match dtype: %s vs. %s" %
@@ -179,7 +180,7 @@ class Uniform(distribution.Distribution):
           return `nan`.
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self.a, self.b, x], name):
+      with ops.name_scope(name, values=[self.a, self.b, x]):
         x = ops.convert_to_tensor(x, name="x")
         if x.dtype != self.dtype:
           raise TypeError("Input x dtype does not match dtype: %s vs. %s" %
@@ -194,7 +195,7 @@ class Uniform(distribution.Distribution):
 
   def log_cdf(self, x, name="log_cdf"):
     with ops.name_scope(self.name):
-      with ops.op_scope([self.a, self.b, x], name):
+      with ops.name_scope(name, values=[self.a, self.b, x]):
         x = ops.convert_to_tensor(x, name="x")
         return math_ops.log(self.cdf(x))
 
@@ -208,7 +209,7 @@ class Uniform(distribution.Distribution):
       entropy: tensor of dtype `dtype`, the entropy.
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self.a, self.b, self.range()], name):
+      with ops.name_scope(name, values=[self.a, self.b, self.range()]):
         return math_ops.log(self.range())
 
   def sample_n(self, n, seed=None, name="sample_n"):
@@ -224,11 +225,11 @@ class Uniform(distribution.Distribution):
           with values of type `self.dtype`.
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self.a, self.b, n], name):
+      with ops.name_scope(name, values=[self.a, self.b, n]):
         n = ops.convert_to_tensor(n, name="n")
         n_val = tensor_util.constant_value(n)
 
-        shape = array_ops.concat(0, [array_ops.pack([n]), self.batch_shape()])
+        shape = array_ops.concat(0, ([n], self.batch_shape()))
         samples = random_ops.random_uniform(shape=shape,
                                             dtype=self.dtype,
                                             seed=seed)
@@ -243,23 +244,23 @@ class Uniform(distribution.Distribution):
 
   def mean(self, name="mean"):
     with ops.name_scope(self.name):
-      with ops.op_scope([self._a, self._b], name):
+      with ops.name_scope(name, values=[self._a, self._b]):
         return (self.a + self.b) / 2
 
   def variance(self, name="variance"):
     with ops.name_scope(self.name):
-      with ops.op_scope([self.range()], name):
+      with ops.name_scope(name, values=[self.range()]):
         return math_ops.square(self.range()) / 12.
 
   def std(self, name="std"):
     with ops.name_scope(self.name):
-      with ops.op_scope([self.range()], name):
+      with ops.name_scope(name, values=[self.range()]):
         return self.range() / math_ops.sqrt(12.)
 
   def range(self, name="range"):
     """`b - a`."""
     with ops.name_scope(self.name):
-      with ops.op_scope([self.a, self.b], name):
+      with ops.name_scope(name, values=[self.a, self.b]):
         return self.b - self.a
 
   @property

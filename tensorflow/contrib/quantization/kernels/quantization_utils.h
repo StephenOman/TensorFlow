@@ -25,7 +25,7 @@ limitations under the License.
 // to avoid a dependency on floating-point hardware.
 
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
-#include "external/gemmlowp/public/gemmlowp.h"
+#include "public/gemmlowp.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/core/threadpool.h"
 
@@ -495,6 +495,13 @@ class TensorflowGemmlowpWorkersPool {
  public:
   TensorflowGemmlowpWorkersPool(thread::ThreadPool* workers)
       : workers_(workers) {}
+
+  ~TensorflowGemmlowpWorkersPool() {
+    // This workaround ensures that all worker tasks have exited methods in the
+    // BlockingCounter. Without this, there is a race where the context is torn
+    // down while the counter is in use.
+    counter_to_decrement_when_ready_.Reset(0);
+  }
 
   void Prepare(int workers_count) {
     counter_to_decrement_when_ready_.Reset(workers_count);

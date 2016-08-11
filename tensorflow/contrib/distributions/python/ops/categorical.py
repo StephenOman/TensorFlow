@@ -34,11 +34,6 @@ class Categorical(distribution.Distribution):
 
   The categorical distribution is parameterized by the log-probabilities
   of a set of classes.
-
-  Note, the following methods of the base class aren't implemented:
-    * mean
-    * cdf
-    * log_cdf
   """
 
   def __init__(
@@ -57,17 +52,17 @@ class Categorical(distribution.Distribution):
           indexes into the classes.
       dtype: The type of the event samples (default: int32).
       validate_args: Unused in this distribution.
-      allow_nan_stats:  Boolean, default False.  If False, raise an exception if
-        a statistic (e.g. mean/mode/etc...) is undefined for any batch member.
-        If True, batch members with valid parameters leading to undefined
-        statistics will return NaN for this statistic.
+      allow_nan_stats:  Boolean, default `False`.  If `False`, raise an
+        exception if a statistic (e.g. mean/mode/etc...) is undefined for any
+        batch member.  If `True`, batch members with valid parameters leading to
+        undefined statistics will return NaN for this statistic.
       name: A name for this distribution (optional).
     """
     self._allow_nan_stats = allow_nan_stats
     self._name = name
     self._dtype = dtype
     self._validate_args = validate_args
-    with ops.op_scope([logits], name):
+    with ops.name_scope(name, values=[logits]):
       self._logits = ops.convert_to_tensor(logits, name="logits")
       logits_shape = array_ops.shape(self._logits)
       self._batch_rank = array_ops.size(logits_shape) - 1
@@ -131,7 +126,7 @@ class Categorical(distribution.Distribution):
       The log-probabilities of the classes indexed by `k`
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([k, self.logits], name):
+      with ops.name_scope(name, values=[k, self.logits]):
         k = ops.convert_to_tensor(k, name="k")
 
         logits = self.logits * array_ops.ones_like(
@@ -169,7 +164,7 @@ class Categorical(distribution.Distribution):
       An `int64` `Tensor` with shape `[n, batch_shape, event_shape]`
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self.logits, n], name):
+      with ops.name_scope(name, values=[self.logits, n]):
         n = ops.convert_to_tensor(n, name="n")
         logits_2d = array_ops.reshape(
             self.logits, array_ops.pack([-1, self.num_classes]))
@@ -177,15 +172,14 @@ class Categorical(distribution.Distribution):
         samples = math_ops.cast(samples, self._dtype)
         ret = array_ops.reshape(
             array_ops.transpose(samples),
-            array_ops.concat(
-                0, [array_ops.expand_dims(n, 0), self.batch_shape()]))
+            array_ops.concat(0, ([n], self.batch_shape())))
         ret.set_shape(tensor_shape.vector(tensor_util.constant_value(n))
                       .concatenate(self.get_batch_shape()))
         return ret
 
   def entropy(self, name="sample"):
     with ops.name_scope(self.name):
-      with ops.op_scope([], name):
+      with ops.name_scope(name):
         logits_2d = array_ops.reshape(
             self.logits, array_ops.pack([-1, self.num_classes]))
         histogram_2d = nn_ops.softmax(logits_2d)
@@ -197,7 +191,7 @@ class Categorical(distribution.Distribution):
 
   def mode(self, name="mode"):
     with ops.name_scope(self.name):
-      with ops.op_scope([], name):
+      with ops.name_scope(name):
         ret = math_ops.argmax(self.logits, dimension=self._batch_rank)
         ret = math_ops.cast(ret, self._dtype)
         ret.set_shape(self.get_batch_shape())

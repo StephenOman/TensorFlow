@@ -207,7 +207,7 @@ class ReverseTest(test_util.TensorFlowTestCase):
         self.assertAllEqual(x_tf, np.asarray(x_np)[::-1])
 
   def testReverse1DimAuto(self):
-    for dtype in [np.uint8, np.int8, np.int32, np.bool, np.float16,
+    for dtype in [np.uint8, np.int8, np.int32, np.int64, np.bool, np.float16,
                   np.float32, np.float64, np.complex64, np.complex128]:
       self._reverse1DimAuto(dtype)
 
@@ -278,12 +278,10 @@ class StridedSliceChecker(object):
     self.x_np = np.array(x)
 
   def __getitem__(self, spec):
-    # TODO(aselle): When NewSliceHelper is installed, we can switch this back
-    # op = self.x[spec]
-    op = array_ops._NewSliceHelper(self.x, spec)
+    op = self.x.__getitem__(spec)
 
     tensor = op.eval()
-    self.test.assertAllEqual(self.x_np[spec], tensor)
+    self.test.assertAllEqual(self.x_np.__getitem__(spec), tensor)
     self.test.assertAllEqual(tensor.shape, op.get_shape())
     return tensor
 
@@ -399,9 +397,7 @@ class StridedSliceShapeChecker(object):
     self.x = x
 
   def __getitem__(self, spec):
-    # TODO(aselle): When NewSliceHelper is installed, we can switch this back
-    # op = self.x[spec]
-    op = array_ops._NewSliceHelper(self.x, spec)
+    op = self.x.__getitem__(spec)
     return op.get_shape()
 
 
@@ -455,8 +451,8 @@ class GradSliceChecker(object):
     self.varnp = varnp
 
   def __getitem__(self, spec):
-    slice_var = array_ops._NewSliceHelper(self.var, spec)
-    slice_val = array_ops._NewSliceHelper(self.val, spec)
+    slice_var = self.var[spec]
+    slice_val = self.val[spec]
 
     # compute analytic 2nd derivative
     analytic_grad2 = 2 * slice_val
@@ -495,6 +491,14 @@ class StridedSliceGradTest(test_util.TensorFlowTestCase):
         _ = grad[3:0:-2, 1:3, 1:3]
         _ = grad[3:0:-2, tf.newaxis, 1:3, 2, tf.newaxis]
         _ = grad[3:0:-2, 1:3, 2]
+        _ = grad[:, -1, :]
+        _ = grad[:, -2, :]
+        with self.assertRaisesRegexp(errors.InvalidArgumentError,
+                                     "out of bounds"):
+          _ = grad[:, -200, :]
+        with self.assertRaisesRegexp(errors.InvalidArgumentError,
+                                     "out of bounds"):
+          _ = grad[:, 200, :]
 
 
 class StridedSliceGradTypeTest(test_util.TensorFlowTestCase):
@@ -549,7 +553,7 @@ class BenchmarkSlice(object):
     self.tensor = tensor
 
   def __getitem__(self, x):
-    return array_ops._NewSliceHelper(self.tensor, x)
+    return self.tensor[x]
 
 
 class StridedSliceBenchmark(tf.test.Benchmark):
