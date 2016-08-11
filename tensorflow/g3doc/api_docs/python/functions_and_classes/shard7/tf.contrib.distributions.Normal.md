@@ -12,10 +12,10 @@ Examples of initialization of one or a batch of distributions.
 
 ```python
 # Define a single scalar Normal distribution.
-dist = tf.contrib.distributions.Normal(mu=0, sigma=3)
+dist = tf.contrib.distributions.Normal(mu=0., sigma=3.)
 
 # Evaluate the cdf at 1, returning a scalar.
-dist.cdf(1)
+dist.cdf(1.)
 
 # Define a batch of two scalar valued Normals.
 # The first has mean 1 and standard deviation 11, the second 2 and 22.
@@ -26,7 +26,7 @@ dist = tf.contrib.distributions.Normal(mu=[1, 2.], sigma=[11, 22.])
 dist.pdf([0, 1.5])
 
 # Get 3 samples, returning a 3 x 2 tensor.
-dist.sample(3)
+dist.sample([3])
 ```
 
 Arguments are broadcast when possible.
@@ -34,7 +34,7 @@ Arguments are broadcast when possible.
 ```python
 # Define a batch of two scalar valued Normals.
 # Both have mean 1, but different standard deviations.
-dist = tf.contrib.distributions.Normal(mu=1, sigma=[11, 22.])
+dist = tf.contrib.distributions.Normal(mu=1., sigma=[11, 22.])
 
 # Evaluate the pdf of both distributions on the same point, 3.0,
 # returning a length 2 tensor.
@@ -52,15 +52,15 @@ broadcasting (e.g. `mu + sigma` is a valid operation).
 ##### Args:
 
 
-*  <b>`mu`</b>: `float` or `double` tensor, the means of the distribution(s).
-*  <b>`sigma`</b>: `float` or `double` tensor, the stddevs of the distribution(s).
+*  <b>`mu`</b>: Floating point tensor, the means of the distribution(s).
+*  <b>`sigma`</b>: Floating point tensor, the stddevs of the distribution(s).
     sigma must contain only positive values.
 *  <b>`validate_args`</b>: Whether to assert that `sigma > 0`. If `validate_args` is
-    False, correct output is not guaranteed when input is invalid.
-*  <b>`allow_nan_stats`</b>: Boolean, default False.  If False, raise an exception if
-    a statistic (e.g. mean/mode/etc...) is undefined for any batch member.
-    If True, batch members with valid parameters leading to undefined
-    statistics will return NaN for this statistic.
+    `False`, correct output is not guaranteed when input is invalid.
+*  <b>`allow_nan_stats`</b>: Boolean, default `False`.  If `False`, raise an
+    exception if a statistic (e.g. mean/mode/etc...) is undefined for any
+    batch member.  If `True`, batch members with valid parameters leading to
+    undefined statistics will return NaN for this statistic.
 *  <b>`name`</b>: The name to give Ops created by the initializer.
 
 ##### Raises:
@@ -315,8 +315,7 @@ sample per batched distribution.
 ##### Args:
 
 
-*  <b>`sample_shape`</b>: `int32` `Tensor` or tuple or list. Shape of the generated
-    samples.
+*  <b>`sample_shape`</b>: Rank 1 `int32` `Tensor`. Shape of the generated samples.
 *  <b>`seed`</b>: Python integer seed for RNG
 *  <b>`name`</b>: name to give to the op.
 

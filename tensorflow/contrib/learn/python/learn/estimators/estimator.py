@@ -31,7 +31,12 @@ import six
 
 from tensorflow.contrib import framework as contrib_framework
 from tensorflow.contrib import layers
+from tensorflow.contrib.framework import deprecated_arg_values
+from tensorflow.contrib.learn.python.learn import evaluable
 from tensorflow.contrib.learn.python.learn import graph_actions
+from tensorflow.contrib.learn.python.learn import monitors as monitor_lib
+from tensorflow.contrib.learn.python.learn import session_run_hook
+from tensorflow.contrib.learn.python.learn import trainable
 from tensorflow.contrib.learn.python.learn.estimators import _sklearn as sklearn
 from tensorflow.contrib.learn.python.learn.estimators import run_config
 from tensorflow.contrib.learn.python.learn.estimators import tensor_signature
@@ -46,6 +51,13 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import device_setter
 from tensorflow.python.training import saver
+
+
+AS_ITERABLE_DATE = '2016-09-15'
+AS_ITERABLE_INSTRUCTIONS = (
+    'The default behavior of predict() is changing. The default value for\n'
+    'as_iterable will change to True, and then the flag will be removed\n'
+    'altogether. The behavior of this flag is described below.')
 
 
 class ModeKeys(object):
@@ -138,7 +150,8 @@ def _get_arguments(func):
     return _get_arguments(func.func)
 
 
-class BaseEstimator(sklearn.BaseEstimator):
+class BaseEstimator(
+    sklearn.BaseEstimator, evaluable.Evaluable, trainable.Trainable):
   """Abstract BaseEstimator class to train and evaluate TensorFlow models.
 
   Concrete implementation of this class should provide the following functions:
@@ -151,6 +164,8 @@ class BaseEstimator(sklearn.BaseEstimator):
   """
   __metaclass__ = abc.ABCMeta
 
+  # Note that for Google users, this is overriden with
+  # learn_runner.EstimatorConfig.
   # TODO(wicke): Remove this once launcher takes over config functionality
   _Config = run_config.RunConfig  # pylint: disable=invalid-name
 
@@ -158,9 +173,9 @@ class BaseEstimator(sklearn.BaseEstimator):
     """Initializes a BaseEstimator instance.
 
     Args:
-      model_dir: Directory to save model parameters, graph and etc. This can also
-        be used to load checkpoints from the directory into a estimator to continue
-        training a previously saved model.
+      model_dir: Directory to save model parameters, graph and etc. This can
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
       config: A RunConfig instance.
     """
     # Model directory.
@@ -196,34 +211,8 @@ class BaseEstimator(sklearn.BaseEstimator):
 
   def fit(self, x=None, y=None, input_fn=None, steps=None, batch_size=None,
           monitors=None, max_steps=None):
-    """Trains a model given training data `x` predictions and `y` targets.
-
-    Args:
-      x: Matrix of shape [n_samples, n_features...]. Can be iterator that
-         returns arrays of features. The training input samples for fitting the
-         model. If set, `input_fn` must be `None`.
-      y: Vector or matrix [n_samples] or [n_samples, n_outputs]. Can be
-         iterator that returns array of targets. The training target values
-         (class labels in classification, real numbers in regression). If set,
-         `input_fn` must be `None`.
-      input_fn: Input function. If set, `x`, `y`, and `batch_size` must be
-        `None`.
-      steps: Number of steps for which to train model. If `None`, train forever.
-        If set, `max_steps` must be `None`.
-      batch_size: minibatch size to use on the input, defaults to first
-        dimension of `x`. Must be `None` if `input_fn` is provided.
-      monitors: List of `BaseMonitor` subclass instances. Used for callbacks
-        inside the training loop.
-      max_steps: Number of total steps for which to train model. If `None`,
-        train forever. If set, `steps` must be `None`.
-
-        Two calls to `fit(steps=100)` means 200 training
-        iterations. On the other hand, two calls to `fit(max_steps=100)` means
-        that the second call will not do any iteration since first call did
-        all 100 steps.
-
-    Returns:
-      `self`, for chaining.
+    # pylint: disable=g-doc-args,g-doc-return-or-yield
+    """See `Trainable`.
 
     Raises:
       ValueError: If `x` or `y` are not `None` while `input_fn` is not `None`.
@@ -284,61 +273,11 @@ class BaseEstimator(sklearn.BaseEstimator):
     return self.fit(x=x, y=y, input_fn=input_fn, steps=steps,
                     batch_size=batch_size, monitors=monitors)
 
-  def evaluate(self,
-               x=None,
-               y=None,
-               input_fn=None,
-               feed_fn=None,
-               batch_size=None,
-               steps=None,
-               metrics=None,
-               name=None):
-    """Evaluates given model with provided evaluation data.
-
-    Evaluates on the given input data. If `input_fn` is provided, that
-    input function should raise an end-of-input exception (`OutOfRangeError` or
-    `StopIteration`) after one epoch of the training data has been provided.
-
-    By default, the whole evaluation dataset is used. If `steps` is provided,
-    only `steps` batches of size `batch_size` are processed.
-
-    The return value is a dict containing the metrics specified in `metrics`, as
-    well as an entry `global_step` which contains the value of the global step
-    for which this evaluation was performed.
-
-    Args:
-      x: Matrix of shape [n_samples, n_features...]. Can be iterator that
-         returns arrays of features. The training input samples for fitting the
-         model. If set, `input_fn` must be `None`.
-      y: Vector or matrix [n_samples] or [n_samples, n_outputs]. Can be
-         iterator that returns array of targets. The training target values
-         (class labels in classification, real numbers in regression). If set,
-         `input_fn` must be `None`.
-      input_fn: Input function. If set, `x`, `y`, and `batch_size` must be
-        `None`.
-      feed_fn: Function creating a feed dict every time it is called. Called
-        once per iteration.
-      batch_size: minibatch size to use on the input, defaults to first
-        dimension of `x`, if specified. Must be `None` if `input_fn` is
-        provided.
-      steps: Number of steps for which to evaluate model. If `None`, evaluate
-        until running tensors generated by `metrics` raises an exception.
-      metrics: Dict of metric ops to run. If `None`, the default metric
-        functions are used; if `{}`, no metrics are used. If model has one
-        output (i.e., returning single predction), keys are `str`, e.g.
-        `'accuracy'` - just a name of the metric that will show up in
-        the logs / summaries. Otherwise, keys are tuple of two `str`, e.g.
-        `('accuracy', 'classes')`- name of the metric and name of `Tensor` in
-        the predictions to run this metric on.
-
-        Metric ops should support streaming, e.g., returning
-        update_op and value tensors. See more details in
-        ../../../../metrics/python/metrics/ops/streaming_metrics.py.
-      name: Name of the evaluation if user needs to run multiple evaluations on
-        different data sets, such as on training data vs test data.
-
-    Returns:
-      Returns `dict` with evaluation results.
+  def evaluate(
+      self, x=None, y=None, input_fn=None, feed_fn=None, batch_size=None,
+      steps=None, metrics=None, name=None):
+    # pylint: disable=g-doc-args,g-doc-return-or-yield
+    """See `Evaluable`.
 
     Raises:
       ValueError: If at least one of `x` or `y` is provided, and at least one of
@@ -360,6 +299,8 @@ class BaseEstimator(sklearn.BaseEstimator):
       eval_results.update({'global_step': global_step})
     return eval_results
 
+  @deprecated_arg_values(
+      AS_ITERABLE_DATE, AS_ITERABLE_INSTRUCTIONS, as_iterable=False)
   def predict(
       self, x=None, input_fn=None, batch_size=None, outputs=None,
       as_iterable=False):
@@ -555,9 +496,25 @@ class BaseEstimator(sklearn.BaseEstimator):
       if monitors is None:
         monitors = []
 
+      hooks = [m for m in monitors
+               if isinstance(m, session_run_hook.SessionRunHook)]
+
+      deprecated_monitors = [
+          m for m in monitors
+          if not isinstance(m, session_run_hook.SessionRunHook)
+      ]
+
+      supervisor_is_chief = (self._config.task == 0)
+      if not supervisor_is_chief:
+        # Prune list of monitor to the ones runnable on all workers.
+        deprecated_monitors = [m for m in deprecated_monitors
+                               if m.run_on_all_workers]
+
       # Setup monitors.
-      for monitor in monitors:
+      for monitor in deprecated_monitors:
         monitor.set_estimator(self)
+
+      hooks.append(monitor_lib.RunHookAdapterForMonitors(deprecated_monitors))
 
       return graph_actions._supervised_train(  # pylint: disable=protected-access
           graph=g,
@@ -569,14 +526,14 @@ class BaseEstimator(sklearn.BaseEstimator):
           init_feed_dict=init_feed_fn() if init_feed_fn is not None else None,
           init_fn=init_fn,
           log_every_steps=log_every_steps,
-          supervisor_is_chief=(self._config.task == 0),
+          supervisor_is_chief=supervisor_is_chief,
           supervisor_master=self._config.master,
-          supervisor_save_model_steps=self._config.save_checkpoints_steps,
+          supervisor_save_model_secs=self._config.save_checkpoints_secs,
           keep_checkpoint_max=self._config.keep_checkpoint_max,
           feed_fn=feed_fn,
           steps=steps,
           fail_on_nan_loss=fail_on_nan_loss,
-          monitors=monitors,
+          hooks=hooks,
           max_steps=max_steps)
 
   def _extract_metric_update_ops(self, eval_dict):
@@ -770,9 +727,9 @@ class Estimator(BaseEstimator):
                  is passed to Estimator in `params` parameter. This allows
                  to configure Estimators from hyper parameter tunning.
 
-      model_dir: Directory to save model parameters, graph and etc. This can also
-        be used to load checkpoints from the directory into a estimator to continue
-        training a previously saved model.
+      model_dir: Directory to save model parameters, graph and etc. This can
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
       config: Configuration object.
       params: `dict` of hyper parameters that will be passed into `model_fn`.
               Keys are names of parameters, values are basic python types.

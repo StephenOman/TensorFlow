@@ -29,14 +29,10 @@ from tensorflow.contrib.learn.python.learn.estimators import _sklearn
 
 def iris_input_fn(num_epochs=None):
   iris = tf.contrib.learn.datasets.load_iris()
-  features = tf.cast(
-      tf.reshape(
-          tf.constant(iris.data), [-1, 4]), tf.float32)
+  features = tf.reshape(tf.constant(iris.data), [-1, 4])
   if num_epochs:
     features = tf.train.limit_epochs(features, num_epochs=num_epochs)
-  target = tf.cast(
-      tf.reshape(
-          tf.constant(iris.target), [-1]), tf.int64)
+  target = tf.reshape(tf.constant(iris.target), [-1])
   return features, target
 
 
@@ -56,7 +52,7 @@ class ClassifierTest(tf.test.TestCase):
     iris = tf.contrib.learn.datasets.load_iris()
     est = tf.contrib.learn.Classifier(model_fn=logistic_model_fn, n_classes=3)
     est.fit(iris.data, iris.target, steps=100)
-    scores = est.evaluate(x=iris.data, y=iris.target)
+    scores = est.evaluate(x=iris.data, y=iris.target, name='eval')
     predictions = est.predict(x=iris.data)
     predictions_proba = est.predict_proba(x=iris.data)
     self.assertEqual(predictions.shape[0], iris.target.shape[0])
@@ -68,7 +64,7 @@ class ClassifierTest(tf.test.TestCase):
     iris = tf.contrib.learn.datasets.load_iris()
     est = tf.contrib.learn.Classifier(model_fn=logistic_model_fn, n_classes=3)
     est.fit(iris.data, iris.target, steps=100)
-    scores = est.evaluate(x=iris.data, y=iris.target)
+    scores = est.evaluate(x=iris.data, y=iris.target, name='eval')
     predictions = list(est.predict(x=iris.data, as_iterable=True))
     predictions_proba = list(est.predict_proba(x=iris.data, as_iterable=True))
     self.assertEqual(len(predictions), iris.target.shape[0])
@@ -80,7 +76,7 @@ class ClassifierTest(tf.test.TestCase):
     iris = tf.contrib.learn.datasets.load_iris()
     est = tf.contrib.learn.Classifier(model_fn=logistic_model_fn, n_classes=3)
     est.fit(input_fn=iris_input_fn, steps=100)
-    est.evaluate(input_fn=iris_input_fn, steps=1)
+    est.evaluate(input_fn=iris_input_fn, steps=1, name='eval')
     predictions = est.predict(input_fn=iris_input_fn)
     self.assertEqual(predictions.shape[0], iris.target.shape[0])
 
@@ -88,7 +84,7 @@ class ClassifierTest(tf.test.TestCase):
     iris = tf.contrib.learn.datasets.load_iris()
     est = tf.contrib.learn.Classifier(model_fn=logistic_model_fn, n_classes=3)
     est.fit(input_fn=iris_input_fn, steps=100)
-    est.evaluate(input_fn=iris_input_fn, steps=1)
+    est.evaluate(input_fn=iris_input_fn, steps=1, name='eval')
     predict_input_fn = functools.partial(iris_input_fn, num_epochs=1)
     predictions = list(est.predict(input_fn=predict_input_fn, as_iterable=True))
     self.assertEqual(len(predictions), iris.target.shape[0])

@@ -60,13 +60,16 @@ class FeatureColumnTest(tf.test.TestCase):
     self.assertEqual(b.dimension, 10)
     self.assertTrue(b.default_value is None)
 
-    # dimension is an integer
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(TypeError, "dimension must be an integer"):
       tf.contrib.layers.real_valued_column("d3", dimension=1.0)
 
-    # dimension is a positive integer
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(ValueError,
+                                 "dimension must be greater than 0"):
       tf.contrib.layers.real_valued_column("d3", dimension=0)
+
+    with self.assertRaisesRegexp(ValueError,
+                                 "dtype must be convertible to float"):
+      tf.contrib.layers.real_valued_column("d3", dtype=tf.string)
 
     # default_value is an integer.
     c1 = tf.contrib.layers.real_valued_column("c1", default_value=2)
@@ -92,15 +95,18 @@ class FeatureColumnTest(tf.test.TestCase):
                                               dimension=4,
                                               default_value=2.)
     self.assertListEqual(list(d2.default_value), [2., 2., 2., 2.])
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(TypeError,
+                                 "default_value must be compatible with dtype"):
       tf.contrib.layers.real_valued_column("d3",
                                            default_value=2.,
                                            dtype=tf.int32)
 
-    # default_value is neither interger nor float.
-    with self.assertRaises(TypeError):
+    # default_value is neither integer nor float.
+    with self.assertRaisesRegexp(
+        TypeError, "default_value must be compatible with dtype"):
       tf.contrib.layers.real_valued_column("e1", default_value="string")
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(
+        TypeError, "default_value must be compatible with dtype"):
       tf.contrib.layers.real_valued_column("e1",
                                            dimension=3,
                                            default_value=[1, 3., "string"])
@@ -125,11 +131,13 @@ class FeatureColumnTest(tf.test.TestCase):
                                               dimension=3,
                                               default_value=[2., 2, 2])
     self.assertListEqual(list(g2.default_value), [2., 2., 2.])
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(
+        TypeError, "default_value must be compatible with dtype"):
       tf.contrib.layers.real_valued_column("g3",
                                            default_value=[2.],
                                            dtype=tf.int32)
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(
+        ValueError, "The length of default_value must be equal to dimension"):
       tf.contrib.layers.real_valued_column("g4",
                                            dimension=3,
                                            default_value=[2.])
@@ -137,21 +145,29 @@ class FeatureColumnTest(tf.test.TestCase):
   def testBucketizedColumnNameEndsWithUnderscoreBucketized(self):
     a = tf.contrib.layers.bucketized_column(
         tf.contrib.layers.real_valued_column("aaa"), [0, 4])
-    self.assertEqual(a.name, "aaa_BUCKETIZED")
+    self.assertEqual(a.name, "aaa_bucketized")
 
   def testBucketizedColumnRequiresRealValuedColumn(self):
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(
+        TypeError, "source_column must be an instance of _RealValuedColumn"):
       tf.contrib.layers.bucketized_column("bbb", [0])
+    with self.assertRaisesRegexp(
+        TypeError, "source_column must be an instance of _RealValuedColumn"):
+      tf.contrib.layers.bucketized_column(
+          tf.contrib.layers.sparse_column_with_integerized_feature(
+              column_name="bbb", bucket_size=10),
+          [0])
 
   def testBucketizedColumnRequiresSortedBuckets(self):
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(
+        ValueError, "boundaries must be a sorted list"):
       tf.contrib.layers.bucketized_column(
           tf.contrib.layers.real_valued_column("ccc"), [5, 0, 4])
 
   def testBucketizedColumnWithSameBucketBoundaries(self):
     a_bucketized = tf.contrib.layers.bucketized_column(
         tf.contrib.layers.real_valued_column("a"), [1., 2., 2., 3., 3.])
-    self.assertEqual(a_bucketized.name, "a_BUCKETIZED")
+    self.assertEqual(a_bucketized.name, "a_bucketized")
     self.assertTupleEqual(a_bucketized.boundaries, (1., 2., 3.))
 
   def testCrossedColumnNameCreatesSortedNames(self):
@@ -164,16 +180,19 @@ class FeatureColumnTest(tf.test.TestCase):
     crossed = tf.contrib.layers.crossed_column(
         set([b, bucket, a]), hash_bucket_size=10000)
 
-    self.assertEqual("aaa_X_bbb_X_cost_BUCKETIZED", crossed.name,
+    self.assertEqual("aaa_X_bbb_X_cost_bucketized", crossed.name,
                      "name should be generated by sorted column names")
     self.assertEqual("aaa", crossed.columns[0].name)
     self.assertEqual("bbb", crossed.columns[1].name)
-    self.assertEqual("cost_BUCKETIZED", crossed.columns[2].name)
+    self.assertEqual("cost_bucketized", crossed.columns[2].name)
 
   def testCrossedColumnNotSupportRealValuedColumn(self):
     b = tf.contrib.layers.sparse_column_with_hash_bucket("bbb",
                                                          hash_bucket_size=100)
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(
+        TypeError,
+        "columns must be a set of _SparseColumn, _CrossedColumn, "
+        "or _BucketizedColumn instances"):
       tf.contrib.layers.crossed_column(
           set([b, tf.contrib.layers.real_valued_column("real")]),
           hash_bucket_size=10000)
@@ -194,7 +213,8 @@ class FeatureColumnTest(tf.test.TestCase):
          "weights": tf.VarLenFeature(tf.int32)},
         weighted_ids.config)
 
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(ValueError,
+                                 "dtype is not convertible to float"):
       weighted_ids = tf.contrib.layers.weighted_sparse_column(ids, "weights",
                                                               dtype=tf.string)
 
@@ -211,7 +231,8 @@ class FeatureColumnTest(tf.test.TestCase):
             [1], dtype=tf.int32)},
         rvc.config)
 
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(ValueError,
+                                 "dtype must be convertible to float"):
       tf.contrib.layers.real_valued_column("rvc", dtype=tf.string)
 
   def testSparseColumnDtypes(self):
@@ -222,7 +243,8 @@ class FeatureColumnTest(tf.test.TestCase):
         "sc", 10, dtype=tf.int32)
     self.assertDictEqual({"sc": tf.VarLenFeature(dtype=tf.int32)}, sc.config)
 
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(ValueError,
+                                 "dtype must be an integer"):
       tf.contrib.layers.sparse_column_with_integerized_feature("sc",
                                                                10,
                                                                dtype=tf.float32)
@@ -317,11 +339,14 @@ class FeatureColumnTest(tf.test.TestCase):
     self.assertTrue(isinstance(placeholders["sparse_column"],
                                tf.SparseTensor))
     placeholder = placeholders["real_valued_column"]
-    self.assertTrue(placeholder.name.startswith(u"Placeholder"))
+    self.assertGreaterEqual(
+        placeholder.name.find(u"Placeholder_real_valued_column"), 0)
     self.assertEqual(tf.float32, placeholder.dtype)
     self.assertEqual([None, 5], placeholder.get_shape().as_list())
     placeholder = placeholders["real_valued_column_for_bucketization"]
-    self.assertTrue(placeholder.name.startswith(u"Placeholder"))
+    self.assertGreaterEqual(
+        placeholder.name.find(
+            u"Placeholder_real_valued_column_for_bucketization"), 0)
     self.assertEqual(tf.float32, placeholder.dtype)
     self.assertEqual([None, 1], placeholder.get_shape().as_list())
 
@@ -343,8 +368,9 @@ class FeatureColumnTest(tf.test.TestCase):
     # variable. Creating under scope 'run_1' so as to prevent name conflicts
     # when creating embedding variable for 'embedding_column_pretrained'.
     with tf.variable_scope("run_1"):
-      # This will return a [4, 16] tensor which is same as embedding variable.
-      embeddings = embedding_col.to_dnn_input_layer(input_tensor)
+      with tf.variable_scope(embedding_col.name):
+        # This will return a [4, 16] tensor which is same as embedding variable.
+        embeddings = embedding_col.to_dnn_input_layer(input_tensor)
 
     save = tf.train.Saver()
     checkpoint_path = os.path.join(self.get_temp_dir(), "model.ckpt")
@@ -358,7 +384,7 @@ class FeatureColumnTest(tf.test.TestCase):
         sparse_id_column=sparse_col,
         dimension=16,
         ckpt_to_load_from=checkpoint_path,
-        tensor_name_in_ckpt="run_1/object_in_image_embedding_weights")
+        tensor_name_in_ckpt="run_1/object_in_image_embedding/weights")
 
     with tf.variable_scope("run_2"):
       # This will initialize the embedding from provided checkpoint and return a
@@ -390,13 +416,14 @@ class FeatureColumnTest(tf.test.TestCase):
     # Invoking 'crossed_col.to_weighted_sum' will create the crossed column
     # weights variable.
     with tf.variable_scope("run_1"):
-      # Returns looked up column weights which is same as crossed column weights
-      # as well as actual references to weights variables.
-      col_weights, weights = crossed_col.to_weighted_sum(input_tensor)
-      # Update the weights since default initializer initializes all weights to
-      # 0.0.
-      for weight in weights:
-        assign_op = tf.assign(weight, weight + 0.5)
+      with tf.variable_scope(crossed_col.name):
+        # Returns looked up column weights which is same as crossed column
+        # weights as well as actual references to weights variables.
+        col_weights, weights = crossed_col.to_weighted_sum(input_tensor)
+        # Update the weights since default initializer initializes all weights
+        # to 0.0.
+        for weight in weights:
+          assign_op = tf.assign(weight, weight + 0.5)
 
     save = tf.train.Saver()
     checkpoint_path = os.path.join(self.get_temp_dir(), "model.ckpt")
@@ -411,7 +438,7 @@ class FeatureColumnTest(tf.test.TestCase):
         columns=[sparse_col_1, sparse_col_2],
         hash_bucket_size=4,
         ckpt_to_load_from=checkpoint_path,
-        tensor_name_in_ckpt="run_1/col_1_X_col_2_weights")
+        tensor_name_in_ckpt="run_1/col_1_X_col_2/weights")
 
     with tf.variable_scope("run_2"):
       # This will initialize the crossed column weights from provided checkpoint
