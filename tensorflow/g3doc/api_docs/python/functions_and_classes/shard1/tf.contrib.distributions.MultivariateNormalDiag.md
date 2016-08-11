@@ -56,7 +56,7 @@ The mean of `X_i` is `mu[i]`, and the standard deviation is `diag_stdev[i]`.
 ##### Args:
 
 
-*  <b>`mu`</b>: Rank `N + 1` `float` or `double` tensor with shape `[N1,...,Nb, k]`,
+*  <b>`mu`</b>: Rank `N + 1` floating point tensor with shape `[N1,...,Nb, k]`,
     `b >= 0`.
 *  <b>`diag_stdev`</b>: Rank `N + 1` `Tensor` with same `dtype` and shape as `mu`,
     representing the standard deviations.  Must be positive.
@@ -291,8 +291,7 @@ sample per batched distribution.
 ##### Args:
 
 
-*  <b>`sample_shape`</b>: `int32` `Tensor` or tuple or list. Shape of the generated
-    samples.
+*  <b>`sample_shape`</b>: Rank 1 `int32` `Tensor`. Shape of the generated samples.
 *  <b>`seed`</b>: Python integer seed for RNG
 *  <b>`name`</b>: name to give to the op.
 

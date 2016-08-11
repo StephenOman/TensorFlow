@@ -2,10 +2,6 @@ Bernoulli distribution.
 
 The Bernoulli distribution is parameterized by p, the probability of a
 positive event.
-
-Note, the following methods of the base class aren't implemented:
-  * cdf
-  * log_cdf
 - - -
 
 #### `tf.contrib.distributions.Bernoulli.__init__(logits=None, p=None, dtype=tf.int32, validate_args=True, allow_nan_stats=False, name='Bernoulli')` {#Bernoulli.__init__}
@@ -25,10 +21,10 @@ Construct Bernoulli distributions.
 *  <b>`dtype`</b>: dtype for samples.
 *  <b>`validate_args`</b>: Whether to assert that `0 <= p <= 1`. If not validate_args,
    `log_pmf` may return nans.
-*  <b>`allow_nan_stats`</b>: Boolean, default False.  If False, raise an exception if
-    a statistic (e.g. mean/mode/etc...) is undefined for any batch member.
-    If True, batch members with valid parameters leading to undefined
-    statistics will return NaN for this statistic.
+*  <b>`allow_nan_stats`</b>: Boolean, default `False`.  If `False`, raise an
+    exception if a statistic (e.g. mean/mode/etc...) is undefined for any
+    batch member.  If `True`, batch members with valid parameters leading to
+    undefined statistics will return NaN for this statistic.
 *  <b>`name`</b>: A name for this distribution.
 
 ##### Raises:
@@ -262,8 +258,7 @@ sample per batched distribution.
 ##### Args:
 
 
-*  <b>`sample_shape`</b>: `int32` `Tensor` or tuple or list. Shape of the generated
-    samples.
+*  <b>`sample_shape`</b>: Rank 1 `int32` `Tensor`. Shape of the generated samples.
 *  <b>`seed`</b>: Python integer seed for RNG
 *  <b>`name`</b>: name to give to the op.
 

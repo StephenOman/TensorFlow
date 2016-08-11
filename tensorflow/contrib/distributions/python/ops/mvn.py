@@ -21,6 +21,7 @@ from __future__ import print_function
 import math
 
 from tensorflow.contrib.distributions.python.ops import distribution
+from tensorflow.contrib.distributions.python.ops import kullback_leibler
 from tensorflow.contrib.distributions.python.ops import operator_pd_cholesky
 from tensorflow.contrib.distributions.python.ops import operator_pd_diag
 from tensorflow.contrib.distributions.python.ops import operator_pd_full
@@ -104,9 +105,9 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
     which determines the covariance.
 
     Args:
-      mu: `float` or `double` tensor with shape `[N1,...,Nb, k]`, `b >= 0`.
-      cov: `float` or `double` instance of `OperatorPDBase` with same `dtype`
-        as `mu` and shape `[N1,...,Nb, k, k]`.
+      mu: Floating point tensor with shape `[N1,...,Nb, k]`, `b >= 0`.
+      cov: Instance of `OperatorPDBase` with same `dtype` as `mu` and shape
+        `[N1,...,Nb, k, k]`.
       validate_args: Whether to validate input with asserts.  If `validate_args`
         is `False`, and the inputs are invalid, correct behavior is not
         guaranteed.
@@ -122,7 +123,7 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
     self._allow_nan_stats = allow_nan_stats
     self._validate_args = validate_args
     with ops.name_scope(name):
-      with ops.op_scope([mu] + cov.inputs, "init"):
+      with ops.name_scope("init", values=[mu] + cov.inputs):
         self._cov = cov
         self._mu = self._check_mu(mu)
         self._name = name
@@ -149,7 +150,7 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
       else:
         return mu
 
-    # Static checks could not be run, so possibly do dyamic checks.
+    # Static checks could not be run, so possibly do dynamic checks.
     if not self.validate_args:
       return mu
     else:
@@ -192,14 +193,14 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
     """Shape of a sample from a single distribution as a 1-D int32 `Tensor`."""
     # Recall _check_mu ensures mu and self._cov have same batch shape.
     with ops.name_scope(self.name):
-      with ops.op_scope(self._cov.inputs, name):
+      with ops.name_scope(name, values=self._cov.inputs):
         return array_ops.pack([self._cov.vector_space_dimension()])
 
   def batch_shape(self, name="batch_shape"):
     """Batch dimensions of this instance as a 1-D int32 `Tensor`."""
     # Recall _check_mu ensures mu and self._cov have same batch shape.
     with ops.name_scope(self.name):
-      with ops.op_scope(self._cov.inputs, name):
+      with ops.name_scope(name, values=self._cov.inputs):
         return self._cov.batch_shape()
 
   def get_batch_shape(self):
@@ -220,13 +221,13 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
   def mean(self, name="mean"):
     """Mean of each batch member."""
     with ops.name_scope(self.name):
-      with ops.op_scope([self._mu], name):
+      with ops.name_scope(name, values=[self._mu]):
         return array_ops.identity(self._mu)
 
   def mode(self, name="mode"):
     """Mode of each batch member."""
     with ops.name_scope(self.name):
-      with ops.op_scope([self._mu], name):
+      with ops.name_scope(name, values=[self._mu]):
         return array_ops.identity(self._mu)
 
   def variance(self, name="variance"):
@@ -237,13 +238,13 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
   def log_sigma_det(self, name="log_sigma_det"):
     """Log of determinant of covariance matrix."""
     with ops.name_scope(self.name):
-      with ops.op_scope(self._cov.inputs, name):
+      with ops.name_scope(name, values=self._cov.inputs):
         return self._cov.log_det()
 
   def sigma_det(self, name="sigma_det"):
     """Determinant of covariance matrix."""
     with ops.name_scope(self.name):
-      with ops.op_scope(self._cov.inputs, name):
+      with ops.name_scope(name, values=self._cov.inputs):
         return math_ops.exp(self._cov.log_det())
 
   def log_prob(self, x, name="log_prob"):
@@ -270,7 +271,7 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
     #     a shape compatible with self._cov.
     # See Operator base class for notes about shapes compatible with self._cov.
     with ops.name_scope(self.name):
-      with ops.op_scope([self._mu, x] + self._cov.inputs, name):
+      with ops.name_scope(name, values=[self._mu, x] + self._cov.inputs):
         x = ops.convert_to_tensor(x)
         contrib_tensor_util.assert_same_float_dtype((self._mu, x))
 
@@ -319,7 +320,7 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
       prob: tensor of dtype `dtype`, the prob values of `x`.
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self._mu, x] + self._cov.inputs, name):
+      with ops.name_scope(name, values=[self._mu, x] + self._cov.inputs):
         return math_ops.exp(self.log_prob(x))
 
   def entropy(self, name="entropy"):
@@ -332,7 +333,7 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
       entropy: tensor of dtype `dtype`, the entropies.
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self._mu] + self._cov.inputs, name):
+      with ops.name_scope(name, values=[self._mu] + self._cov.inputs):
         log_sigma_det = self.log_sigma_det()
         one_plus_log_two_pi = constant_op.constant(1 + math.log(2 * math.pi),
                                                    dtype=self.dtype)
@@ -356,7 +357,7 @@ class MultivariateNormalOperatorPD(distribution.Distribution):
         of the distributions determined by broadcasting the hyperparameters.
     """
     with ops.name_scope(self.name):
-      with ops.op_scope([self._mu, n] + self._cov.inputs, name):
+      with ops.name_scope(name, values=[self._mu, n] + self._cov.inputs):
         # Recall _check_mu ensures mu and self._cov have same batch shape.
         broadcast_shape = self.mu.get_shape()
         n = ops.convert_to_tensor(n)
@@ -465,7 +466,7 @@ class MultivariateNormalDiag(MultivariateNormalOperatorPD):
     The mean of `X_i` is `mu[i]`, and the standard deviation is `diag_stdev[i]`.
 
     Args:
-      mu:  Rank `N + 1` `float` or `double` tensor with shape `[N1,...,Nb, k]`,
+      mu:  Rank `N + 1` floating point tensor with shape `[N1,...,Nb, k]`,
         `b >= 0`.
       diag_stdev: Rank `N + 1` `Tensor` with same `dtype` and shape as `mu`,
         representing the standard deviations.  Must be positive.
@@ -580,13 +581,13 @@ class MultivariateNormalDiagPlusVDVT(MultivariateNormalOperatorPD):
     ```
 
     Args:
-      mu:  Rank `n + 1` `float` or `double` tensor with shape `[N1,...,Nn, k]`,
+      mu:  Rank `n + 1` floating point tensor with shape `[N1,...,Nn, k]`,
         `n >= 0`.  The means.
-      diag_large:  Optional rank `n + 1` `float` or `double` tensor, shape
+      diag_large:  Optional rank `n + 1` floating point tensor, shape
         `[N1,...,Nn, k]` `n >= 0`.  Defines the diagonal matrix `M`.
-      v:  Rank `n + 1` `float` or `double` tensor, shape `[N1,...,Nn, k, r]`
+      v:  Rank `n + 1` floating point tensor, shape `[N1,...,Nn, k, r]`
         `n >= 0`.  Defines the matrix `V`.
-      diag_small:  Rank `n + 1` `float` or `double` tensor, shape
+      diag_small:  Rank `n + 1` floating point tensor, shape
         `[N1,...,Nn, k]` `n >= 0`.  Defines the diagonal matrix `D`.  Default
         is `None`, which means `D` will be the identity matrix.
       validate_args: Whether to validate input with asserts.  If `validate_args`
@@ -669,7 +670,7 @@ class MultivariateNormalCholesky(MultivariateNormalOperatorPD):
     factors, such that the covariance of each batch member is `chol chol^T`.
 
     Args:
-      mu: `(N+1)-D`  `float` or `double` tensor with shape `[N1,...,Nb, k]`,
+      mu: `(N+1)-D` floating point tensor with shape `[N1,...,Nb, k]`,
         `b >= 0`.
       chol: `(N+2)-D` `Tensor` with same `dtype` as `mu` and shape
         `[N1,...,Nb, k, k]`.  The upper triangular part is ignored (treated as
@@ -749,7 +750,7 @@ class MultivariateNormalFull(MultivariateNormalOperatorPD):
     User must provide means `mu` and `sigma`, the mean and covariance.
 
     Args:
-      mu: `(N+1)-D`  `float` or `double` tensor with shape `[N1,...,Nb, k]`,
+      mu: `(N+1)-D` floating point tensor with shape `[N1,...,Nb, k]`,
         `b >= 0`.
       sigma: `(N+2)-D` `Tensor` with same `dtype` as `mu` and shape
         `[N1,...,Nb, k, k]`.  Each batch member must be positive definite.
@@ -772,3 +773,72 @@ class MultivariateNormalFull(MultivariateNormalOperatorPD):
         allow_nan_stats=allow_nan_stats,
         validate_args=validate_args,
         name=name)
+
+
+def _kl_mvn_mvn_brute_force(mvn_a, mvn_b, name=None):
+  """Batched KL divergence `KL(mvn_a || mvn_b)` for multivariate normals.
+
+  With `X`, `Y` both multivariate normals in `R^k` with means `mu_x`, `mu_y` and
+  covariance `C_x`, `C_y` respectively,
+
+  ```
+  KL(X || Y) = 0.5 * ( T + Q + - k + L ),
+  T := trace(C_b^{-1} C_a),
+  Q := (mu_b - mu_a)^T C_b^{-1} (mu_b - mu_a),
+  L := Log[Det(C_b)] - Log[Det(C_a)]
+  ```
+
+  This `Op` computes the trace by solving `C_b^{-1} C_a`.  Although efficient
+  methods for solving systems with `C_b` may be available, a dense version of
+  (the square root of) `C_a` is used, so performance is `O(B s k^2)` where `B`
+  is the batch size, and `s` is the cost of solving `C_b x = y` for vectors `x`
+  and `y`.
+
+  Args:
+    mvn_a:  Instance of subclass of `MultivariateNormalOperatorPD`.
+    mvn_b:  Instance of subclass of `MultivariateNormalOperatorPD`.
+    name:  (optional) name to use for created ops.  Default "kl_mvn_mvn".
+
+  Returns:
+    Batchwise `KL(mvn_a || mvn_b)`.
+  """
+  # Access the "private" OperatorPD that each mvn is built from.
+  cov_a = mvn_a._cov  # pylint: disable=protected-access
+  cov_b = mvn_b._cov  # pylint: disable=protected-access
+  mu_a = mvn_a.mu
+  mu_b = mvn_b.mu
+  inputs = [mu_a, mu_b] + cov_a.inputs + cov_b.inputs
+
+  with ops.name_scope(name, "kl_mvn_mvn", inputs):
+    # If Ca = AA', Cb = BB', then
+    # tr[inv(Cb) Ca] = tr[inv(B)' inv(B) A A']
+    #                = tr[inv(B) A A' inv(B)']
+    #                = tr[(inv(B) A) (inv(B) A)']
+    #                = sum_{ik} (inv(B) A)_{ik}^2
+    # The second equality follows from the cyclic permutation property.
+    b_inv_a = cov_b.sqrt_solve(cov_a.sqrt_to_dense())
+    t = math_ops.reduce_sum(
+        math_ops.square(b_inv_a),
+        reduction_indices=[-1, -2])
+    q = cov_b.inv_quadratic_form_on_vectors(mu_b - mu_a)
+    k = math_ops.cast(cov_a.vector_space_dimension(), mvn_a.dtype)
+    one_half_l = cov_b.sqrt_log_det() - cov_a.sqrt_log_det()
+    return 0.5 * (t + q - k) + one_half_l
+
+
+# Register KL divergences.
+kl_classes = [
+    MultivariateNormalFull,
+    MultivariateNormalCholesky,
+    MultivariateNormalDiag,
+    MultivariateNormalDiagPlusVDVT,
+]
+
+
+for mvn_aa in kl_classes:
+  # Register when they are the same here, and do not register when they are the
+  # same below because that would result in a repeated registration.
+  kullback_leibler.RegisterKL(mvn_aa, mvn_aa)(_kl_mvn_mvn_brute_force)
+  for mvn_bb in kl_classes:
+    if mvn_bb != mvn_aa:
+      kullback_leibler.RegisterKL(mvn_aa, mvn_bb)(_kl_mvn_mvn_brute_force)
