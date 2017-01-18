@@ -60,7 +60,7 @@ void FIFOQueue::TryEnqueue(const Tuple& tuple, OpKernelContext* ctx,
           [tuple, this](Attempt* attempt) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
             if (closed_) {
               attempt->context->SetStatus(
-                  errors::Aborted("FIFOQueue '", name_, "' is closed."));
+                  errors::Cancelled("FIFOQueue '", name_, "' is closed."));
               return kComplete;
             }
             if (queues_[0].size() < static_cast<size_t>(capacity_)) {
@@ -118,7 +118,7 @@ void FIFOQueue::TryEnqueueMany(const Tuple& tuple, OpKernelContext* ctx,
           [tuple, this](Attempt* attempt) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
             if (closed_) {
               attempt->context->SetStatus(
-                  errors::Aborted("FIFOQueue '", name_, "' is closed."));
+                  errors::Cancelled("FIFOQueue '", name_, "' is closed."));
               return kComplete;
             }
             RunResult result = kNoProgress;
@@ -347,7 +347,10 @@ void FIFOQueue::TryDequeueMany(int num_elements, OpKernelContext* ctx,
 }
 
 Status FIFOQueue::MatchesNodeDef(const NodeDef& node_def) {
-  TF_RETURN_IF_ERROR(MatchesNodeDefOp(node_def, "FIFOQueue"));
+  if (!MatchesNodeDefOp(node_def, "FIFOQueue").ok() &&
+      !MatchesNodeDefOp(node_def, "FIFOQueueV2").ok()) {
+    return errors::InvalidArgument("Expected FIFOQueue, found ", node_def.op());
+  }
   TF_RETURN_IF_ERROR(MatchesNodeDefCapacity(node_def, capacity_));
   TF_RETURN_IF_ERROR(MatchesNodeDefTypes(node_def));
   TF_RETURN_IF_ERROR(MatchesNodeDefShapes(node_def));

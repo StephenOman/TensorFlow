@@ -20,16 +20,22 @@ limitations under the License.
 namespace tensorflow {
 
 using shape_inference::InferenceContext;
-using shape_inference::Shape;
+using shape_inference::ShapeHandle;
 
 // --------------------------------------------------------------------------
 namespace {
 Status SwitchShape(InferenceContext* c) {
-  const Shape* unused;
+  ShapeHandle unused;
   TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 0, &unused));
-  const Shape* out = c->input(0);
+  ShapeHandle out = c->input(0);
   c->set_output(0, out);
   c->set_output(1, out);
+
+  // Handle resource shape / dtype.
+  c->set_output_handle_shape(0, c->input_handle_shape(0));
+  c->set_output_handle_shape(1, c->input_handle_shape(0));
+  c->set_output_handle_dtype(0, c->input_handle_dtype(0));
+  c->set_output_handle_dtype(1, c->input_handle_dtype(0));
   return Status::OK();
 }
 }  // namespace
@@ -85,16 +91,16 @@ REGISTER_OP("RefSelect")
     .Attr("T: type")
     .Attr("N: int >= 1")
     .SetShapeFn([](InferenceContext* c) {
-      const Shape* unused;
+      ShapeHandle unused;
       TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
-      const Shape* first_input = c->input(1);
+      ShapeHandle first_input = c->input(1);
       if (!c->FullyDefined(first_input)) {
         c->set_output(0, c->UnknownShape());
         return Status::OK();
       }
       // If any inputs aren't fully defined or don't match, we return unknown.
       for (int i = 2; i < c->num_inputs(); ++i) {
-        const Shape* input = c->input(i);
+        ShapeHandle input = c->input(i);
         if (!c->FullyDefined(input) ||
             !c->Merge(first_input, input, &unused).ok()) {
           c->set_output(0, c->UnknownShape());
@@ -115,14 +121,14 @@ output: The forwarded tensor.
 // --------------------------------------------------------------------------
 namespace {
 Status MergeShape(InferenceContext* c) {
-  const Shape* out = c->input(0);
+  ShapeHandle out = c->input(0);
   if (!c->RankKnown(out)) {
     out = c->UnknownShape();
   } else {
     int32 rank = c->Rank(out);
     for (int i = 1; i < c->num_inputs(); ++i) {
-      const Shape* input = c->input(i);
-      if (c->Rank(input) != rank) {
+      ShapeHandle input = c->input(i);
+      if (!c->RankKnown(input) || c->Rank(input) != rank) {
         out = c->UnknownShape();
         break;
       }
@@ -156,8 +162,6 @@ It is usually combined with `Switch` to implement branching.
 `Merge` forwards the first tensor for become available to `output`, and sets
 `value_index` to its index in `inputs`.
 
-It is an error if more than one tensor in `inputs` is available.
-
 inputs: The input tensors, exactly one of which will become available.
 output: Will be set to the available input tensor.
 value_index: The index of the chosen input tensor in `inputs`.
@@ -179,8 +183,6 @@ It is usually combined with `Switch` to implement branching.
 `Merge` forwards the first tensor for become available to `output`, and sets
 `value_index` to its index in `inputs`.
 
-It is an error if more than one tensor in `inputs` is available.
-
 inputs: The input tensors, exactly one of which will become available.
 output: Will be set to the available input tensor.
 value_index: The index of the chosen input tensor in `inputs`.
@@ -194,7 +196,7 @@ REGISTER_OP("Enter")
     .Attr("frame_name: string")
     .Attr("is_constant: bool = false")
     .Attr("parallel_iterations: int = 10")
-    .SetShapeFn(shape_inference::UnchangedShape)
+    .SetShapeFn(shape_inference::UnknownShape)
     .Doc(R"doc(
 Creates or finds a child frame, and makes `data` available to the child frame.
 
@@ -318,9 +320,10 @@ Only useful as a placeholder for control edges.
 // --------------------------------------------------------------------------
 REGISTER_OP("Abort")
     .Attr("error_msg: string = ''")
+    .Attr("exit_without_error: bool = false")
     .SetShapeFn(shape_inference::NoOutputs)
     .Doc(R"doc(
-Raise a exception to abort the process when called.
+Raise a exception to abort the process when called. If exit_without_error is true, the process will exit normally, otherwise it will exit with a SIGABORT signal.
 
 Returns nothing but an exception.
 

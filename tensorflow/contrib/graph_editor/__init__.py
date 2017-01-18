@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""# TensorFlow Graph Editor.
+"""TensorFlow Graph Editor.
 
 The TensorFlow Graph Editor library allows for modification of an existing
-tf.Graph instance in-place.
+`tf.Graph` instance in-place.
 
 The author's github username is [purpledog](https://github.com/purpledog).
 
@@ -61,7 +61,7 @@ Note that this procedure is very costly because a new session must be created
 after any modifications. Among other things, it takes time because the entire
 graph state must be saved and restored again.
 
-### Sub-graph
+## Sub-graph
 
 Most of the functions in the Graph Editor library operate on *sub-graph*.
 More precisely, they take as input arguments instances of the SubGraphView class
@@ -88,14 +88,13 @@ my_sgv = ge.sgv_scope("foo/bar", graph=tf.get_default_graph())
 my_sgv = ge.sgv("foo/.*/.*read$", graph=tf.get_default_graph())
 ```
 
-Note the Graph Editor is meant to manipulate several graphs at the same time,
-typically during transform or copy operation. For that reason,
+Note that the Graph Editor is meant to manipulate several graphs at the same
+time, typically during transform or copy operation. For that reason,
 to avoid any confusion, the default graph is never used and the graph on
-which to operate must always be explicitely given. This is the reason why
-*graph=tf.get_default_graph()* is used in the code snippets above.
+which to operate must always be given explicitly. This is the reason why
+*`graph=tf.get_default_graph()`* is used in the code snippets above.
 
-
-### Modules
+## Modules overview
 
 * util: utility functions.
 * select: various selection methods of TensorFlow tensors and operations.
@@ -104,11 +103,102 @@ which to operate must always be explicitely given. This is the reason why
 * reroute: various ways of rerouting tensors to different consuming ops like
   *swap* or *reroute_a2b*.
 * subgraph: the SubGraphView class, which enables subgraph manipulations in a
-  TensorFlow tf.Graph.
+  TensorFlow `tf.Graph`.
 * edit: various editing functions operating on subgraphs like *detach*,
   *connect* or *bypass*.
 * transform: the Transformer class, which enables transforming
   (or simply copying) a subgraph into another one.
+
+## Module: util
+
+@@make_list_of_op
+@@get_tensors
+@@make_list_of_t
+@@get_generating_ops
+@@get_consuming_ops
+@@ControlOutputs
+@@placeholder_name
+@@make_placeholder_from_tensor
+@@make_placeholder_from_dtype_and_shape
+
+## Module: select
+
+@@filter_ts
+@@filter_ts_from_regex
+@@filter_ops
+@@filter_ops_from_regex
+@@get_name_scope_ops
+@@check_cios
+@@get_ops_ios
+@@compute_boundary_ts
+@@get_within_boundary_ops
+@@get_forward_walk_ops
+@@get_backward_walk_ops
+@@get_walks_intersection_ops
+@@get_walks_union_ops
+@@select_ops
+@@select_ts
+@@select_ops_and_ts
+
+## Module: subgraph
+
+@@SubGraphView
+@@make_view
+@@make_view_from_scope
+
+## Module: reroute
+
+@@swap_ts
+@@reroute_a2b_ts
+@@reroute_b2a_ts
+@@swap_inputs
+@@reroute_a2b_inputs
+@@reroute_b2a_inputs
+@@swap_outputs
+@@reroute_a2b_outputs
+@@reroute_b2a_outputs
+@@swap
+@@reroute_a2b
+@@reroute_b2a
+@@remove_control_inputs
+@@add_control_inputs
+
+## Module: edit
+
+@@detach_control_inputs
+@@detach_control_outputs
+@@detach_inputs
+@@detach_outputs
+@@detach
+@@connect
+@@bypass
+
+## Module: transform
+
+@@replace_t_with_placeholder_handler
+@@keep_t_if_possible_handler
+@@assign_renamed_collections_handler
+@@transform_op_if_inside_handler
+@@copy_op_handler
+@@transform_op_in_place
+@@Transformer
+@@copy
+@@copy_with_input_replacements
+@@graph_replace
+
+## Module: match
+
+@@op_type
+@@OpMatcher
+
+## Useful aliases
+
+@@ph
+@@sgv
+@@sgv_scope
+@@ts
+@@ops
+@@matcher
 """
 
 from __future__ import absolute_import
@@ -123,35 +213,15 @@ from tensorflow.contrib.graph_editor import subgraph
 from tensorflow.contrib.graph_editor import transform
 from tensorflow.contrib.graph_editor import util
 
-from tensorflow.contrib.graph_editor.edit import bypass
-from tensorflow.contrib.graph_editor.edit import connect
-
-# edit: detach
-from tensorflow.contrib.graph_editor.edit import detach
-from tensorflow.contrib.graph_editor.edit import detach_inputs
-from tensorflow.contrib.graph_editor.edit import detach_outputs
-
-# edit: reroute
-from tensorflow.contrib.graph_editor.reroute import reroute_a2b
-from tensorflow.contrib.graph_editor.reroute import reroute_a2b_inputs
-from tensorflow.contrib.graph_editor.reroute import reroute_a2b_outputs
-from tensorflow.contrib.graph_editor.reroute import reroute_b2a
-from tensorflow.contrib.graph_editor.reroute import reroute_b2a_inputs
-from tensorflow.contrib.graph_editor.reroute import reroute_b2a_outputs
-from tensorflow.contrib.graph_editor.reroute import swap
-from tensorflow.contrib.graph_editor.reroute import swap_inputs
-from tensorflow.contrib.graph_editor.reroute import swap_outputs
-
-from tensorflow.contrib.graph_editor.select import select_ops
-from tensorflow.contrib.graph_editor.select import select_ts
-
-from tensorflow.contrib.graph_editor.subgraph import SubGraphView
-
-from tensorflow.contrib.graph_editor.transform import copy
-from tensorflow.contrib.graph_editor.transform import Transformer
-
-from tensorflow.contrib.graph_editor.util import ControlOutputs
-
+# pylint: disable=wildcard-import
+from tensorflow.contrib.graph_editor.edit import *
+from tensorflow.contrib.graph_editor.match import *
+from tensorflow.contrib.graph_editor.reroute import *
+from tensorflow.contrib.graph_editor.select import *
+from tensorflow.contrib.graph_editor.subgraph import *
+from tensorflow.contrib.graph_editor.transform import *
+from tensorflow.contrib.graph_editor.util import *
+# pylint: enable=wildcard-import
 
 # some useful aliases
 ph = util.make_placeholder_from_dtype_and_shape

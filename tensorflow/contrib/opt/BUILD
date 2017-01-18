@@ -12,9 +12,21 @@ py_library(
     srcs = [
         "__init__.py",
         "python/training/external_optimizer.py",
+        "python/training/moving_average_optimizer.py",
         "python/training/variable_clipping_optimizer.py",
     ],
     srcs_version = "PY2AND3",
+    deps = [
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:clip_ops",
+        "//tensorflow/python:control_flow_ops",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:gradients",
+        "//tensorflow/python:platform",
+        "//tensorflow/python:training",
+        "//tensorflow/python:variables",
+        "@six_archive//:six",
+    ],
 )
 
 py_test(
@@ -23,8 +35,32 @@ py_test(
     srcs_version = "PY2AND3",
     deps = [
         ":opt_py",
-        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:client_testlib",
         "//tensorflow/python:extra_py_tests_deps",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:math_ops",
+        "//tensorflow/python:random_ops",
+        "//tensorflow/python:variables",
+        "//third_party/py/numpy",
+    ],
+)
+
+py_test(
+    name = "moving_average_optimizer_test",
+    srcs = ["python/training/moving_average_optimizer_test.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "notsan",  # b/31055119
+    ],
+    deps = [
+        ":opt_py",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:training",
+        "//tensorflow/python:variables",
+        "//third_party/py/numpy",
+        "@six_archive//:six",
     ],
 )
 
@@ -37,7 +73,12 @@ py_test(
     ],
     deps = [
         ":opt_py",
-        "//tensorflow:tensorflow_py",
+        "//tensorflow/python:client",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:training",
+        "//tensorflow/python:variables",
+        "//third_party/py/numpy",
     ],
 )
 

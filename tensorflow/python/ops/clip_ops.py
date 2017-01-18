@@ -26,8 +26,8 @@ from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import gen_nn_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn_ops
 
 
 def clip_by_value(t, clip_value_min, clip_value_max,
@@ -140,9 +140,9 @@ def global_norm(t_list, name=None):
     for v in values:
       if v is not None:
         with ops.colocate_with(v):
-          half_squared_norms.append(nn_ops.l2_loss(v))
+          half_squared_norms.append(gen_nn_ops.l2_loss(v))
 
-    half_squared_norm = math_ops.reduce_sum(array_ops.pack(half_squared_norms))
+    half_squared_norm = math_ops.reduce_sum(array_ops.stack(half_squared_norms))
 
     norm = math_ops.sqrt(
         half_squared_norm *
@@ -206,7 +206,7 @@ def clip_by_global_norm(t_list, clip_norm, use_norm=None, name=None):
     # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
     scale = clip_norm * math_ops.minimum(
         1.0 / use_norm,
-        constant_op.constant(1.0 / clip_norm, dtype=use_norm.dtype))
+        constant_op.constant(1.0, dtype=use_norm.dtype) / clip_norm)
 
     values = [
         ops.convert_to_tensor(
@@ -268,7 +268,7 @@ def clip_by_average_norm(t, clip_norm, name=None):
         math_ops.reduce_sum(t * t, math_ops.range(array_ops.rank(t))))
     tclip = array_ops.identity(
         t * clip_norm * math_ops.minimum(
-            l2norm_inv * n_element, constant_op.constant(1.0 / clip_norm)),
+            l2norm_inv * n_element, constant_op.constant(1.0) / clip_norm),
         name=name)
 
   return tclip

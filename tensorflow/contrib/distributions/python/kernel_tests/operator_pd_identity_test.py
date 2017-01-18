@@ -18,12 +18,15 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
 
+from tensorflow.contrib import distributions as distributions_lib
 from tensorflow.contrib.distributions.python.ops import operator_pd_identity
 from tensorflow.contrib.distributions.python.ops import operator_test_util
+from tensorflow.python.framework import constant_op
+from tensorflow.python.ops import array_ops
+from tensorflow.python.platform import test
 
-distributions = tf.contrib.distributions
+distributions = distributions_lib
 
 
 class OperatorPDIdentityTest(operator_test_util.OperatorPDDerivedClassTest):
@@ -35,12 +38,14 @@ class OperatorPDIdentityTest(operator_test_util.OperatorPDDerivedClassTest):
     batch_shape = list(batch_shape)
     diag_shape = batch_shape + [k]
     matrix_shape = batch_shape + [k, k]
-    diag = tf.ones(diag_shape, dtype=dtype)
-    identity_matrix = tf.batch_matrix_diag(diag)
-    operator = operator_pd_identity.OperatorPDIdentity(matrix_shape, dtype)
-    return operator, identity_matrix.eval()
+    diag = array_ops.ones(diag_shape, dtype=dtype)
+    scale = constant_op.constant(2.0, dtype=dtype)
+    scaled_identity_matrix = scale * array_ops.matrix_diag(diag)
+    operator = operator_pd_identity.OperatorPDIdentity(
+        matrix_shape, dtype, scale=scale)
+    return operator, scaled_identity_matrix.eval()
 
-  def test_bad_dtype_args_raise(self):
+  def testBadDtypeArgsRaise(self):
     dtype = np.float32
     batch_shape = [2, 3]
     k = 4
@@ -53,17 +58,17 @@ class OperatorPDIdentityTest(operator_test_util.OperatorPDDerivedClassTest):
 
       operator.matmul(x_good).eval()  # Should not raise.
 
-      with self.assertRaisesRegexp(TypeError, 'dtype'):
+      with self.assertRaisesRegexp(TypeError, "dtype"):
         operator.matmul(x_bad)
 
-      with self.assertRaisesRegexp(TypeError, 'dtype'):
+      with self.assertRaisesRegexp(TypeError, "dtype"):
         operator.solve(x_bad)
 
-      with self.assertRaisesRegexp(TypeError, 'dtype'):
+      with self.assertRaisesRegexp(TypeError, "dtype"):
         operator.sqrt_solve(x_bad)
 
-  def test_bad_rank_args_raise(self):
-    # Prepend a singleton dimension, changing the rank of 'x', but not the size.
+  def testBadRankArgsRaise(self):
+    # Prepend a singleton dimension, changing the rank of "x", but not the size.
     dtype = np.float32
     batch_shape = [2, 3]
     k = 4
@@ -76,16 +81,16 @@ class OperatorPDIdentityTest(operator_test_util.OperatorPDDerivedClassTest):
 
       operator.matmul(x_good).eval()  # Should not raise.
 
-      with self.assertRaisesRegexp(ValueError, 'tensor rank'):
+      with self.assertRaisesRegexp(ValueError, "tensor rank"):
         operator.matmul(x_bad)
 
-      with self.assertRaisesRegexp(ValueError, 'tensor rank'):
+      with self.assertRaisesRegexp(ValueError, "tensor rank"):
         operator.solve(x_bad)
 
-      with self.assertRaisesRegexp(ValueError, 'tensor rank'):
+      with self.assertRaisesRegexp(ValueError, "tensor rank"):
         operator.sqrt_solve(x_bad)
 
-  def test_incompatible_shape_args_raise(self):
+  def testIncompatibleShapeArgsRaise(self):
     # Test shapes that are the same rank but incompatible for matrix
     # multiplication.
     dtype = np.float32
@@ -101,15 +106,15 @@ class OperatorPDIdentityTest(operator_test_util.OperatorPDDerivedClassTest):
 
       operator.matmul(x_good).eval()  # Should not raise.
 
-      with self.assertRaisesRegexp(ValueError, 'Incompatible'):
+      with self.assertRaisesRegexp(ValueError, "Incompatible"):
         operator.matmul(x_bad)
 
-      with self.assertRaisesRegexp(ValueError, 'Incompatible'):
+      with self.assertRaisesRegexp(ValueError, "Incompatible"):
         operator.solve(x_bad)
 
-      with self.assertRaisesRegexp(ValueError, 'Incompatible'):
+      with self.assertRaisesRegexp(ValueError, "Incompatible"):
         operator.sqrt_solve(x_bad)
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+  test.main()

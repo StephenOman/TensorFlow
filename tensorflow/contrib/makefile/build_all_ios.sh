@@ -27,38 +27,27 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd ${SCRIPT_DIR}/../../../
 
-# You can set the parallelism of the make process with the first argument, with
-# a default of four if nothing is supplied.
-if [ "$#" -gt 1 ]; then
-    JOBS_COUNT=$1
-else
-    JOBS_COUNT=4
-fi
 
 # Remove any old files first.
 make -f tensorflow/contrib/makefile/Makefile clean
 rm -rf tensorflow/contrib/makefile/downloads
 
+# Setting a deployment target is required for building with bitcode,
+# otherwise linking will fail with:
+#
+#    ld: -bind_at_load and -bitcode_bundle (Xcode setting ENABLE_BITCODE=YES) cannot be used together
+#
+export MACOSX_DEPLOYMENT_TARGET="10.10"
+
 # Pull down the required versions of the frameworks we need.
 tensorflow/contrib/makefile/download_dependencies.sh
 
-# TODO(petewarden) - Some new code in Eigen triggers a clang bug, so work
-# around it by patching the source.
-sed -e 's#static uint32x4_t p4ui_CONJ_XOR = vld1q_u32( conj_XOR_DATA );#static uint32x4_t p4ui_CONJ_XOR; // = vld1q_u32( conj_XOR_DATA ); - Removed by script#' \
--i '' \
-tensorflow/contrib/makefile/downloads/eigen-latest/eigen/src/Core/arch/NEON/Complex.h
-sed -e 's#static uint32x2_t p2ui_CONJ_XOR = vld1_u32( conj_XOR_DATA );#static uint32x2_t p2ui_CONJ_XOR;// = vld1_u32( conj_XOR_DATA ); - Removed by scripts#' \
--i '' \
-tensorflow/contrib/makefile/downloads/eigen-latest/eigen/src/Core/arch/NEON/Complex.h
-sed -e 's#static uint64x2_t p2ul_CONJ_XOR = vld1q_u64( p2ul_conj_XOR_DATA );#static uint64x2_t p2ul_CONJ_XOR;// = vld1q_u64( p2ul_conj_XOR_DATA ); - Removed by script#' \
--i '' \
-tensorflow/contrib/makefile/downloads/eigen-latest/eigen/src/Core/arch/NEON/Complex.h
-
 # Compile protobuf for the target iOS device architectures.
-tensorflow/contrib/makefile/compile_ios_protobuf.sh ${JOBS_COUNT}
+tensorflow/contrib/makefile/compile_ios_protobuf.sh
 
 # Build the iOS TensorFlow libraries.
-tensorflow/contrib/makefile/compile_ios_tensorflow.sh "-O3" -j ${JOBS_COUNT}
+tensorflow/contrib/makefile/compile_ios_tensorflow.sh "-O3"
 
 # Creates a static universal library in 
 # tensorflow/contrib/makefile/gen/lib/libtensorflow-core.a
+

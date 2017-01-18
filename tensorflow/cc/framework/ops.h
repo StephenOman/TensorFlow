@@ -19,13 +19,12 @@ limitations under the License.
 #include <type_traits>
 
 #include "tensorflow/core/framework/tensor.h"
-// TBD(keveman): This is going to be moved to //third_party/tensorflow
-// eventually. Remove the NOLINT comment when moving.
-#include "tensorflow/core/framework/tensor.pb.h"  // NOLINT
+#include "tensorflow/core/framework/tensor.pb.h"
 #include "tensorflow/core/graph/graph.h"
+#include "tensorflow/core/lib/hash/hash.h"
+#include "tensorflow/core/lib/strings/strcat.h"
 
 namespace tensorflow {
-namespace ops {
 
 class Output;
 
@@ -44,6 +43,10 @@ class Operation {
   Output output(int i) const;
 
   Node* node() const { return node_; }
+
+  uint64 hash(int64 index) const;
+
+  bool operator==(const Operation& other) const { return node_ == other.node_; }
 
  private:
   typedef std::vector<std::pair<Node*, int64>> Inputs;
@@ -65,10 +68,23 @@ class Output {
   Node* node() const { return op().node(); }
   int64 index() const { return index_; }
   DataType type() const { return op_.output_type(index_); }
+  string name() const { return strings::StrCat(node()->name(), ":", index()); }
+  bool operator==(const Output& other) const {
+    return op_ == other.op_ && index_ == other.index_;
+  }
+
+  uint64 hash() const { return op_.hash(index_); }
 
  private:
   Operation op_ = Operation(nullptr);
   int64 index_ = 0;
+};
+
+struct OutputHash {
+  std::size_t operator()(const Output& output) const {
+    return Hash64Combine(std::hash<Node*>()(output.node()),
+                         std::hash<int64>()(output.index()));
+  }
 };
 
 // Represents a tensor value that can be used as an operand to an Operation.
@@ -78,7 +94,7 @@ class Input {
   // constants such as simple primitive constants and nested initializer lists
   // representing a multi-dimensional array. Initializer constructors are all
   // templates, so the aforementioned kinds of C++ constants can be used to
-  // construct an Initializer. Intializer stores the value it got constructed
+  // construct an Initializer. Initializer stores the value it got constructed
   // with in a Tensor object.
   struct Initializer {
     // Construct from a scalar value of an arithmetic type or a type that can be
@@ -139,7 +155,7 @@ class Input {
     }
 
     // Construct a multi-dimensional tensor from a nested initializer list. Note
-    // that C++ syntax allows nesting of arbitrarily typed intializer lists, so
+    // that C++ syntax allows nesting of arbitrarily typed initializer lists, so
     // such invalid initializers cannot be disallowed at compile time. This
     // function performs checks to make sure that the nested initializer list is
     // indeed a valid multi-dimensional tensor.
@@ -176,6 +192,7 @@ class Input {
   // * A scalar, or a multi-dimensional tensor specified as a recursive
   //   initializer list. This enables directly passing constants as
   //   inputs to op wrappers.
+  // * A Tensor object.
   Input(const Output& o) : output_(o) {}  // NOLINT(runtime/explicit)
 
   template <typename T, typename = typename std::enable_if<
@@ -232,7 +249,7 @@ typedef std::vector<Output> OutputList;
 class InputList {
  public:
   // Implicitly convert a list of outputs to a list of inputs. This is useful to
-  // write code such as tf.Concat(tf.Split(x, 4)).
+  // write code such as ops::Concat(ops::Split(x, 4)).
   InputList(const OutputList& out) {  // NOLINT(runtime/explicit)
     for (auto const& x : out) {
       inputs_.push_back(x);
@@ -267,7 +284,19 @@ class InputList {
   std::vector<Input> inputs_;
 };
 
+// These symbols used to live in the ops namespace, so we temporarily
+// declare some aliases there. TODO(josh11b): Delete this!
+namespace ops {
+
+using ::tensorflow::Input;
+using ::tensorflow::InputList;
+using ::tensorflow::Operation;
+using ::tensorflow::Output;
+using ::tensorflow::OutputHash;
+using ::tensorflow::OutputList;
+
 }  // namespace ops
+
 }  // namespace tensorflow
 
 #endif  // THIRD_PARTY_TENSORFLOW_CC_FRAMEWORK_OPS_H_

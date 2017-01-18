@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,26 +28,38 @@ Usage:
 @@overfeat
 """
 
-import tensorflow as tf
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-slim = tf.contrib.slim
-trunc_normal = lambda stddev: tf.truncated_normal_initializer(0.0, stddev)
+from tensorflow.contrib import layers
+from tensorflow.contrib.framework.python.ops import arg_scope
+from tensorflow.contrib.layers.python.layers import layers as layers_lib
+from tensorflow.contrib.layers.python.layers import regularizers
+from tensorflow.contrib.layers.python.layers import utils
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import nn_ops
+from tensorflow.python.ops import variable_scope
+
+trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 
 
 def overfeat_arg_scope(weight_decay=0.0005):
-  with slim.arg_scope([slim.conv2d, slim.fully_connected],
-                      activation_fn=tf.nn.relu,
-                      weights_regularizer=slim.l2_regularizer(weight_decay),
-                      biases_initializer=tf.zeros_initializer):
-    with slim.arg_scope([slim.conv2d], padding='SAME'):
-      with slim.arg_scope([slim.max_pool2d], padding='VALID') as arg_sc:
+  with arg_scope(
+      [layers.conv2d, layers_lib.fully_connected],
+      activation_fn=nn_ops.relu,
+      weights_regularizer=regularizers.l2_regularizer(weight_decay),
+      biases_initializer=init_ops.zeros_initializer()):
+    with arg_scope([layers.conv2d], padding='SAME'):
+      with arg_scope([layers_lib.max_pool2d], padding='VALID') as arg_sc:
         return arg_sc
 
 
 def overfeat(inputs,
              num_classes=1000,
-             dropout_keep_prob=0.5,
              is_training=True,
+             dropout_keep_prob=0.5,
              spatial_squeeze=True,
              scope='overfeat'):
   """Contains the model definition for the OverFeat network.
@@ -66,9 +78,9 @@ def overfeat(inputs,
   Args:
     inputs: a tensor of size [batch_size, height, width, channels].
     num_classes: number of predicted classes.
+    is_training: whether or not the model is being trained.
     dropout_keep_prob: the probability that activations are kept in the dropout
       layers during training.
-    is_training: whether or not the model is being trained.
     spatial_squeeze: whether or not should squeeze the spatial dimensions of the
       outputs. Useful to remove unnecessary dimensions for classification.
     scope: Optional scope for the variables.
@@ -77,38 +89,42 @@ def overfeat(inputs,
     the last op containing the log predictions and end_points dict.
 
   """
-  with tf.variable_op_scope([inputs], scope, 'overfeat') as sc:
+  with variable_scope.variable_scope(scope, 'overfeat', [inputs]) as sc:
     end_points_collection = sc.name + '_end_points'
     # Collect outputs for conv2d, fully_connected and max_pool2d
-    with slim.arg_scope([slim.conv2d, slim.fully_connected, slim.max_pool2d],
-                        outputs_collections=end_points_collection):
-      net = slim.conv2d(inputs, 64, [11, 11], 4, padding='VALID',
-                        scope='conv1')
-      net = slim.max_pool2d(net, [2, 2], scope='pool1')
-      net = slim.conv2d(net, 256, [5, 5], padding='VALID', scope='conv2')
-      net = slim.max_pool2d(net, [2, 2], scope='pool2')
-      net = slim.conv2d(net, 512, [3, 3], scope='conv3')
-      net = slim.conv2d(net, 1024, [3, 3], scope='conv4')
-      net = slim.conv2d(net, 1024, [3, 3], scope='conv5')
-      net = slim.max_pool2d(net, [2, 2], scope='pool5')
-      with slim.arg_scope([slim.conv2d],
-                          weights_initializer=trunc_normal(0.005),
-                          biases_initializer=tf.constant_initializer(0.1)):
+    with arg_scope(
+        [layers.conv2d, layers_lib.fully_connected, layers_lib.max_pool2d],
+        outputs_collections=end_points_collection):
+      net = layers.conv2d(
+          inputs, 64, [11, 11], 4, padding='VALID', scope='conv1')
+      net = layers_lib.max_pool2d(net, [2, 2], scope='pool1')
+      net = layers.conv2d(net, 256, [5, 5], padding='VALID', scope='conv2')
+      net = layers_lib.max_pool2d(net, [2, 2], scope='pool2')
+      net = layers.conv2d(net, 512, [3, 3], scope='conv3')
+      net = layers.conv2d(net, 1024, [3, 3], scope='conv4')
+      net = layers.conv2d(net, 1024, [3, 3], scope='conv5')
+      net = layers_lib.max_pool2d(net, [2, 2], scope='pool5')
+      with arg_scope(
+          [layers.conv2d],
+          weights_initializer=trunc_normal(0.005),
+          biases_initializer=init_ops.constant_initializer(0.1)):
         # Use conv2d instead of fully_connected layers.
-        net = slim.conv2d(net, 3072, [6, 6], padding='VALID', scope='fc6')
-        net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
-                           scope='dropout6')
-        net = slim.conv2d(net, 4096, [1, 1], scope='fc7')
-        net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
-                           scope='dropout7')
-        net = slim.conv2d(net, num_classes, [1, 1],
-                          activation_fn=None,
-                          normalizer_fn=None,
-                          biases_initializer=tf.zeros_initializer,
-                          scope='fc8')
+        net = layers.conv2d(net, 3072, [6, 6], padding='VALID', scope='fc6')
+        net = layers_lib.dropout(
+            net, dropout_keep_prob, is_training=is_training, scope='dropout6')
+        net = layers.conv2d(net, 4096, [1, 1], scope='fc7')
+        net = layers_lib.dropout(
+            net, dropout_keep_prob, is_training=is_training, scope='dropout7')
+        net = layers.conv2d(
+            net,
+            num_classes, [1, 1],
+            activation_fn=None,
+            normalizer_fn=None,
+            biases_initializer=init_ops.zeros_initializer(),
+            scope='fc8')
       # Convert end_points_collection into a end_point dict.
-      end_points = dict(tf.get_collection(end_points_collection))
+      end_points = utils.convert_collection_to_dict(end_points_collection)
       if spatial_squeeze:
-        net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
+        net = array_ops.squeeze(net, [1, 2], name='fc8/squeezed')
         end_points[sc.name + '/fc8'] = net
       return net, end_points

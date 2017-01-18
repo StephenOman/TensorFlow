@@ -9,7 +9,7 @@ Flattens the input while maintaining the batch_size.
 
 *  <b>`inputs`</b>: a tensor of size [batch_size, ...].
 *  <b>`outputs_collections`</b>: collection to add the outputs.
-*  <b>`scope`</b>: Optional scope for op_scope.
+*  <b>`scope`</b>: Optional scope for name_scope.
 
 ##### Returns:
 
@@ -18,5 +18,5 @@ Flattens the input while maintaining the batch_size.
 ##### Raises:
 
 
-*  <b>`ValueError`</b>: if inputs.shape is wrong.
+*  <b>`ValueError`</b>: if inputs.dense_shape is wrong.
 

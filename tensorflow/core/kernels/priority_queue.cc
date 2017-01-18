@@ -81,7 +81,7 @@ void PriorityQueue::TryEnqueue(const Tuple& tuple, OpKernelContext* ctx,
           [tuple, this](Attempt* attempt) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
             if (closed_) {
               attempt->context->SetStatus(
-                  errors::Aborted("PriorityQueue '", name_, "' is closed."));
+                  errors::Cancelled("PriorityQueue '", name_, "' is closed."));
               return kComplete;
             }
             if (queues_[0].size() < static_cast<size_t>(capacity_)) {
@@ -146,7 +146,7 @@ void PriorityQueue::TryEnqueueMany(const Tuple& tuple, OpKernelContext* ctx,
           [tuple, this, ctx](Attempt* attempt) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
             if (closed_) {
               attempt->context->SetStatus(
-                  errors::Aborted("PriorityQueue '", name_, "' is closed."));
+                  errors::Cancelled("PriorityQueue '", name_, "' is closed."));
               return kComplete;
             }
             RunResult result = kNoProgress;
@@ -377,7 +377,11 @@ void PriorityQueue::TryDequeueMany(int num_elements, OpKernelContext* ctx,
 }
 
 Status PriorityQueue::MatchesNodeDef(const NodeDef& node_def) {
-  TF_RETURN_IF_ERROR(MatchesNodeDefOp(node_def, "PriorityQueue"));
+  if (!MatchesNodeDefOp(node_def, "PriorityQueue").ok() &&
+      !MatchesNodeDefOp(node_def, "PriorityQueueV2").ok()) {
+    return errors::InvalidArgument("Expected PriorityQueue, found ",
+                                   node_def.op());
+  }
   TF_RETURN_IF_ERROR(MatchesNodeDefCapacity(node_def, capacity_));
   TF_RETURN_IF_ERROR(MatchesPriorityNodeDefTypes(node_def));
   TF_RETURN_IF_ERROR(MatchesPriorityNodeDefShapes(node_def));
