@@ -298,8 +298,8 @@ string LayoutConstraints::ToString() const {
     for (int64 i = 0; i < instruction->operand_count(); ++i) {
       if (OperandLayout(instruction, i) != nullptr) {
         tensorflow::strings::StrAppend(
-            &output, "    operand (", i, "): ",
-            OperandLayout(instruction, i)->ToString(), "\n");
+            &output, "    operand (", i,
+            "): ", OperandLayout(instruction, i)->ToString(), "\n");
       }
     }
     for (const LogicalBuffer* buffer :
@@ -338,6 +338,11 @@ Status LayoutAssignment::AddMandatoryConstraints(
       // TODO(b/31425034): Change infeeds to be more like parameters, with
       // shapes in the ComputationLayout.
       shape_with_layout = &instruction->shape();
+    } else if (instruction->opcode() == HloOpcode::kOutfeed) {
+      // Constrain the input to the Outfeed instruction to be the expected
+      // layout of the Outfeed.
+      TF_RETURN_IF_ERROR(constraints->SetOperandLayout(
+          instruction->outfeed_shape(), instruction.get(), 0));
     } else if (instruction->opcode() == HloOpcode::kParameter) {
       // Parameter layouts must match the respective layout in
       // ComputationLayout.
@@ -638,8 +643,7 @@ Status CheckLayouts(
 }  // namespace
 
 LayoutAssignment::LayoutAssignment(ComputationLayout* entry_computation_layout)
-    : HloPass("layout-assignment"),
-      entry_computation_layout_(entry_computation_layout) {
+    : entry_computation_layout_(entry_computation_layout) {
   VLOG(1) << "entry computation layout given to layout assignment: "
           << entry_computation_layout_->ToString();
   // Layouts of all parameter instructions must be set.
@@ -1115,8 +1119,7 @@ Status CopyOperandIfLayoutsDiffer(const ShapeLayout& operand_layout,
   TF_ASSIGN_OR_RETURN(HloInstruction * operand_copy,
                       CreateCopyWithNewLayout(operand_layout.shape(), operand));
 
-  instruction->ReplaceOperandWith(operand_no, operand_copy);
-  return Status::OK();
+  return instruction->ReplaceOperandWith(operand_no, operand_copy);
 }
 
 // For fusion instructions, set the layout of each fused parameter instruction

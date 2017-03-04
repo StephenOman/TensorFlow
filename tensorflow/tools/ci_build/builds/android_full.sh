@@ -66,8 +66,15 @@ echo "Copying demo and Jar to ${OUT_DIR}"
 cp bazel-bin/tensorflow/examples/android/tensorflow_demo.apk \
     bazel-bin/tensorflow/contrib/android/libandroid_tensorflow_inference_java.jar ${OUT_DIR}
 
+echo "========== Makefile Build Test =========="
 # Test Makefile build just to make sure it still works.
 if [ -z "$NDK_ROOT" ]; then
    export NDK_ROOT=${ANDROID_NDK_HOME}
 fi
 tensorflow/contrib/makefile/build_all_android.sh
+
+# Test Makefile build for tensorflow runtime with hexagon.
+# -b ... build only, -p ... use prebuilt binaries
+# This uses prebuilt binaries for hexagon dependencies because Building
+# hexagon binaries from source code requires qualcomm sdk.
+tensorflow/contrib/makefile/samples/build_and_run_inception_hexagon.sh -bp

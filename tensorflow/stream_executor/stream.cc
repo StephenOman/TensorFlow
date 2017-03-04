@@ -157,6 +157,7 @@ string ToVlogString(dnn::DepthToSpaceLayout depth_to_space_layout) {
     case dnn::DepthToSpaceLayout::DepthHeightWidth:
       return "DepthToSpaceLayout::DepthHeightWidth";
   }
+  return "unknown DepthToSpaceLayout";
 }
 
 // Used together with PARAM to VLOG calls made to the stream. Intended
@@ -466,6 +467,66 @@ Stream &Stream::ThenConvolve(
                                  filter_descriptor, filter_data,
                                  convolution_descriptor, output_descriptor,
                                  output, /*scratch_allocator=*/nullptr);
+}
+
+Stream &Stream::ThenConvolveQuantized(
+    const dnn::BatchDescriptor &input_descriptor,
+    const DeviceMemory<float> &input_data,
+    const dnn::FilterDescriptor &filter_descriptor,
+    const DeviceMemory<int8> &filter_coefficients,
+    const DeviceMemory<float> &coefficient_scales,
+    const dnn::ConvolutionDescriptor &convolution_descriptor,
+    const dnn::BatchDescriptor &output_descriptor,
+    DeviceMemory<float> *output) {
+  VLOG_CALL(PARAM(input_descriptor), PARAM(input_data),
+            PARAM(filter_descriptor), PARAM(filter_coefficients),
+            PARAM(coefficient_scales), PARAM(convolution_descriptor),
+            PARAM(output_descriptor), PARAM(output));
+
+  if (ok()) {
+    if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
+      CheckError(dnn->DoConvolveQuantized(
+          this, input_descriptor, input_data, filter_descriptor,
+          filter_coefficients, coefficient_scales, convolution_descriptor,
+          output_descriptor, output));
+    } else {
+      SetError();
+      LOG(WARNING)
+          << "attempting to perform DNN operation using StreamExecutor "
+             "without DNN support";
+    }
+  }
+  return *this;
+}
+
+Stream &Stream::ThenConvolveQuantized(
+    const dnn::BatchDescriptor &input_descriptor,
+    const DeviceMemory<float> &input_data,
+    const dnn::FilterDescriptor &filter_descriptor,
+    const DeviceMemory<int16> &filter_coefficients,
+    const DeviceMemory<float> &coefficient_scales,
+    const dnn::ConvolutionDescriptor &convolution_descriptor,
+    const dnn::BatchDescriptor &output_descriptor,
+    DeviceMemory<float> *output) {
+  VLOG_CALL(PARAM(input_descriptor), PARAM(input_data),
+            PARAM(filter_descriptor), PARAM(filter_coefficients),
+            PARAM(coefficient_scales), PARAM(convolution_descriptor),
+            PARAM(output_descriptor), PARAM(output));
+
+  if (ok()) {
+    if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
+      CheckError(dnn->DoConvolveQuantized(
+          this, input_descriptor, input_data, filter_descriptor,
+          filter_coefficients, coefficient_scales, convolution_descriptor,
+          output_descriptor, output));
+    } else {
+      SetError();
+      LOG(WARNING)
+          << "attempting to perform DNN operation using StreamExecutor "
+             "without DNN support";
+    }
+  }
+  return *this;
 }
 
 Stream &Stream::ThenSeparableConvolve(
@@ -1046,13 +1107,22 @@ Stream &Stream::ThenActivate(dnn::ActivationMode activation_mode,
                              const dnn::BatchDescriptor &dimensions,
                              const DeviceMemory<float> &input_data,
                              DeviceMemory<float> *output_data) {
+  return ThenActivateWithOptions(activation_mode, dimensions, input_data,
+                                 output_data, /*options=*/0);
+}
+
+Stream &Stream::ThenActivateWithOptions(dnn::ActivationMode activation_mode,
+                                        const dnn::BatchDescriptor &dimensions,
+                                        const DeviceMemory<float> &input_data,
+                                        DeviceMemory<float> *output_data,
+                                        uint64 options) {
   VLOG_CALL(PARAM(activation_mode), PARAM(dimensions), PARAM(input_data),
-            PARAM(output_data));
+            PARAM(output_data), PARAM(options));
 
   if (ok()) {
     if (dnn::DnnSupport *dnn = parent_->AsDnn()) {
       CheckError(dnn->DoActivate(this, activation_mode, dimensions, input_data,
-                                 output_data));
+                                 output_data, options));
     } else {
       SetErrorAndLogNoDnnSupport();
     }

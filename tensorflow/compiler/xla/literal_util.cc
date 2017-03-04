@@ -833,13 +833,6 @@ LiteralUtil::GetMutableRepeatedField<tensorflow::protobuf_int64>(
 }
 
 template <>
-/* static */ tensorflow::gtl::ArraySlice<float>
-LiteralUtil::GetArraySlice<float>(const Literal& literal) {
-  CHECK(literal.shape().element_type() == F32);
-  return literal.f32s();
-}
-
-template <>
 /* static */ tensorflow::protobuf::RepeatedField<float>*
 LiteralUtil::GetMutableRepeatedField<float>(Literal* literal) {
   CHECK(literal->shape().element_type() == F32);
@@ -907,6 +900,17 @@ static bool AllElementsEqualValue(const Literal& literal, NativeT value) {
         return AllElementsEqualValue<bool>(literal, true);
       }
       return false;
+    default:
+      return false;
+  }
+}
+
+/* static */ bool LiteralUtil::IsAllFloat(const Literal& literal, float value) {
+  switch (literal.shape().element_type()) {
+    case F32:
+      return AllElementsEqualValue<float>(literal, value);
+    case F64:
+      return AllElementsEqualValue<double>(literal, value);
     default:
       return false;
   }
