@@ -33,6 +33,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import op_def_registry
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.util import compat
 
@@ -67,12 +68,7 @@ def _get_node_def(op):
 
 
 def _get_op_def(op):
-  # pylint: disable=protected-access
-  if hasattr(op, "_sig"):
-    return getattr(op, "_sig")
-  else:
-    return op_def_registry.get_registered_ops()[op.type]
-  # pylint: enable=protected-access
+  return op.op_def or op_def_registry.get_registered_ops()[op.type]
 
 
 def _is_in_placeholders(op, func_arg_placeholders):
@@ -192,8 +188,11 @@ def _parse_kwargs_as_attrs(func_name, **kwargs):
     attrs["_noinline"] = attr_value_pb2.AttrValue(b=bool(noinline))
 
   compiled = kwargs.pop("compiled", None)
+  separate_compiled_gradients = kwargs.pop("separate_compiled_gradients", None)
   if compiled is not None:
     attrs["_XlaCompile"] = attr_value_pb2.AttrValue(b=bool(compiled))
+    attrs["_XlaSeparateCompiledGradients"] = attr_value_pb2.AttrValue(
+        b=bool(separate_compiled_gradients))
     attrs["_XlaScope"] = attr_value_pb2.AttrValue(
         s=("function_%s" % func_name).encode())
 
@@ -247,8 +246,8 @@ def _call(sig, *inputs, **kwargs):
         output_types,
         name=name,
         attrs=attrs,
+        op_def=sig,
         compute_shapes=False)
-  setattr(op, "_sig", sig)  # Remember the signature.
   if op.outputs:
     if len(op.outputs) == 1:
       ret = op.outputs[0]
@@ -324,6 +323,12 @@ class _FuncGraph(ops.Graph):
           collections=collections,
           use_resource=use_resource)
       self.extra_vars.append(var)
+      if isinstance(var, resource_variable_ops.ResourceVariable):
+        # For resource-based variables read the variable outside the function
+        # and pass in the value. This ensures that the function is pure and
+        # differentiable. TODO(apassos) this may have performance problems if
+        # the function will only do embedding lookups on the variable.
+        return var.value()
       return var
 
   def create_op(self, op_type, inputs, data_types, **kwargs):
@@ -445,6 +450,7 @@ class _DefinedFunction(object):
     self._shape_func = shape_func
     self._extra_kwargs = kwargs
     self._definition = None  # Constructed lazily.
+    self._sub_functions = dict()  # Constructed with definition.
 
     self._args = []
     assert isinstance(input_types, (list, tuple))
@@ -988,7 +994,7 @@ class Declare(object):
 
   For example,
     # Declares  a function Foo, which takes a tf.int32 named "n" and a
-    # tf.float32 named "n" as inputs and returns a tf.float32 named "z"
+    # tf.float32 named "x" as inputs and returns a tf.float32 named "z"
     # as its output.
     foo = Declare("Foo", [("n", tf.int32), ("x", tf.float32)],
                   [("z", tf.float32)])

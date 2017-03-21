@@ -41,6 +41,8 @@ the `--debug` flag is provided:
 
 ```python
 # Let your BUILD target depend on "//tensorflow/python/debug:debug_py"
+# (You don't need to worry about the BUILD dependency if you are using a pip
+#  install of open-source TensorFlow.)
 from tensorflow.python import debug as tf_debug
 
 sess = tf_debug.LocalCLIDebugWrapperSession(sess)
@@ -102,7 +104,7 @@ left corner of the screen to proceed.
 
 This will bring up another screen
 right after the `run()` call has ended, which will display all dumped
-intermedate tensors from the run. (These tensors can also be obtained by
+intermediate tensors from the run. (These tensors can also be obtained by
 running the command `lt` after you executed `run`.) This is called the
 **run-end UI**:
 
@@ -128,6 +130,9 @@ Try the following commands at the `tfdbg>` prompt (referencing the code at
 | `lo -r hidden/Relu:0` | List the recipients of the output of the node `hidden/Relu`, recursively—i.e., the output recipient tree. |
 | `lt -n softmax.*` | List all dumped tensors whose names match the regular-expression pattern `softmax.*`. |
 | `lt -t MatMul` | List all dumped tensors whose node type is `MatMul`. |
+| `ps /path/to/source.py` | Print the Python source file source.py, with the lines annotated with the ops created at each of them, respectively. |
+| `ps -t /path/to/source.py` | Same as the command above, but perform annotation using dumped Tensors, instead of ops. |
+| `ps -b 30 /path/to/source.py` | Annotate source.py beginning at line 30. |
 | `run_info` or `ri` | Display information about the current run, including fetches and feeds. |
 | `help` | Print general help information listing all available **tfdbg** commands and their flags. |
 | `help lt` | Print the help information for the `lt` command. |
@@ -238,12 +243,24 @@ to show the traceback of the node's construction:
 tfdbg> ni -t cross_entropy/Log
 ```
 
-From the traceback, you can see that the op is constructed at line 109 of
+The `-t` flag is used by default, if you use the clickable "node_info" menu item
+at the top of the screen.
+
+From the traceback, you can see that the op is constructed around line 106 of
 [`debug_mnist.py`](https://www.tensorflow.org/code/tensorflow/python/debug/examples/debug_mnist.py):
 
 ```python
 diff = y_ * tf.log(y)
 ```
+
+***tfdbg** has a feature that makes it ease to trace Tensors and ops back to
+lines in Python source files. It can annotate lines of a Python file with
+the ops or Tensors created by them. To use this feature,
+simply click the underlined line numbers in the stack trace output of the
+`ni -t <op_name>` commands, or use the `ps` (or `print_source`) command such as:
+`ps /path/to/source.py`. See the screenshot below for an example of `ps` output:
+
+![tfdbg run-end UI: annotated Python source file](../images/tfdbg_screenshot_run_end_annotated_source.png)
 
 Apply a value clipping on the input to @{tf.log}
 to resolve this problem:
@@ -302,7 +319,7 @@ inspect the data in the dump directory on the shared storage by using the
 
 ```none
 python -m tensorflow.python.debug.cli.offline_analyzer \
-    --dump_dir=/cns/is-d/home/somebody/tfdbg_dumps_1
+    --dump_dir=/shared/storage/location/tfdbg_dumps_1
 ```
 
 The `Session` wrapper `DumpingDebugWrapperSession` offers an easier and more
@@ -311,10 +328,12 @@ To use it, simply do:
 
 ```python
 # Let your BUILD target depend on "//tensorflow/python/debug:debug_py
+# (You don't need to worry about the BUILD dependency if you are using a pip
+#  install of open-source TensorFlow.)
 from tensorflow.python.debug import debug_utils
 
 sess = tf_debug.DumpingDebugWrapperSession(
-    sess, "/cns/is-d/home/somebody/tfdbg_dumps_1/", watch_fn=my_watch_fn)
+    sess, "/shared/storage/location/tfdbg_dumps_1/", watch_fn=my_watch_fn)
 ```
 
 `watch_fn=my_watch_fn` is a `Callable` that allows you to configure what
@@ -333,6 +352,9 @@ for more details.
 
 *   Navigation through command history using the Up and Down arrow keys.
     Prefix-based navigation is also supported.
+*   Navigation through history of screen outputs using the `prev` and `next`
+    commands or by clicking the underlined `<--` and `-->` links near the top
+    of the screen.
 *   Tab completion of commands and some command arguments.
 *   Write screen output to file by using bash-style redirection. For example:
 
@@ -391,3 +413,10 @@ python -m tensorflow.python.debug.examples.debug_errors \
        overrides default terminal interactions, including text selection. You
        can re-enable text selection by using the command `mouse off` or
        `m off`.
+
+**Q**: _What are the platform-specific system requirements of **tfdbg** CLI in open-source TensorFlow_?
+
+**A**: On Mac OS X, the `ncurses` library is required. It can be installed with
+`brew install homebrew/dupes/ncurses`. On Windows, the `pyreadline` library is
+required. If you are using Anaconda3, you can install it with a command such as
+`"C:\Program Files\Anaconda3\Scripts\pip.exe" install pyreadline`.

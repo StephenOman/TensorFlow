@@ -160,9 +160,8 @@ def _fused_batch_norm(
   they need to be added as a dependency to the `train_op`, example:
 
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-    if update_ops:
-      updates = tf.group(*update_ops)
-      total_loss = control_flow_ops.with_dependencies([updates], total_loss)
+    with tf.control_dependencies(update_ops):
+      train_op = optimizer.minimize(loss)
 
   One can set updates_collections=None to force the updates in place, but that
   can have speed penalty, especially in distributed settings.
@@ -221,6 +220,7 @@ def _fused_batch_norm(
       scope, 'BatchNorm', [inputs], reuse=reuse) as sc:
     inputs = ops.convert_to_tensor(inputs)
     original_shape = inputs.get_shape()
+    original_inputs = inputs
     original_rank = original_shape.ndims
     if original_rank is None:
       raise ValueError('Inputs %s has undefined rank' % inputs.name)
@@ -351,7 +351,7 @@ def _fused_batch_norm(
 
     outputs.set_shape(inputs_shape)
     if original_shape.ndims == 2:
-      outputs = array_ops.reshape(outputs, original_shape)
+      outputs = array_ops.reshape(outputs, array_ops.shape(original_inputs))
     if activation_fn is not None:
       outputs = activation_fn(outputs)
     return utils.collect_named_outputs(outputs_collections,
@@ -359,25 +359,25 @@ def _fused_batch_norm(
 
 
 @add_arg_scope
-def batch_norm(
-    inputs,
-    decay=0.999,
-    center=True,
-    scale=False,
-    epsilon=0.001,
-    activation_fn=None,
-    param_initializers=None,
-    updates_collections=ops.GraphKeys.UPDATE_OPS,
-    is_training=True,
-    reuse=None,
-    variables_collections=None,
-    outputs_collections=None,
-    trainable=True,
-    batch_weights=None,
-    fused=False,
-    data_format=DATA_FORMAT_NHWC,
-    zero_debias_moving_mean=False,
-    scope=None):
+def batch_norm(inputs,
+               decay=0.999,
+               center=True,
+               scale=False,
+               epsilon=0.001,
+               activation_fn=None,
+               param_initializers=None,
+               param_regularizers=None,
+               updates_collections=ops.GraphKeys.UPDATE_OPS,
+               is_training=True,
+               reuse=None,
+               variables_collections=None,
+               outputs_collections=None,
+               trainable=True,
+               batch_weights=None,
+               fused=False,
+               data_format=DATA_FORMAT_NHWC,
+               zero_debias_moving_mean=False,
+               scope=None):
   """Adds a Batch Normalization layer from http://arxiv.org/abs/1502.03167.
 
     "Batch Normalization: Accelerating Deep Network Training by Reducing
@@ -392,9 +392,8 @@ def batch_norm(
   they need to be added as a dependency to the `train_op`, example:
 
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-    if update_ops:
-      updates = tf.group(*update_ops)
-      total_loss = control_flow_ops.with_dependencies([updates], total_loss)
+    with tf.control_dependencies(update_ops):
+      train_op = optimizer.minimize(loss)
 
   One can set updates_collections=None to force the updates in place, but that
   can have speed penalty, especially in distributed settings.
@@ -419,6 +418,7 @@ def batch_norm(
       maintain a linear activation.
     param_initializers: Optional initializers for beta, gamma, moving mean and
       moving variance.
+    param_regularizers: Optional regularizer for beta and gamma.
     updates_collections: Collections to collect the update ops for computation.
       The updates_ops need to be executed with the train_op.
       If None, a control dependency would be added to make sure the updates are
@@ -450,6 +450,7 @@ def batch_norm(
 
   Raises:
     ValueError: If `batch_weights` is not None and `fused` is True.
+    ValueError: If `param_regularizers` is not None and `fused` is True.
     ValueError: If `data_format` is neither `NHWC` nor `NCHW`.
     ValueError: If the rank of `inputs` is undefined.
     ValueError: If rank or channels dimension of `inputs` is undefined.
@@ -457,6 +458,9 @@ def batch_norm(
   if fused:
     if batch_weights is not None:
       raise ValueError('Weighted mean and variance is not currently '
+                       'supported for fused batch norm.')
+    if param_regularizers is not None:
+      raise ValueError('Regularizers are not currently '
                        'supported for fused batch norm.')
     return _fused_batch_norm(
         inputs,
@@ -501,6 +505,10 @@ def batch_norm(
           'moving_mean', init_ops.zeros_initializer())
       moving_variance_initializer = param_initializers.get(
           'moving_variance', init_ops.ones_initializer())
+      if not param_regularizers:
+        param_regularizers = {}
+      beta_regularizer = param_regularizers.get('beta')
+      gamma_regularizer = param_regularizers.get('gamma')
       layer = normalization_layers.BatchNormalization(
           axis=axis,
           momentum=decay,
@@ -511,6 +519,8 @@ def batch_norm(
           gamma_initializer=gamma_initializer,
           moving_mean_initializer=moving_mean_initializer,
           moving_variance_initializer=moving_variance_initializer,
+          beta_regularizer=beta_regularizer,
+          gamma_regularizer=gamma_regularizer,
           trainable=trainable,
           name=sc.name,
           _scope=sc,
@@ -1220,7 +1230,7 @@ def flatten(inputs,
     batch_dim, spatial_dims = input_shape[0], input_shape[1:]
     if all(spatial_dims):
       outputs.set_shape([batch_dim,
-                        functools.reduce(lambda x, y: x * y, spatial_dims)])
+                         functools.reduce(lambda x, y: x * y, spatial_dims)])
     else:
       outputs.set_shape([batch_dim, None])
 
@@ -1318,11 +1328,8 @@ def _model_variable_getter(getter, name, shape=None, dtype=None,
 
 def _build_variable_getter(rename=None):
   """Build a model variable getter that respects scope getter and renames."""
-  # Respect current getter, if one is set.
-  current_custom_getter = variable_scope.get_variable_scope().custom_getter
+  # VariableScope will nest the getters
   def layer_variable_getter(getter, *args, **kwargs):
-    if current_custom_getter is not None:
-      getter = functools.partial(current_custom_getter, getter)
     kwargs['rename'] = rename
     return _model_variable_getter(getter, *args, **kwargs)
   return layer_variable_getter

@@ -124,6 +124,7 @@ def tf_copts():
                 "/DLANG_CXX11",
                 "/D__VERSION__=\\\"MSVC\\\"",
                 "/DPLATFORM_WINDOWS",
+                "/DTF_COMPILE_LIBRARY",
                 "/DEIGEN_HAS_C99_MATH",
                 "/DTENSORFLOW_USE_EIGEN_THREADPOOL",
               ],
@@ -679,7 +680,7 @@ def cc_header_only_library(name, deps=[], **kwargs):
 
 def tf_custom_op_library_additional_deps():
   return [
-      "//:protobuf_headers",
+      "@protobuf//:protobuf_headers",
       "//third_party/eigen3",
       "//tensorflow/core:framework_headers_lib",
   ]

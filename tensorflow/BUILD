@@ -110,6 +110,34 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+# TODO(jhseu): Enable on other platforms other than Linux.
+config_setting(
+    name = "with_jemalloc",
+    values = {
+        "cpu": "k8",
+        "define": "with_jemalloc=true",
+    },
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "with_gcp_support",
+    values = {"define": "with_gcp_support=true"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "with_hdfs_support",
+    values = {"define": "with_hdfs_support=true"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "with_xla_support",
+    values = {"define": "with_xla_support=true"},
+    visibility = ["//visibility:public"],
+)
+
 package_group(
     name = "internal",
     packages = ["//tensorflow/..."],
@@ -168,6 +196,8 @@ filegroup(
         "//tensorflow/contrib:all_files",
         "//tensorflow/contrib/android:all_files",
         "//tensorflow/contrib/bayesflow:all_files",
+        "//tensorflow/contrib/cloud:all_files",
+        "//tensorflow/contrib/cloud/kernels:all_files",
         "//tensorflow/contrib/compiler:all_files",
         "//tensorflow/contrib/copy_graph:all_files",
         "//tensorflow/contrib/crf:all_files",
@@ -186,6 +216,7 @@ filegroup(
         "//tensorflow/contrib/input_pipeline:all_files",
         "//tensorflow/contrib/input_pipeline/kernels:all_files",
         "//tensorflow/contrib/integrate:all_files",
+        "//tensorflow/contrib/keras:all_files",
         "//tensorflow/contrib/labeled_tensor:all_files",
         "//tensorflow/contrib/layers:all_files",
         "//tensorflow/contrib/layers/kernels:all_files",
@@ -200,6 +231,7 @@ filegroup(
         "//tensorflow/contrib/nn:all_files",
         "//tensorflow/contrib/opt:all_files",
         "//tensorflow/contrib/rnn:all_files",
+        "//tensorflow/contrib/saved_model:all_files",
         "//tensorflow/contrib/seq2seq:all_files",
         "//tensorflow/contrib/session_bundle:all_files",
         "//tensorflow/contrib/session_bundle/example:all_files",
@@ -221,8 +253,12 @@ filegroup(
         "//tensorflow/core/debug:all_files",
         "//tensorflow/core/distributed_runtime:all_files",
         "//tensorflow/core/distributed_runtime/rpc:all_files",
+        "//tensorflow/core/grappler:all_files",
+        "//tensorflow/core/grappler/clusters:all_files",
+        "//tensorflow/core/grappler/costs:all_files",
+        "//tensorflow/core/grappler/inputs:all_files",
+        "//tensorflow/core/grappler/optimizers:all_files",
         "//tensorflow/core/kernels:all_files",
-        "//tensorflow/core/kernels/cloud:all_files",
         "//tensorflow/core/kernels/hexagon:all_files",
         "//tensorflow/core/ops/compat:all_files",
         "//tensorflow/core/platform/cloud:all_files",
@@ -252,6 +288,7 @@ filegroup(
         "//tensorflow/tensorboard:all_files",
         "//tensorflow/tensorboard/app:all_files",
         "//tensorflow/tensorboard/backend:all_files",
+        "//tensorflow/tensorboard/backend/event_processing:all_files",
         "//tensorflow/tensorboard/components:all_files",
         "//tensorflow/tensorboard/components/vz_data_summary:all_files",
         "//tensorflow/tensorboard/components/vz_line_chart:all_files",
@@ -314,6 +351,8 @@ cc_binary(
     deps = [
         "//tensorflow/c:c_api",
         "//tensorflow/cc:cc_ops",
+        "//tensorflow/cc:client_session",
+        "//tensorflow/cc:scope",
         "//tensorflow/core:tensorflow",
     ],
 )

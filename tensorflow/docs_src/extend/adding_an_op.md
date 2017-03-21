@@ -188,6 +188,8 @@ building the `.so` file.
 >   the older ABI. If you compile your op library with gcc5, add
 >   `-D_GLIBCXX_USE_CXX11_ABI=0` to the command line to make the library
 >   compatible with the older abi.
+>   Furthermore if you are using TensorFlow package created from source remember to add `-cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0"`
+>   as bazel command to compile the Python package.
 
 ### Compile the op using bazel (TensorFlow source installation)
 
@@ -241,7 +243,7 @@ named `ZeroOut` in the C++ files, the python function will be called `zero_out`.
 
 To make the op available as a regular function `import`-able from a Python
 module, it maybe useful to have the `load_op_library` call in a Python source
-file as follows (see [zero_out_op_1.py](https://www.tensorflow.org/code/tensorflow/g3doc/how_tos/adding_an_op/zero_out_op_1.py))
+file as follows (see [zero_out_op_1.py](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/zero_out_op_1.py))
 :
 
 ```python
@@ -530,6 +532,7 @@ REGISTER_OP("AttrDefaultExampleForAllTypes")
 Note in particular that the values of type `type` use @{$dims_types#data-types$the `DT_*` names for the types}.
 
 #### Polymorphism {#polymorphism}
+
 ##### Type Polymorphism
 
 For ops that can take different types as input or produce different output
@@ -871,11 +874,11 @@ expressions:
   ```c++
   REGISTER_OP("PolymorphicSingleInput")
       .Attr("T: type")
-      .Input("in: T);
+      .Input("in: T");
 
   REGISTER_OP("RestrictedPolymorphicSingleInput")
       .Attr("T: {int32, int64}")
-      .Input("in: T);
+      .Input("in: T");
   ```
 
   Referencing an attr of type `list(type)` allows you to accept a sequence of
@@ -1032,16 +1035,16 @@ kept on the CPU, add a `HostMemory()` call to the kernel registration, e.g.:
 #### Compiling the kernel for the GPU device {#compiling-kernel}
 
 Look at
-[cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/g3doc/how_tos/adding_an_op/cuda_op_kernel.cu.cc)
+[cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cu.cc)
 for an example that uses a CUDA kernel to implement an op. The
 `tf_custom_op_library` accepts a `gpu_srcs` argument in which the list of source
 files containing the CUDA kernels (`*.cu.cc` files) can be specified. For use
 with a binary installation of TensorFlow, the CUDA kernels have to be compiled
 with NVIDIA's `nvcc` compiler. Here is the sequence of commands you can use to
 compile the
-[cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/g3doc/how_tos/adding_an_op/cuda_op_kernel.cu.cc)
+[cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cu.cc)
 and
-[cuda_op_kernel.cc](https://www.tensorflow.org/code/tensorflow/g3doc/how_tos/adding_an_op/cuda_op_kernel.cc)
+[cuda_op_kernel.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cc)
 into a single dynamically loadable library:
 
 ```bash
@@ -1057,7 +1060,7 @@ cuda_op_kernel.cu.o -I $TF_INC -fPIC -lcudart
 
 Note that if your CUDA libraries are not installed in `/usr/local/lib64`,
 you'll need to specify the path explicitly in the second (g++) command above.
-For example, add `-L /usr/local/cuda-8.0/lib64/` if your CUDA is installed in 
+For example, add `-L /usr/local/cuda-8.0/lib64/` if your CUDA is installed in
 `/usr/local/cuda-8.0`.
 
 ### Implement the gradient in Python {#implement-gradient}
@@ -1161,7 +1164,9 @@ for ZeroOut:
 ```
 
 `c->set_output(0, c->input(0));` declares that the first output's shape should
-be set to the first input's shape. There are a number of common shape functions
+be set to the first input's shape. If the output is selected by its index as in the above example, the second parameter of `set_output` should be a `ShapeHandle` object. You can create an empty `ShapeHandle` object by its default constructor. The `ShapeHandle` object for an input with index `idx` can be obtained by `c->input(idx)`.
+
+There are a number of common shape functions
 that apply to many ops, such as `shape_inference::UnchangedShape` which can be
 found in [common_shape_fns.h](https://www.tensorflow.org/code/tensorflow/core/framework/common_shape_fns.h) and used as follows:
 
@@ -1221,7 +1226,15 @@ particular dimension has a very specific value using `InferenceContext::Dim` and
 `InferenceContext::WithValue`; you can specify that an output dimension is the
 sum / product of two input dimensions using `InferenceContext::Add` and
 `InferenceContext::Multiply`. See the `InferenceContext` class for
-all of the various shape manipulations you can specify.
+all of the various shape manipulations you can specify. The following example sets
+shape of the first output to (n, 3), where first input has shape (n, ...)
+
+```c++
+.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+    c->set_output(0, c->Matrix(c->Dim(c->input(0), 0), 3));
+    return Status::OK();
+});
+```
 
 If you have a complicated shape function, you should consider adding a test for
 validating that various input shape combinations produce the expected output

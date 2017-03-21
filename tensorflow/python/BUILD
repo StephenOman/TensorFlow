@@ -45,7 +45,6 @@ py_library(
         ":check_ops",
         ":client",
         ":client_testlib",
-        ":cloud_ops",
         ":confusion_matrix",
         ":control_flow_ops",
         ":errors",
@@ -65,6 +64,7 @@ py_library(
         ":session_ops",
         ":sets",
         ":sparse_ops",
+        ":spectral_ops",
         ":standard_ops",
         ":state_ops",
         ":string_ops",
@@ -74,6 +74,7 @@ py_library(
         ":tensor_array_ops",
         ":training",
         ":ops",
+        ":saver_test_utils",
         ":test_ops",  # TODO: Break testing code out into separate rule.
         ":util",
         ":weights_broadcast_ops",
@@ -121,38 +122,6 @@ py_library(
     srcs = ["platform/googletest.py"],
     srcs_version = "PY2AND3",
     deps = [":platform_benchmark"],
-)
-
-py_library(
-    name = "cloud_ops",
-    srcs = [
-        "ops/cloud/__init__.py",
-        "ops/cloud/bigquery_reader_ops.py",
-        "ops/cloud/cloud.py",
-    ],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":cloud_ops_gen",
-        ":framework_for_generated_wrappers",
-    ],
-)
-
-tf_py_test(
-    name = "bigquery_reader_ops_test",
-    size = "small",
-    srcs = ["ops/cloud/bigquery_reader_ops_test.py"],
-    additional_deps = [
-        ":array_ops",
-        ":client_testlib",
-        ":cloud_ops",
-        ":data_flow_ops",
-        ":io_ops",
-        ":parsing_ops",
-        ":util",
-        "//tensorflow/core/kernels/cloud:bigquery_reader_ops",
-        "//tensorflow/core:cloud_ops_op_lib",
-    ],
-    tags = ["manual"],
 )
 
 tf_py_test(
@@ -254,8 +223,8 @@ cc_binary(
     }),
     linkshared = 1,
     deps = [
-        "//:protobuf_headers",
         "//tensorflow/core:framework_headers_lib",
+        "@protobuf//:protobuf_headers",
     ],
 )
 
@@ -768,6 +737,7 @@ py_test(
         ":nn_grad",
         ":nn_ops",
         ":random_ops",
+        ":test_ops",
         ":variables",
         "//tensorflow/core:protos_all_py",
         "//third_party/py/numpy",
@@ -1017,11 +987,6 @@ tf_gen_op_wrapper_private_py(
 )
 
 tf_gen_op_wrapper_private_py(
-    name = "cloud_ops_gen",
-    require_shape_functions = True,
-)
-
-tf_gen_op_wrapper_private_py(
     name = "control_flow_ops_gen",
     require_shape_functions = True,
     visibility = ["//learning/brain/python/ops:__pkg__"],
@@ -1147,6 +1112,11 @@ tf_gen_op_wrapper_private_py(
 
 tf_gen_op_wrapper_private_py(
     name = "sparse_ops_gen",
+    require_shape_functions = True,
+)
+
+tf_gen_op_wrapper_private_py(
+    name = "spectral_ops_gen",
     require_shape_functions = True,
 )
 
@@ -1370,6 +1340,7 @@ py_library(
         ":math_grad",
         ":math_ops",
         ":platform",
+        ":spectral_grad",
         ":util",
         "//third_party/py/numpy",
         "@six_archive//:six",
@@ -1518,6 +1489,7 @@ py_library(
         ":math_ops_gen",
         ":sparse_ops_gen",
         ":sparse_tensor",
+        ":spectral_ops_gen",
         ":state_ops",
         ":state_ops_gen",
         ":tensor_shape",
@@ -1755,6 +1727,33 @@ py_library(
 )
 
 py_library(
+    name = "spectral_grad",
+    srcs = ["ops/spectral_grad.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":array_ops",
+        ":framework",
+        ":framework_for_generated_wrappers",
+        ":math_ops",
+        ":spectral_ops",
+        "//third_party/py/numpy",
+    ],
+)
+
+py_library(
+    name = "spectral_ops",
+    srcs = ["ops/spectral_ops.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":array_ops",
+        ":dtypes",
+        ":framework_ops",
+        ":math_ops",
+        ":spectral_ops_gen",
+    ],
+)
+
+py_library(
     name = "confusion_matrix",
     srcs = ["ops/confusion_matrix.py"],
     srcs_version = "PY2AND3",
@@ -1855,6 +1854,7 @@ py_library(
         ":sparse_grad",
         ":sparse_ops",
         ":special_math_ops",
+        ":spectral_grad",
         ":state_grad",
         ":state_ops",
         ":string_ops",
@@ -2793,7 +2793,10 @@ py_test(
     size = "small",
     srcs = ["client/session_test.py"],
     srcs_version = "PY2AND3",
-    tags = ["no_pip_gpu"],  # testInteractivePlacePrunedGraph fails on invalid assumption about GPU ops.
+    tags = [
+        "no_gpu",
+        "no_pip_gpu",  # testInteractivePlacePrunedGraph fails on invalid assumption about GPU ops.
+    ],
     deps = [
         ":array_ops",
         ":client",
@@ -2933,6 +2936,16 @@ cuda_py_tests(
     ],
 )
 
+py_library(
+    name = "saver_test_utils",
+    srcs = ["training/saver_test_utils.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":data_flow_ops_gen",
+        ":training",
+    ],
+)
+
 cuda_py_test(
     name = "saver_test",
     size = "medium",
@@ -2944,12 +2957,12 @@ cuda_py_test(
         ":client_testlib",
         ":control_flow_ops",
         ":data_flow_ops",
-        ":data_flow_ops_gen",
         ":errors",
         ":gradients",
         ":math_ops",
         ":nn_grad",
         ":nn_ops",
+        ":saver_test_utils",
         ":partitioned_variables",
         ":platform",
         ":platform_test",
@@ -3089,6 +3102,20 @@ py_test(
     ],
 )
 
+py_test(
+    name = "training_util_test",
+    size = "small",
+    srcs = ["training/training_util_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":client_testlib",
+        ":framework",
+        ":platform",
+        ":training",
+        ":variables",
+    ],
+)
+
 tf_py_test(
     name = "input_test",
     size = "small",
@@ -3136,12 +3163,7 @@ py_tests(
     name = "summary_tests",
     size = "small",
     srcs = [
-        "summary/event_accumulator_test.py",
-        "summary/event_file_inspector_test.py",
-        "summary/event_multiplexer_test.py",
-        "summary/impl/directory_watcher_test.py",
-        "summary/impl/event_file_loader_test.py",
-        "summary/impl/reservoir_test.py",
+        "summary/plugin_asset_test.py",
         "summary/summary_test.py",
         "summary/writer/writer_test.py",
     ],
@@ -3284,39 +3306,6 @@ py_test(
         ":random_ops",
         ":variables",
         "//third_party/py/numpy",
-    ],
-)
-
-py_library(
-    name = "docs",
-    srcs = ["framework/docs.py"],
-    srcs_version = "PY2AND3",
-)
-
-py_library(
-    name = "gen_docs_combined_lib",
-    srcs = ["framework/gen_docs_combined.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":docs",
-        "//tensorflow:tensorflow_py",
-        "//tensorflow/contrib/ffmpeg:ffmpeg_ops_py",
-        "//tensorflow/python/debug:debug_py",
-    ],
-)
-
-py_binary(
-    name = "gen_docs_combined",
-    srcs = ["framework/gen_docs_combined.py"],
-    main = "framework/gen_docs_combined.py",
-    srcs_version = "PY2AND3",
-    deps = [
-        ":client",
-        ":docs",
-        ":framework",
-        ":framework_for_generated_wrappers",
-        "//tensorflow:tensorflow_py",
-        "//tensorflow/python/debug:debug_py",
     ],
 )
 

@@ -119,6 +119,8 @@ def get_global_step(graph=None):
 def create_global_step(graph=None):
   """Create global step tensor in graph.
 
+  This API is deprecated. Use core framework training version instead.
+
   Args:
     graph: The graph in which to create the global step tensor. If missing,
       use default graph.
@@ -195,7 +197,8 @@ def variable(name, shape=None, dtype=None, initializer=None,
   Returns:
     The created or existing variable.
   """
-  collections = list(collections or [ops.GraphKeys.GLOBAL_VARIABLES])
+  collections = list(collections if collections is not None
+                     else [ops.GraphKeys.GLOBAL_VARIABLES])
 
   # Remove duplicates
   collections = set(collections)

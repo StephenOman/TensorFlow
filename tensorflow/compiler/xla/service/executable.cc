@@ -25,7 +25,7 @@ namespace xla {
 
 StatusOr<std::vector<perftools::gputools::DeviceMemoryBase>>
 Executable::ExecuteOnStreams(
-    tensorflow::gtl::ArraySlice<const ExecutableRunOptions> run_options,
+    tensorflow::gtl::ArraySlice<const ServiceExecutableRunOptions> run_options,
     tensorflow::gtl::ArraySlice<
         tensorflow::gtl::ArraySlice<perftools::gputools::DeviceMemoryBase>>
         arguments) {
@@ -69,13 +69,23 @@ Status Executable::DumpSessionModule() {
                                      *session_module_);
 }
 
+// Removes illegal characters from filenames.
+static void SanitizeFilename(string* name) {
+  for (char& c : *name) {
+    if (c == '/' || c == '\\') {
+      c = '_';
+    }
+  }
+}
+
 /* static */ Status Executable::DumpToDirectory(
-    const string& directory_path, const string& filename,
+    const string& directory_path, string filename,
     const SessionModule& session_module) {
   tensorflow::Env* env = tensorflow::Env::Default();
   if (!env->IsDirectory(directory_path).ok()) {
     TF_RETURN_IF_ERROR(env->CreateDir(directory_path));
   }
+  SanitizeFilename(&filename);
   string file_path = tensorflow::io::JoinPath(directory_path, filename);
   return tensorflow::WriteBinaryProto(env, file_path, session_module);
 }

@@ -155,7 +155,7 @@ class StudentT(distribution.Distribution):
       TypeError: if loc and scale are different dtypes.
     """
     parameters = locals()
-    with ops.name_scope(name, values=[df, loc, scale]) as ns:
+    with ops.name_scope(name, values=[df, loc, scale]):
       with ops.control_dependencies([check_ops.assert_positive(df)]
                                     if validate_args else []):
         self._df = array_ops.identity(df, name="df")
@@ -170,7 +170,7 @@ class StudentT(distribution.Distribution):
         allow_nan_stats=allow_nan_stats,
         parameters=parameters,
         graph_parents=[self._df, self._loc, self._scale],
-        name=ns)
+        name=name)
 
   @staticmethod
   def _param_shapes(sample_shape):
@@ -350,12 +350,12 @@ class StudentTWithAbsDfSoftplusScale(StudentT):
                allow_nan_stats=True,
                name="StudentTWithAbsDfSoftplusScale"):
     parameters = locals()
-    with ops.name_scope(name, values=[df, scale]) as ns:
+    with ops.name_scope(name, values=[df, scale]):
       super(StudentTWithAbsDfSoftplusScale, self).__init__(
           df=math_ops.floor(math_ops.abs(df)),
           loc=loc,
           scale=nn.softplus(scale, name="softplus_scale"),
           validate_args=validate_args,
           allow_nan_stats=allow_nan_stats,
-          name=ns)
+          name=name)
     self._parameters = parameters

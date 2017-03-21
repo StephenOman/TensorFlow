@@ -67,8 +67,8 @@ class Scaffold(object):
   The following pieces are directly accessible as attributes of the `Scaffold`
   object:
 
-  * `saver`: A `tf.Saver` object taking care of saving the variables.  Picked
-    from and stored into the `SAVERS` collection in the graph by default.
+  * `saver`: A `tf.train.Saver` object taking care of saving the variables.
+    Picked from and stored into the `SAVERS` collection in the graph by default.
   * `init_op`: An op to run to initialize the variables.  Picked from and
     stored into the `INIT_OP` collection in the graph by default.
   * `ready_op`: An op to verify that the variables are initialized.  Picked
@@ -124,7 +124,8 @@ class Scaffold(object):
       local_init_op: Optional op to initialize local variables.
       summary_op: Optional op to gather all summaries.  Must return a scalar
         string tensor containing a serialized `Summary` proto.
-      saver: Optional `tf.Saver` object to use to save and restore variables.
+      saver: Optional `tf.train.Saver` object to use to save and restore
+        variables.
     """
 
     # NOTE(touts): modifying the init function to be passed the scaffold is a
@@ -803,9 +804,10 @@ class _RecoverableSession(_WrappedSession):
       try:
         return self._sess_creator.create_session()
       except _PREEMPTION_ERRORS as e:
-        logging.info('An error was raised during initialization. '
-                     'It\'s most likely due to a preemption in a connected '
-                     'worker/ps. A new session will be created. Error: %s', e)
+        logging.info('An error was raised while a session was being created. '
+                     'This may be due to a preemption of a connected worker '
+                     'or parameter server. A new session will be created. '
+                     'Error: %s', e)
 
   def run(self, fetches, feed_dict=None, options=None, run_metadata=None):
     while True:
@@ -817,10 +819,10 @@ class _RecoverableSession(_WrappedSession):
                               options=options,
                               run_metadata=run_metadata)
       except _PREEMPTION_ERRORS as e:
-        logging.info('An error was raised. Closing the current session. '
-                     'It\'s most likely due to a preemption in a connected '
-                     'worker/ps. A new session will be created on the next '
-                     'session.run(). Error: %s', e)
+        logging.info('An error was raised. This may be due to a preemption in '
+                     'a connected worker or parameter server. The current '
+                     'session will be closed and a new session will be '
+                     'created. Error: %s', e)
         self.close()
         self._sess = None
 

@@ -188,7 +188,7 @@ def input_fn(df):
   categorical_cols = {k: tf.SparseTensor(
       indices=[[i, 0] for i in range(df[k].size)],
       values=df[k].values,
-      shape=[df[k].size, 1])
+      dense_shape=[df[k].size, 1])
                       for k in CATEGORICAL_COLUMNS}
   # Merges the two dictionaries into one.
   feature_cols = dict(continuous_cols.items() + categorical_cols.items())
@@ -261,6 +261,8 @@ learned through the model training process we'll go through later.
 We'll do the similar trick to define the other categorical features:
 
 ```python
+race = tf.contrib.layers.sparse_column_with_hash_bucket("race", hash_bucket_size=100)
+marital_status = tf.contrib.layers.sparse_column_with_hash_bucket("marital_status", hash_bucket_size=100)
 relationship = tf.contrib.layers.sparse_column_with_hash_bucket("relationship", hash_bucket_size=100)
 workclass = tf.contrib.layers.sparse_column_with_hash_bucket("workclass", hash_bucket_size=100)
 occupation = tf.contrib.layers.sparse_column_with_hash_bucket("occupation", hash_bucket_size=1000)
@@ -294,7 +296,7 @@ only learn one of the three cases:
 1.  Income stays the same no matter at what age (no correlation)
 
 If we want to learn the fine-grained correlation between income and each age
-group seperately, we can leverage **bucketization**. Bucketization is a process
+group separately, we can leverage **bucketization**. Bucketization is a process
 of dividing the entire range of a continuous feature into a set of consecutive
 bins/buckets, and then converting the original numerical feature into a bucket
 ID (as a categorical feature) depending on which bucket that value falls into.
@@ -377,7 +379,7 @@ the labels of the holdout data:
 ```python
 results = m.evaluate(input_fn=eval_input_fn, steps=1)
 for key in sorted(results):
-    print "%s: %s" % (key, results[key])
+    print("%s: %s" % (key, results[key]))
 ```
 
 The first line of the output should be something like `accuracy: 0.83557522`,

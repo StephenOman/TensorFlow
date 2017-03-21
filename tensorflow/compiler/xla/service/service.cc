@@ -513,15 +513,15 @@ Service::ExecuteParallelAndRegisterResult(
   }
 
   // Set up run options.
-  std::vector<ExecutableRunOptions> run_options;
+  std::vector<ServiceExecutableRunOptions> run_options;
   for (const Pool<se::Stream>::SmartPtr& stream : streams) {
-    run_options.emplace_back();
-    auto& options = run_options.back();
+    ExecutableRunOptions options;
     options.set_stream(stream.get());
     options.set_allocator(backend->memory_allocator());
     options.set_inter_op_thread_pool(backend->inter_op_thread_pool());
     options.set_intra_op_thread_pool(
         backend->eigen_intra_op_thread_pool_device());
+    run_options.emplace_back(options, backend->StreamBorrower());
   }
 
   // Asynchronously launch all executables.
@@ -564,15 +564,15 @@ StatusOr<GlobalDataHandle> Service::ExecuteAndRegisterResult(
   }
 
   // Set up run options.
-  std::vector<ExecutableRunOptions> run_options;
+  std::vector<ServiceExecutableRunOptions> run_options;
   for (const Pool<se::Stream>::SmartPtr& stream : streams) {
-    run_options.emplace_back();
-    auto& options = run_options.back();
+    ExecutableRunOptions options;
     options.set_stream(stream.get());
     options.set_allocator(backend->memory_allocator());
     options.set_inter_op_thread_pool(backend->inter_op_thread_pool());
     options.set_intra_op_thread_pool(
         backend->eigen_intra_op_thread_pool_device());
+    run_options.emplace_back(options, backend->StreamBorrower());
   }
 
   perftools::gputools::DeviceMemoryBase result;
@@ -580,8 +580,9 @@ StatusOr<GlobalDataHandle> Service::ExecuteAndRegisterResult(
     TF_ASSIGN_OR_RETURN(
         result, ExecuteOnStreamWrapper<StatusOr<se::DeviceMemoryBase>>(
                     executable, &run_options[0], profile,
+                    execute_backend_.get(),
                     [&arguments](Executable* executable,
-                                 const ExecutableRunOptions* run_options,
+                                 const ServiceExecutableRunOptions* run_options,
                                  HloExecutionProfile* hlo_execution_profile) {
                       return executable->ExecuteOnStream(run_options, arguments,
                                                          hlo_execution_profile);
@@ -860,8 +861,12 @@ tensorflow::Status Service::ExecuteAsync(const ExecuteAsyncRequest* arg,
     options.set_intra_op_thread_pool(
         execute_backend_->eigen_intra_op_thread_pool_device());
 
-    TF_ASSIGN_OR_RETURN(perftools::gputools::DeviceMemoryBase this_result_data,
-                        executable->ExecuteAsyncOnStream(&options, arguments));
+    ServiceExecutableRunOptions service_options(
+        options, execute_backend_->StreamBorrower());
+
+    TF_ASSIGN_OR_RETURN(
+        perftools::gputools::DeviceMemoryBase this_result_data,
+        executable->ExecuteAsyncOnStream(&service_options, arguments));
 
     // Take the first result.
     if (result_data == nullptr) {
@@ -1245,57 +1250,63 @@ tensorflow::Status Service::AddInstruction(
 tensorflow::Status Service::Op(const OpRequest* arg, OpResponse* result) {
   TF_ASSIGN_OR_RETURN(UserComputation * computation,
                       computation_tracker_.Resolve(arg->computation()));
-  StatusOr<ComputationDataHandle> handle;
+  StatusOr<ComputationDataHandle> handle_status;
 
   switch (arg->op_case()) {
     case OpRequest::kBinaryOpRequest:
-      handle = computation->AddBinaryInstruction(arg->binary_op_request());
+      handle_status =
+          computation->AddBinaryInstruction(arg->binary_op_request());
       break;
     case OpRequest::kBroadcastRequest:
-      handle = computation->AddBroadcastInstruction(arg->broadcast_request());
+      handle_status =
+          computation->AddBroadcastInstruction(arg->broadcast_request());
       break;
     case OpRequest::kCallRequest: {
       TF_ASSIGN_OR_RETURN(
           UserComputation * to_apply,
           computation_tracker_.Resolve(arg->call_request().to_apply()));
-      handle = computation->AddCallInstruction(arg->call_request(), *to_apply);
+      handle_status =
+          computation->AddCallInstruction(arg->call_request(), *to_apply);
       break;
     }
     case OpRequest::kConcatenateRequest:
-      handle =
+      handle_status =
           computation->AddConcatenateInstruction(arg->concatenate_request());
       break;
     case OpRequest::kConstantRequest:
-      handle = computation->AddConstantInstruction(arg->constant_request());
+      handle_status =
+          computation->AddConstantInstruction(arg->constant_request());
       break;
     case OpRequest::kConvertRequest:
-      handle = computation->AddConvertInstruction(arg->convert_request());
+      handle_status =
+          computation->AddConvertInstruction(arg->convert_request());
       break;
     case OpRequest::kConvolveRequest:
-      handle = computation->AddConvolveInstruction(arg->convolve_request());
+      handle_status =
+          computation->AddConvolveInstruction(arg->convolve_request());
       break;
     case OpRequest::kCrossReplicaSumRequest:
-      handle = computation->AddCrossReplicaSumInstruction(
+      handle_status = computation->AddCrossReplicaSumInstruction(
           arg->cross_replica_sum_request());
       break;
     case OpRequest::kCustomCallRequest:
-      handle =
+      handle_status =
           computation->AddCustomCallInstruction(arg->custom_call_request());
       break;
     case OpRequest::kDynamicSliceRequest:
-      handle =
+      handle_status =
           computation->AddDynamicSliceInstruction(arg->dynamic_slice_request());
       break;
     case OpRequest::kDynamicUpdateSliceRequest:
-      handle = computation->AddDynamicUpdateSliceInstruction(
+      handle_status = computation->AddDynamicUpdateSliceInstruction(
           arg->dynamic_update_slice_request());
       break;
     case OpRequest::kGetTupleElementRequest:
-      handle = computation->AddGetTupleElementInstruction(
+      handle_status = computation->AddGetTupleElementInstruction(
           arg->get_tuple_element_request());
       break;
     case OpRequest::kInfeedRequest:
-      handle = computation->AddInfeedInstruction(arg->infeed_request());
+      handle_status = computation->AddInfeedInstruction(arg->infeed_request());
       break;
     case OpRequest::kOutfeedRequest:
       TF_RETURN_IF_ERROR(
@@ -1305,20 +1316,22 @@ tensorflow::Status Service::Op(const OpRequest* arg, OpResponse* result) {
       TF_ASSIGN_OR_RETURN(
           UserComputation * to_apply,
           computation_tracker_.Resolve(arg->map_request().to_apply()));
-      handle = computation->AddMapInstruction(arg->map_request(), *to_apply);
+      handle_status =
+          computation->AddMapInstruction(arg->map_request(), *to_apply);
       break;
     }
     case OpRequest::kPadRequest:
-      handle = computation->AddPadInstruction(arg->pad_request());
+      handle_status = computation->AddPadInstruction(arg->pad_request());
       break;
     case OpRequest::kParameterRequest:
-      handle = computation->AddParameterInstruction(arg->parameter_request());
+      handle_status =
+          computation->AddParameterInstruction(arg->parameter_request());
       break;
     case OpRequest::kReduceRequest: {
       TF_ASSIGN_OR_RETURN(
           UserComputation * to_apply,
           computation_tracker_.Resolve(arg->reduce_request().to_apply()));
-      handle =
+      handle_status =
           computation->AddReduceInstruction(arg->reduce_request(), *to_apply);
       break;
     }
@@ -1326,18 +1339,20 @@ tensorflow::Status Service::Op(const OpRequest* arg, OpResponse* result) {
       TF_ASSIGN_OR_RETURN(UserComputation * to_apply,
                           computation_tracker_.Resolve(
                               arg->reduce_window_request().to_apply()));
-      handle = computation->AddReduceWindowInstruction(
+      handle_status = computation->AddReduceWindowInstruction(
           arg->reduce_window_request(), *to_apply);
       break;
     }
     case OpRequest::kReshapeRequest:
-      handle = computation->AddReshapeInstruction(arg->reshape_request());
+      handle_status =
+          computation->AddReshapeInstruction(arg->reshape_request());
       break;
     case OpRequest::kReverseRequest:
-      handle = computation->AddReverseInstruction(arg->reverse_request());
+      handle_status =
+          computation->AddReverseInstruction(arg->reverse_request());
       break;
     case OpRequest::kRngRequest:
-      handle = computation->AddRngInstruction(arg->rng_request());
+      handle_status = computation->AddRngInstruction(arg->rng_request());
       break;
     case OpRequest::kSelectAndScatterRequest: {
       TF_ASSIGN_OR_RETURN(UserComputation * select,
@@ -1346,23 +1361,29 @@ tensorflow::Status Service::Op(const OpRequest* arg, OpResponse* result) {
       TF_ASSIGN_OR_RETURN(UserComputation * scatter,
                           computation_tracker_.Resolve(
                               arg->select_and_scatter_request().scatter()));
-      handle = computation->AddSelectAndScatterInstruction(
+      handle_status = computation->AddSelectAndScatterInstruction(
           arg->select_and_scatter_request(), *select, *scatter);
       break;
     }
     case OpRequest::kSliceRequest:
-      handle = computation->AddSliceInstruction(arg->slice_request());
+      handle_status = computation->AddSliceInstruction(arg->slice_request());
       break;
     case OpRequest::kTernaryOpRequest:
-      handle = computation->AddTernaryInstruction(arg->ternary_op_request());
+      handle_status =
+          computation->AddTernaryInstruction(arg->ternary_op_request());
       break;
     case OpRequest::kTraceRequest:
       return computation->AddTraceInstruction(arg->trace_request());
+    case OpRequest::kTransposeRequest:
+      handle_status =
+          computation->AddTransposeInstruction(arg->transpose_request());
+      break;
     case OpRequest::kUnaryOpRequest:
-      handle = computation->AddUnaryInstruction(arg->unary_op_request());
+      handle_status = computation->AddUnaryInstruction(arg->unary_op_request());
       break;
     case OpRequest::kVariadicOpRequest:
-      handle = computation->AddVariadicInstruction(arg->variadic_op_request());
+      handle_status =
+          computation->AddVariadicInstruction(arg->variadic_op_request());
       break;
     case OpRequest::kWhileRequest: {
       TF_ASSIGN_OR_RETURN(
@@ -1371,8 +1392,8 @@ tensorflow::Status Service::Op(const OpRequest* arg, OpResponse* result) {
       TF_ASSIGN_OR_RETURN(
           UserComputation * body,
           computation_tracker_.Resolve(arg->while_request().body()));
-      handle = computation->AddWhileInstruction(arg->while_request(),
-                                                *condition, *body);
+      handle_status = computation->AddWhileInstruction(arg->while_request(),
+                                                       *condition, *body);
       break;
     }
     case OpRequest::kSendRequest: {
@@ -1384,13 +1405,19 @@ tensorflow::Status Service::Op(const OpRequest* arg, OpResponse* result) {
     case OpRequest::kRecvRequest: {
       TF_RETURN_IF_ERROR(
           channel_tracker_.RegisterRecv(arg->recv_request().channel_handle()));
-      handle = computation->AddRecvInstruction(arg->recv_request());
+      handle_status = computation->AddRecvInstruction(arg->recv_request());
       break;
     }
     default:
       return InvalidArgument("Unsupported operation");
   }
-  TF_ASSIGN_OR_RETURN(*result->mutable_output(), handle);
+  TF_ASSIGN_OR_RETURN(*result->mutable_output(), handle_status);
+
+  // We set the debug metadata here, because we slice off part of the OpRequest
+  // proto in the above switch statement.
+  TF_ASSIGN_OR_RETURN(ComputationDataHandle handle, handle_status);
+  TF_RETURN_IF_ERROR(computation->SetOpMetadata(handle, arg->metadata()));
+
   return tensorflow::Status::OK();
 }
 
