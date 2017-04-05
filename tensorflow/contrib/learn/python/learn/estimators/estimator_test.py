@@ -63,6 +63,7 @@ from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import queue_runner_impl
+from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.util import compat
 
@@ -388,7 +389,7 @@ class EstimatorTest(test.TestCase):
               boston_input_fn, num_epochs=1),
           as_iterable=True)
 
-  def testModelFnScaffold(self):
+  def testModelFnScaffoldInTraining(self):
     self.is_init_fn_called = False
 
     def _init_fn(scaffold, session):
@@ -407,6 +408,44 @@ class EstimatorTest(test.TestCase):
     est = estimator.Estimator(model_fn=_model_fn_scaffold)
     est.fit(input_fn=boston_input_fn, steps=1)
     self.assertTrue(self.is_init_fn_called)
+
+  def testModelFnScaffoldSaverUsage(self):
+
+    def _model_fn_scaffold(features, labels, mode):
+      _, _ = features, labels
+      variables_lib.Variable(1., 'weight')
+      real_saver = saver_lib.Saver()
+      self.mock_saver = test.mock.Mock(
+          wraps=real_saver, saver_def=real_saver.saver_def)
+      return model_fn.ModelFnOps(
+          mode=mode,
+          predictions=constant_op.constant([[1.]]),
+          loss=constant_op.constant(0.),
+          train_op=constant_op.constant(0.),
+          scaffold=monitored_session.Scaffold(saver=self.mock_saver))
+
+    def input_fn():
+      return {
+          'x': constant_op.constant([[1.]]),
+      }, constant_op.constant([[1.]])
+
+    est = estimator.Estimator(model_fn=_model_fn_scaffold)
+    est.fit(input_fn=input_fn, steps=1)
+    self.assertTrue(self.mock_saver.save.called)
+    est.evaluate(input_fn=input_fn, steps=1)
+    self.assertTrue(self.mock_saver.restore.called)
+    est.predict(input_fn=input_fn)
+    self.assertTrue(self.mock_saver.restore.called)
+    def serving_input_fn():
+      serialized_tf_example = array_ops.placeholder(dtype=dtypes.string,
+                                                    shape=[None],
+                                                    name='input_example_tensor')
+      features, labels = input_fn()
+      return input_fn_utils.InputFnOps(
+          features, labels, {'examples': serialized_tf_example})
+
+    est.export_savedmodel(est.model_dir + '/export', serving_input_fn)
+    self.assertTrue(self.mock_saver.restore.called)
 
   def testCheckpointSaverHookSuppressesTheDefaultOne(self):
     saver_hook = test.mock.Mock(
@@ -442,6 +481,7 @@ class EstimatorTest(test.TestCase):
     est = estimator.Estimator(model_fn=linear_model_fn,
                               config=config)
     self.assertEqual('test_dir', est.config.model_dir)
+    self.assertEqual('test_dir', est.model_dir)
 
   def testModelDirAndRunConfigModelDir(self):
     config = run_config.RunConfig(model_dir='test_dir')
@@ -450,10 +490,29 @@ class EstimatorTest(test.TestCase):
                               model_dir='test_dir')
     self.assertEqual('test_dir', est.config.model_dir)
 
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegexp(
+        ValueError,
+        'model_dir are set both in constructor and RunConfig, '
+        'but with different'):
       estimator.Estimator(model_fn=linear_model_fn,
                           config=config,
                           model_dir='different_dir')
+
+  def testModelDirIsCopiedToRunConfig(self):
+    config = run_config.RunConfig()
+    self.assertIsNone(config.model_dir)
+
+    est = estimator.Estimator(model_fn=linear_model_fn,
+                              model_dir='test_dir',
+                              config=config)
+    self.assertEqual('test_dir', est.config.model_dir)
+    self.assertEqual('test_dir', est.model_dir)
+
+  def testModelDirAsTempDir(self):
+    with test.mock.patch.object(tempfile, 'mkdtemp', return_value='temp_dir'):
+      est = estimator.Estimator(model_fn=linear_model_fn)
+      self.assertEqual('temp_dir', est.config.model_dir)
+      self.assertEqual('temp_dir', est.model_dir)
 
   def testCheckInputs(self):
     est = estimator.SKCompat(estimator.Estimator(model_fn=linear_model_fn))

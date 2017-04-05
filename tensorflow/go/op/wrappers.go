@@ -1710,58 +1710,6 @@ func ShapeN(scope *Scope, input []tf.Output, optional ...ShapeNAttr) (output []t
 	return output
 }
 
-// UniqueAttr is an optional argument to Unique.
-type UniqueAttr func(optionalAttr)
-
-// UniqueOutIdx sets the optional out_idx attribute to value.
-// If not specified, defaults to DT_INT32
-func UniqueOutIdx(value tf.DataType) UniqueAttr {
-	return func(m optionalAttr) {
-		m["out_idx"] = value
-	}
-}
-
-// Finds unique elements in a 1-D tensor.
-//
-// This operation returns a tensor `y` containing all of the unique elements of `x`
-// sorted in the same order that they occur in `x`. This operation also returns a
-// tensor `idx` the same size as `x` that contains the index of each value of `x`
-// in the unique output `y`. In other words:
-//
-// `y[idx[i]] = x[i] for i in [0, 1,...,rank(x) - 1]`
-//
-// For example:
-//
-// ```prettyprint
-// # tensor 'x' is [1, 1, 2, 4, 4, 4, 7, 8, 8]
-// y, idx = unique(x)
-// y ==> [1, 2, 4, 7, 8]
-// idx ==> [0, 0, 1, 2, 2, 2, 3, 4, 4]
-// ```
-//
-// Arguments:
-//	x: 1-D.
-//
-// Returns 1-D.1-D.
-func Unique(scope *Scope, x tf.Output, optional ...UniqueAttr) (y tf.Output, idx tf.Output) {
-	if scope.Err() != nil {
-		return
-	}
-	attrs := map[string]interface{}{}
-	for _, a := range optional {
-		a(attrs)
-	}
-	opspec := tf.OpSpec{
-		Type: "Unique",
-		Input: []tf.Input{
-			x,
-		},
-		Attrs: attrs,
-	}
-	op := scope.AddOperation(opspec)
-	return op.Output(0), op.Output(1)
-}
-
 // Reshapes a tensor.
 //
 // Given `tensor`, this operation returns a tensor that has the same values
@@ -2269,7 +2217,7 @@ func DequantizeMode(value string) DequantizeAttr {
 //
 // If the mode is 'MIN_FIRST', then this approach is used:
 //
-// ```
+// ```c++
 // number_of_steps = 1 << (# of bits in T)
 // range_adjust = number_of_steps / (number_of_steps - 1)
 // range = (range_max - range_min) * range_adjust
@@ -2504,6 +2452,121 @@ func ParallelConcat(scope *Scope, values []tf.Output, shape tf.Shape) (output tf
 	}
 	op := scope.AddOperation(opspec)
 	return op.Output(0)
+}
+
+// UniqueAttr is an optional argument to Unique.
+type UniqueAttr func(optionalAttr)
+
+// UniqueOutIdx sets the optional out_idx attribute to value.
+// If not specified, defaults to DT_INT32
+func UniqueOutIdx(value tf.DataType) UniqueAttr {
+	return func(m optionalAttr) {
+		m["out_idx"] = value
+	}
+}
+
+// Finds unique elements in a 1-D tensor.
+//
+// This operation returns a tensor `y` containing all of the unique elements of `x`
+// sorted in the same order that they occur in `x`. This operation also returns a
+// tensor `idx` the same size as `x` that contains the index of each value of `x`
+// in the unique output `y`. In other words:
+//
+// `y[idx[i]] = x[i] for i in [0, 1,...,rank(x) - 1]`
+//
+// For example:
+//
+// ```prettyprint
+// # tensor 'x' is [1, 1, 2, 4, 4, 4, 7, 8, 8]
+// y, idx = unique(x)
+// y ==> [1, 2, 4, 7, 8]
+// idx ==> [0, 0, 1, 2, 2, 2, 3, 4, 4]
+// ```
+//
+// Arguments:
+//	x: 1-D.
+//
+// Returns 1-D.1-D.
+func Unique(scope *Scope, x tf.Output, optional ...UniqueAttr) (y tf.Output, idx tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	attrs := map[string]interface{}{}
+	for _, a := range optional {
+		a(attrs)
+	}
+	opspec := tf.OpSpec{
+		Type: "Unique",
+		Input: []tf.Input{
+			x,
+		},
+		Attrs: attrs,
+	}
+	op := scope.AddOperation(opspec)
+	return op.Output(0), op.Output(1)
+}
+
+// DecodeWavAttr is an optional argument to DecodeWav.
+type DecodeWavAttr func(optionalAttr)
+
+// DecodeWavDesiredChannels sets the optional desired_channels attribute to value.
+//
+// value: Number of sample channels wanted.
+// If not specified, defaults to -1
+func DecodeWavDesiredChannels(value int64) DecodeWavAttr {
+	return func(m optionalAttr) {
+		m["desired_channels"] = value
+	}
+}
+
+// DecodeWavDesiredSamples sets the optional desired_samples attribute to value.
+//
+// value: Length of audio requested.
+// If not specified, defaults to -1
+func DecodeWavDesiredSamples(value int64) DecodeWavAttr {
+	return func(m optionalAttr) {
+		m["desired_samples"] = value
+	}
+}
+
+// Decode a 16-bit PCM WAV file to a float tensor.
+//
+// The -32768 to 32767 signed 16-bit values will be scaled to -1.0 to 1.0 in float.
+//
+// When desired_channels is set, if the input contains fewer channels than this
+// then the last channel will be duplicated to give the requested number, else if
+// the input has more channels than requested then the additional channels will be
+// ignored.
+//
+// If desired_samples is set, then the audio will be cropped or padded with zeroes
+// to the requested length.
+//
+// The first output contains a Tensor with the content of the audio samples. The
+// lowest dimension will be the number of channels, and the second will be the
+// number of samples. For example, a ten-sample-long stereo WAV file should give an
+// output shape of [10, 2].
+//
+// Arguments:
+//	contents: The WAV-encoded audio, usually from a file.
+//
+// Returns 2-D with shape `[length, channels]`.Scalar holding the sample rate found in the WAV header.
+func DecodeWav(scope *Scope, contents tf.Output, optional ...DecodeWavAttr) (audio tf.Output, sample_rate tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	attrs := map[string]interface{}{}
+	for _, a := range optional {
+		a(attrs)
+	}
+	opspec := tf.OpSpec{
+		Type: "DecodeWav",
+		Input: []tf.Input{
+			contents,
+		},
+		Attrs: attrs,
+	}
+	op := scope.AddOperation(opspec)
+	return op.Output(0), op.Output(1)
 }
 
 // AllCandidateSamplerAttr is an optional argument to AllCandidateSampler.
@@ -2995,12 +3058,14 @@ func SpaceToDepth(scope *Scope, input tf.Output, block_size int64) (output tf.Ou
 //
 // In Python, this scatter operation would look like this:
 //
+// ```python
 //     indices = tf.constant([[4], [3], [1], [7]])
 //     updates = tf.constant([9, 10, 11, 12])
 //     shape = tf.constant([8])
 //     scatter = tf.scatter_nd(indices, updates, shape)
 //     with tf.Session() as sess:
 //       print sess.run(scatter)
+// ```
 //
 // The resulting tensor would look like this:
 //
@@ -3016,6 +3081,7 @@ func SpaceToDepth(scope *Scope, input tf.Output, block_size int64) (output tf.Ou
 //
 // In Python, this scatter operation would look like this:
 //
+// ```python
 //     indices = tf.constant([[0], [2]])
 //     updates = tf.constant([[[5, 5, 5, 5], [6, 6, 6, 6],
 //                             [7, 7, 7, 7], [8, 8, 8, 8]],
@@ -3025,6 +3091,7 @@ func SpaceToDepth(scope *Scope, input tf.Output, block_size int64) (output tf.Ou
 //     scatter = tf.scatter_nd(indices, updates, shape)
 //     with tf.Session() as sess:
 //       print sess.run(scatter)
+// ```
 //
 // The resulting tensor would look like this:
 //
@@ -4927,10 +4994,10 @@ func BatchMatMulAdjY(value bool) BatchMatMulAttr {
 // means to transpose and conjugate it) before multiplication by setting
 // the `adj_x` or `adj_y` flag to `True`, which are by default `False`.
 //
-// The input tensors `x` and `y` are 3-D or higher with shape `[..., r_x, c_x]`
+// The input tensors `x` and `y` are 2-D or higher with shape `[..., r_x, c_x]`
 // and `[..., r_y, c_y]`.
 //
-// The output tensor is 3-D or higher with shape `[..., r_o, c_o]`, where:
+// The output tensor is 2-D or higher with shape `[..., r_o, c_o]`, where:
 //
 //     r_o = c_x if adj_x else r_x
 //     c_o = r_y if adj_y else c_y
@@ -4940,8 +5007,8 @@ func BatchMatMulAdjY(value bool) BatchMatMulAttr {
 //     output[..., :, :] = matrix(x[..., :, :]) * matrix(y[..., :, :])
 //
 // Arguments:
-//	x: 3-D or higher with shape `[..., r_x, c_x]`.
-//	y: 3-D or higher with shape `[..., r_y, c_y]`.
+//	x: 2-D or higher with shape `[..., r_x, c_x]`.
+//	y: 2-D or higher with shape `[..., r_y, c_y]`.
 //
 // Returns 3-D or higher with shape `[..., r_o, c_o]`
 func BatchMatMul(scope *Scope, x tf.Output, y tf.Output, optional ...BatchMatMulAttr) (output tf.Output) {
@@ -5138,6 +5205,23 @@ func FusedBatchNormGrad(scope *Scope, y_backprop tf.Output, x tf.Output, scale t
 	return op.Output(0), op.Output(1), op.Output(2), op.Output(3), op.Output(4)
 }
 
+// AvgPool3DAttr is an optional argument to AvgPool3D.
+type AvgPool3DAttr func(optionalAttr)
+
+// AvgPool3DDataFormat sets the optional data_format attribute to value.
+//
+// value: The data format of the input and output data. With the
+// default format "NDHWC", the data is stored in the order of:
+//     [batch, in_depth, in_height, in_width, in_channels].
+// Alternatively, the format could be "NCDHW", the data storage order is:
+//     [batch, in_channels, in_depth, in_height, in_width].
+// If not specified, defaults to "NDHWC"
+func AvgPool3DDataFormat(value string) AvgPool3DAttr {
+	return func(m optionalAttr) {
+		m["data_format"] = value
+	}
+}
+
 // Performs 3D average pooling on the input.
 //
 // Arguments:
@@ -5149,11 +5233,14 @@ func FusedBatchNormGrad(scope *Scope, y_backprop tf.Output, x tf.Output, scale t
 //	padding: The type of padding algorithm to use.
 //
 // Returns The average pooled output tensor.
-func AvgPool3D(scope *Scope, input tf.Output, ksize []int64, strides []int64, padding string) (output tf.Output) {
+func AvgPool3D(scope *Scope, input tf.Output, ksize []int64, strides []int64, padding string, optional ...AvgPool3DAttr) (output tf.Output) {
 	if scope.Err() != nil {
 		return
 	}
 	attrs := map[string]interface{}{"ksize": ksize, "strides": strides, "padding": padding}
+	for _, a := range optional {
+		a(attrs)
+	}
 	opspec := tf.OpSpec{
 		Type: "AvgPool3D",
 		Input: []tf.Input{
@@ -5316,6 +5403,23 @@ func Equal(scope *Scope, x tf.Output, y tf.Output) (z tf.Output) {
 	return op.Output(0)
 }
 
+// Conv3DBackpropInputV2Attr is an optional argument to Conv3DBackpropInputV2.
+type Conv3DBackpropInputV2Attr func(optionalAttr)
+
+// Conv3DBackpropInputV2DataFormat sets the optional data_format attribute to value.
+//
+// value: The data format of the input and output data. With the
+// default format "NDHWC", the data is stored in the order of:
+//     [batch, in_depth, in_height, in_width, in_channels].
+// Alternatively, the format could be "NCDHW", the data storage order is:
+//     [batch, in_channels, in_depth, in_height, in_width].
+// If not specified, defaults to "NDHWC"
+func Conv3DBackpropInputV2DataFormat(value string) Conv3DBackpropInputV2Attr {
+	return func(m optionalAttr) {
+		m["data_format"] = value
+	}
+}
+
 // Computes the gradients of 3-D convolution with respect to the input.
 //
 // Arguments:
@@ -5329,17 +5433,40 @@ func Equal(scope *Scope, x tf.Output, y tf.Output) (z tf.Output) {
 //	strides: 1-D tensor of length 5. The stride of the sliding window for each
 // dimension of `input`. Must have `strides[0] = strides[4] = 1`.
 //	padding: The type of padding algorithm to use.
-func Conv3DBackpropInputV2(scope *Scope, input_sizes tf.Output, filter tf.Output, out_backprop tf.Output, strides []int64, padding string) (output tf.Output) {
+func Conv3DBackpropInputV2(scope *Scope, input_sizes tf.Output, filter tf.Output, out_backprop tf.Output, strides []int64, padding string, optional ...Conv3DBackpropInputV2Attr) (output tf.Output) {
 	if scope.Err() != nil {
 		return
 	}
 	attrs := map[string]interface{}{"strides": strides, "padding": padding}
+	for _, a := range optional {
+		a(attrs)
+	}
 	opspec := tf.OpSpec{
 		Type: "Conv3DBackpropInputV2",
 		Input: []tf.Input{
 			input_sizes, filter, out_backprop,
 		},
 		Attrs: attrs,
+	}
+	op := scope.AddOperation(opspec)
+	return op.Output(0)
+}
+
+// Returns a tensor of ones with the same shape and type as x.
+//
+// Arguments:
+//	x: a tensor of type T.
+//
+// Returns a tensor of the same shape and type as x but filled with ones.
+func OnesLike(scope *Scope, x tf.Output) (y tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	opspec := tf.OpSpec{
+		Type: "OnesLike",
+		Input: []tf.Input{
+			x,
+		},
 	}
 	op := scope.AddOperation(opspec)
 	return op.Output(0)
@@ -5565,6 +5692,23 @@ func RemoteFusedGraphExecute(scope *Scope, values []tf.Output, N int64, U tf.Dat
 	return output
 }
 
+// Conv3DBackpropFilterV2Attr is an optional argument to Conv3DBackpropFilterV2.
+type Conv3DBackpropFilterV2Attr func(optionalAttr)
+
+// Conv3DBackpropFilterV2DataFormat sets the optional data_format attribute to value.
+//
+// value: The data format of the input and output data. With the
+// default format "NDHWC", the data is stored in the order of:
+//     [batch, in_depth, in_height, in_width, in_channels].
+// Alternatively, the format could be "NCDHW", the data storage order is:
+//     [batch, in_channels, in_depth, in_height, in_width].
+// If not specified, defaults to "NDHWC"
+func Conv3DBackpropFilterV2DataFormat(value string) Conv3DBackpropFilterV2Attr {
+	return func(m optionalAttr) {
+		m["data_format"] = value
+	}
+}
+
 // Computes the gradients of 3-D convolution with respect to the filter.
 //
 // Arguments:
@@ -5578,11 +5722,14 @@ func RemoteFusedGraphExecute(scope *Scope, values []tf.Output, N int64, U tf.Dat
 //	strides: 1-D tensor of length 5. The stride of the sliding window for each
 // dimension of `input`. Must have `strides[0] = strides[4] = 1`.
 //	padding: The type of padding algorithm to use.
-func Conv3DBackpropFilterV2(scope *Scope, input tf.Output, filter_sizes tf.Output, out_backprop tf.Output, strides []int64, padding string) (output tf.Output) {
+func Conv3DBackpropFilterV2(scope *Scope, input tf.Output, filter_sizes tf.Output, out_backprop tf.Output, strides []int64, padding string, optional ...Conv3DBackpropFilterV2Attr) (output tf.Output) {
 	if scope.Err() != nil {
 		return
 	}
 	attrs := map[string]interface{}{"strides": strides, "padding": padding}
+	for _, a := range optional {
+		a(attrs)
+	}
 	opspec := tf.OpSpec{
 		Type: "Conv3DBackpropFilterV2",
 		Input: []tf.Input{
@@ -8522,6 +8669,35 @@ func MergeSummary(scope *Scope, inputs []tf.Output) (summary tf.Output) {
 	return op.Output(0)
 }
 
+// Encode audio data using the WAV file format.
+//
+// This operation will generate a string suitable to be saved out to create a .wav
+// audio file. It will be encoded in the 16-bit PCM format. It takes in float
+// values in the range -1.0f to 1.0f, and any outside that value will be clamped to
+// that range.
+//
+// `audio` is a 2-D float Tensor of shape `[length, channels]`.
+// `sample_rate` is a scalar Tensor holding the rate to use (e.g. 44100).
+//
+// Arguments:
+//	audio: 2-D with shape `[length, channels]`.
+//	sample_rate: Scalar containing the sample frequency.
+//
+// Returns 0-D. WAV-encoded file contents.
+func EncodeWav(scope *Scope, audio tf.Output, sample_rate tf.Output) (contents tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	opspec := tf.OpSpec{
+		Type: "EncodeWav",
+		Input: []tf.Input{
+			audio, sample_rate,
+		},
+	}
+	op := scope.AddOperation(opspec)
+	return op.Output(0)
+}
+
 // The gradient operator for the SparseAdd op.
 //
 // The SparseAdd op calculates A + B, where A, B, and the sum are all represented
@@ -8612,6 +8788,23 @@ func SparseDenseCwiseAdd(scope *Scope, sp_indices tf.Output, sp_values tf.Output
 	return op.Output(0)
 }
 
+// Conv3DAttr is an optional argument to Conv3D.
+type Conv3DAttr func(optionalAttr)
+
+// Conv3DDataFormat sets the optional data_format attribute to value.
+//
+// value: The data format of the input and output data. With the
+// default format "NDHWC", the data is stored in the order of:
+//     [batch, in_depth, in_height, in_width, in_channels].
+// Alternatively, the format could be "NCDHW", the data storage order is:
+//     [batch, in_channels, in_depth, in_height, in_width].
+// If not specified, defaults to "NDHWC"
+func Conv3DDataFormat(value string) Conv3DAttr {
+	return func(m optionalAttr) {
+		m["data_format"] = value
+	}
+}
+
 // Computes a 3-D convolution given 5-D `input` and `filter` tensors.
 //
 // In signal processing, cross-correlation is a measure of similarity of
@@ -8627,11 +8820,14 @@ func SparseDenseCwiseAdd(scope *Scope, sp_indices tf.Output, sp_values tf.Output
 //	strides: 1-D tensor of length 5. The stride of the sliding window for each
 // dimension of `input`. Must have `strides[0] = strides[4] = 1`.
 //	padding: The type of padding algorithm to use.
-func Conv3D(scope *Scope, input tf.Output, filter tf.Output, strides []int64, padding string) (output tf.Output) {
+func Conv3D(scope *Scope, input tf.Output, filter tf.Output, strides []int64, padding string, optional ...Conv3DAttr) (output tf.Output) {
 	if scope.Err() != nil {
 		return
 	}
 	attrs := map[string]interface{}{"strides": strides, "padding": padding}
+	for _, a := range optional {
+		a(attrs)
+	}
 	opspec := tf.OpSpec{
 		Type: "Conv3D",
 		Input: []tf.Input{
@@ -8879,15 +9075,16 @@ func Rint(scope *Scope, x tf.Output) (y tf.Output) {
 	return op.Output(0)
 }
 
-// Compute the 1-dimensional discrete Fourier Transform over the inner-most
+// Fast Fourier transform.
 //
+// Computes the 1-dimensional discrete Fourier transform over the inner-most
 // dimension of `input`.
 //
 // Arguments:
 //	input: A complex64 tensor.
 //
 // Returns A complex64 tensor of the same shape as `input`. The inner-most
-//   dimension of `input` is replaced with its 1D Fourier Transform.
+//   dimension of `input` is replaced with its 1D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.fft
@@ -9518,15 +9715,16 @@ func ResourceApplyCenteredRMSProp(scope *Scope, var_ tf.Output, mg tf.Output, ms
 	return scope.AddOperation(opspec)
 }
 
-// Compute the inverse 3-dimensional discrete Fourier Transform over the inner-most
+// Inverse 3D fast Fourier transform.
 //
-// 3 dimensions of `input`.
+// Computes the inverse 3-dimensional discrete Fourier transform over the
+// inner-most 3 dimensions of `input`.
 //
 // Arguments:
 //	input: A complex64 tensor.
 //
 // Returns A complex64 tensor of the same shape as `input`. The inner-most 3
-//   dimensions of `input` are replaced with their inverse 3D Fourier Transform.
+//   dimensions of `input` are replaced with their inverse 3D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.ifftn with 3 dimensions.
@@ -9795,15 +9993,16 @@ func ResourceApplyAdam(scope *Scope, var_ tf.Output, m tf.Output, v tf.Output, b
 	return scope.AddOperation(opspec)
 }
 
-// Compute the 3-dimensional discrete Fourier Transform over the inner-most 3
+// 3D fast Fourier transform.
 //
+// Computes the 3-dimensional discrete Fourier transform over the inner-most 3
 // dimensions of `input`.
 //
 // Arguments:
 //	input: A complex64 tensor.
 //
 // Returns A complex64 tensor of the same shape as `input`. The inner-most 3
-//   dimensions of `input` are replaced with their 3D Fourier Transform.
+//   dimensions of `input` are replaced with their 3D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.fftn with 3 dimensions.
@@ -9988,15 +10187,16 @@ func ResourceApplyProximalGradientDescent(scope *Scope, var_ tf.Output, alpha tf
 	return scope.AddOperation(opspec)
 }
 
-// Compute the 2-dimensional discrete Fourier Transform over the inner-most
+// 2D fast Fourier transform.
 //
+// Computes the 2-dimensional discrete Fourier transform over the inner-most
 // 2 dimensions of `input`.
 //
 // Arguments:
 //	input: A complex64 tensor.
 //
 // Returns A complex64 tensor of the same shape as `input`. The inner-most 2
-//   dimensions of `input` are replaced with their 2D Fourier Transform.
+//   dimensions of `input` are replaced with their 2D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.fft2
@@ -10048,15 +10248,16 @@ func Fill(scope *Scope, dims tf.Output, value tf.Output) (output tf.Output) {
 	return op.Output(0)
 }
 
-// Compute the inverse 2-dimensional discrete Fourier Transform over the inner-most
+// Inverse 2D fast Fourier transform.
 //
-// 2 dimensions of `input`.
+// Computes the inverse 2-dimensional discrete Fourier transform over the
+// inner-most 2 dimensions of `input`.
 //
 // Arguments:
 //	input: A complex64 tensor.
 //
 // Returns A complex64 tensor of the same shape as `input`. The inner-most 2
-//   dimensions of `input` are replaced with their inverse 2D Fourier Transform.
+//   dimensions of `input` are replaced with their inverse 2D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.ifft2
@@ -10338,6 +10539,23 @@ func ResourceSparseApplyAdagradDA(scope *Scope, var_ tf.Output, gradient_accumul
 	return scope.AddOperation(opspec)
 }
 
+// AvgPool3DGradAttr is an optional argument to AvgPool3DGrad.
+type AvgPool3DGradAttr func(optionalAttr)
+
+// AvgPool3DGradDataFormat sets the optional data_format attribute to value.
+//
+// value: The data format of the input and output data. With the
+// default format "NDHWC", the data is stored in the order of:
+//     [batch, in_depth, in_height, in_width, in_channels].
+// Alternatively, the format could be "NCDHW", the data storage order is:
+//     [batch, in_channels, in_depth, in_height, in_width].
+// If not specified, defaults to "NDHWC"
+func AvgPool3DGradDataFormat(value string) AvgPool3DGradAttr {
+	return func(m optionalAttr) {
+		m["data_format"] = value
+	}
+}
+
 // Computes gradients of average pooling function.
 //
 // Arguments:
@@ -10350,11 +10568,14 @@ func ResourceSparseApplyAdagradDA(scope *Scope, var_ tf.Output, gradient_accumul
 //	padding: The type of padding algorithm to use.
 //
 // Returns The backprop for input.
-func AvgPool3DGrad(scope *Scope, orig_input_shape tf.Output, grad tf.Output, ksize []int64, strides []int64, padding string) (output tf.Output) {
+func AvgPool3DGrad(scope *Scope, orig_input_shape tf.Output, grad tf.Output, ksize []int64, strides []int64, padding string, optional ...AvgPool3DGradAttr) (output tf.Output) {
 	if scope.Err() != nil {
 		return
 	}
 	attrs := map[string]interface{}{"ksize": ksize, "strides": strides, "padding": padding}
+	for _, a := range optional {
+		a(attrs)
+	}
 	opspec := tf.OpSpec{
 		Type: "AvgPool3DGrad",
 		Input: []tf.Input{
@@ -11040,8 +11261,9 @@ func Cross(scope *Scope, a tf.Output, b tf.Output) (product tf.Output) {
 	return op.Output(0)
 }
 
-// Compute the inverse 2-dimensional discrete Fourier Transform of a real-valued
+// Inverse 2D real-valued fast Fourier transform.
 //
+// Computes the inverse 2-dimensional discrete Fourier transform of a real-valued
 // signal over the inner-most 2 dimensions of `input`.
 //
 // The inner-most 2 dimensions of `input` are assumed to be the result of `RFFT2D`:
@@ -11057,7 +11279,7 @@ func Cross(scope *Scope, a tf.Output, b tf.Output) (product tf.Output) {
 //
 // Returns A float32 tensor of the same rank as `input`. The inner-most 2
 //   dimensions of `input` are replaced with the `fft_length` samples of their
-//   inverse 2D Fourier Transform.
+//   inverse 2D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.irfft2
@@ -11197,6 +11419,23 @@ func SparseReduceSum(scope *Scope, input_indices tf.Output, input_values tf.Outp
 	return op.Output(0)
 }
 
+// MaxPool3DGradAttr is an optional argument to MaxPool3DGrad.
+type MaxPool3DGradAttr func(optionalAttr)
+
+// MaxPool3DGradDataFormat sets the optional data_format attribute to value.
+//
+// value: The data format of the input and output data. With the
+// default format "NDHWC", the data is stored in the order of:
+//     [batch, in_depth, in_height, in_width, in_channels].
+// Alternatively, the format could be "NCDHW", the data storage order is:
+//     [batch, in_channels, in_depth, in_height, in_width].
+// If not specified, defaults to "NDHWC"
+func MaxPool3DGradDataFormat(value string) MaxPool3DGradAttr {
+	return func(m optionalAttr) {
+		m["data_format"] = value
+	}
+}
+
 // Computes gradients of max pooling function.
 //
 // Arguments:
@@ -11208,11 +11447,14 @@ func SparseReduceSum(scope *Scope, input_indices tf.Output, input_values tf.Outp
 //	strides: 1-D tensor of length 5. The stride of the sliding window for each
 // dimension of `input`. Must have `strides[0] = strides[4] = 1`.
 //	padding: The type of padding algorithm to use.
-func MaxPool3DGrad(scope *Scope, orig_input tf.Output, orig_output tf.Output, grad tf.Output, ksize []int64, strides []int64, padding string) (output tf.Output) {
+func MaxPool3DGrad(scope *Scope, orig_input tf.Output, orig_output tf.Output, grad tf.Output, ksize []int64, strides []int64, padding string, optional ...MaxPool3DGradAttr) (output tf.Output) {
 	if scope.Err() != nil {
 		return
 	}
 	attrs := map[string]interface{}{"ksize": ksize, "strides": strides, "padding": padding}
+	for _, a := range optional {
+		a(attrs)
+	}
 	opspec := tf.OpSpec{
 		Type: "MaxPool3DGrad",
 		Input: []tf.Input{
@@ -12882,7 +13124,7 @@ func ReaderSerializeStateV2(scope *Scope, reader_handle tf.Output) (state tf.Out
 //
 // Using scalar `pos` and `len`:
 //
-// ```
+// ```python
 // input = [b'Hello', b'World']
 // position = 1
 // length = 3
@@ -12892,7 +13134,7 @@ func ReaderSerializeStateV2(scope *Scope, reader_handle tf.Output) (state tf.Out
 //
 // Using `pos` and `len` with same shape as `input`:
 //
-// ```
+// ```python
 // input = [[b'ten', b'eleven', b'twelve'],
 //          [b'thirteen', b'fourteen', b'fifteen'],
 //          [b'sixteen', b'seventeen', b'eighteen']]
@@ -13615,7 +13857,7 @@ func ReduceJoinSeparator(value string) ReduceJoinAttr {
 //
 // For example:
 //
-// ```
+// ```python
 // # tensor `a` is [["a", "b"], ["c", "d"]]
 // tf.reduce_join(a, 0) ==> ["ac", "bd"]
 // tf.reduce_join(a, 1) ==> ["ab", "cd"]
@@ -13937,15 +14179,16 @@ func Zeta(scope *Scope, x tf.Output, q tf.Output) (z tf.Output) {
 	return op.Output(0)
 }
 
-// Compute the inverse 1-dimensional discrete Fourier Transform over the inner-most
+// Inverse fast Fourier transform.
 //
-// dimension of `input`.
+// Computes the inverse 1-dimensional discrete Fourier transform over the
+// inner-most dimension of `input`.
 //
 // Arguments:
 //	input: A complex64 tensor.
 //
 // Returns A complex64 tensor of the same shape as `input`. The inner-most
-//   dimension of `input` is replaced with its inverse 1D Fourier Transform.
+//   dimension of `input` is replaced with its inverse 1D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.ifft
@@ -13964,8 +14207,9 @@ func IFFT(scope *Scope, input tf.Output) (output tf.Output) {
 	return op.Output(0)
 }
 
-// Compute the inverse 1-dimensional discrete Fourier Transform of a real-valued
+// Inverse real-valued fast Fourier transform.
 //
+// Computes the inverse 1-dimensional discrete Fourier transform of a real-valued
 // signal over the inner-most dimension of `input`.
 //
 // The inner-most dimension of `input` is assumed to be the result of `RFFT`: the
@@ -13981,7 +14225,7 @@ func IFFT(scope *Scope, input tf.Output) (output tf.Output) {
 //
 // Returns A float32 tensor of the same rank as `input`. The inner-most
 //   dimension of `input` is replaced with the `fft_length` samples of its inverse
-//   1D Fourier Transform.
+//   1D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.irfft
@@ -14125,8 +14369,9 @@ func AssignAddVariableOp(scope *Scope, resource tf.Output, value tf.Output) (o *
 	return scope.AddOperation(opspec)
 }
 
-// Compute the 1-dimensional discrete Fourier Transform of a real-valued signal
+// Real-valued fast Fourier transform.
 //
+// Computes the 1-dimensional discrete Fourier transform of a real-valued signal
 // over the inner-most dimension of `input`.
 //
 // Since the DFT of a real signal is Hermitian-symmetric, `RFFT` only returns the
@@ -14139,7 +14384,7 @@ func AssignAddVariableOp(scope *Scope, resource tf.Output, value tf.Output) (o *
 //
 // Returns A complex64 tensor of the same rank as `input`. The inner-most
 //   dimension of `input` is replaced with the `fft_length / 2 + 1` unique
-//   frequency components of its 1D Fourier Transform.
+//   frequency components of its 1D Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.fft.rfft
@@ -14494,6 +14739,23 @@ func MatrixDiag(scope *Scope, diagonal tf.Output) (output tf.Output) {
 	return op.Output(0)
 }
 
+// MaxPool3DAttr is an optional argument to MaxPool3D.
+type MaxPool3DAttr func(optionalAttr)
+
+// MaxPool3DDataFormat sets the optional data_format attribute to value.
+//
+// value: The data format of the input and output data. With the
+// default format "NDHWC", the data is stored in the order of:
+//     [batch, in_depth, in_height, in_width, in_channels].
+// Alternatively, the format could be "NCDHW", the data storage order is:
+//     [batch, in_channels, in_depth, in_height, in_width].
+// If not specified, defaults to "NDHWC"
+func MaxPool3DDataFormat(value string) MaxPool3DAttr {
+	return func(m optionalAttr) {
+		m["data_format"] = value
+	}
+}
+
 // Performs 3D max pooling on the input.
 //
 // Arguments:
@@ -14505,11 +14767,14 @@ func MatrixDiag(scope *Scope, diagonal tf.Output) (output tf.Output) {
 //	padding: The type of padding algorithm to use.
 //
 // Returns The max pooled output tensor.
-func MaxPool3D(scope *Scope, input tf.Output, ksize []int64, strides []int64, padding string) (output tf.Output) {
+func MaxPool3D(scope *Scope, input tf.Output, ksize []int64, strides []int64, padding string, optional ...MaxPool3DAttr) (output tf.Output) {
 	if scope.Err() != nil {
 		return
 	}
 	attrs := map[string]interface{}{"ksize": ksize, "strides": strides, "padding": padding}
+	for _, a := range optional {
+		a(attrs)
+	}
 	opspec := tf.OpSpec{
 		Type: "MaxPool3D",
 		Input: []tf.Input{
@@ -14695,8 +14960,9 @@ func StringSplit(scope *Scope, input tf.Output, delimiter tf.Output) (indices tf
 	return op.Output(0), op.Output(1), op.Output(2)
 }
 
-// Compute the inverse 3-dimensional discrete Fourier Transform of a real-valued
+// Inverse 3D real-valued fast Fourier transform.
 //
+// Computes the inverse 3-dimensional discrete Fourier transform of a real-valued
 // signal over the inner-most 3 dimensions of `input`.
 //
 // The inner-most 3 dimensions of `input` are assumed to be the result of `RFFT3D`:
@@ -14712,7 +14978,7 @@ func StringSplit(scope *Scope, input tf.Output, delimiter tf.Output) (indices tf
 //
 // Returns A float32 tensor of the same rank as `input`. The inner-most 3
 //   dimensions of `input` are replaced with the `fft_length` samples of their
-//   inverse 3D real Fourier Transform.
+//   inverse 3D real Fourier transform.
 //
 // @compatibility(numpy)
 // Equivalent to np.irfftn with 3 dimensions.
@@ -16164,8 +16430,9 @@ func Erfc(scope *Scope, x tf.Output) (y tf.Output) {
 	return op.Output(0)
 }
 
-// Compute the 2-dimensional discrete Fourier Transform of a real-valued signal
+// 2D real-valued fast Fourier transform.
 //
+// Computes the 2-dimensional discrete Fourier transform of a real-valued signal
 // over the inner-most 2 dimensions of `input`.
 //
 // Since the DFT of a real signal is Hermitian-symmetric, `RFFT2D` only returns the
@@ -16178,7 +16445,7 @@ func Erfc(scope *Scope, x tf.Output) (y tf.Output) {
 //	fft_length: An int32 tensor of shape [2]. The FFT length for each dimension.
 //
 // Returns A complex64 tensor of the same rank as `input`. The inner-most 2
-//   dimensions of `input` are replaced with their 2D Fourier Transform. The
+//   dimensions of `input` are replaced with their 2D Fourier transform. The
 //   inner-most dimension contains `fft_length / 2 + 1` unique frequency
 //   components.
 //
@@ -19808,8 +20075,9 @@ func TensorArrayGatherV3(scope *Scope, handle tf.Output, indices tf.Output, flow
 	return op.Output(0)
 }
 
-// Compute the 3-dimensional discrete Fourier Transform of a real-valued signal
+// 3D real-valued fast Fourier transform.
 //
+// Computes the 3-dimensional discrete Fourier transform of a real-valued signal
 // over the inner-most 3 dimensions of `input`.
 //
 // Since the DFT of a real signal is Hermitian-symmetric, `RFFT3D` only returns the
@@ -19822,7 +20090,7 @@ func TensorArrayGatherV3(scope *Scope, handle tf.Output, indices tf.Output, flow
 //	fft_length: An int32 tensor of shape [3]. The FFT length for each dimension.
 //
 // Returns A complex64 tensor of the same rank as `input`. The inner-most 3
-//   dimensions of `input` are replaced with the their 3D Fourier Transform. The
+//   dimensions of `input` are replaced with the their 3D Fourier transform. The
 //   inner-most dimension contains `fft_length / 2 + 1` unique frequency
 //   components.
 //

@@ -191,6 +191,8 @@ elif [[ $(uname) == "Darwin" ]]; then
     PY_TAGS="py2-none"
   elif [[ ${PY_MAJOR_MINOR_VER} == "3.5" ]]; then
     PY_TAGS="py3-none"
+  elif [[ ${PY_MAJOR_MINOR_VER} == "3.6" ]]; then
+    PY_TAGS="py3-none"
   fi
   PLATFORM_TAG="any"
 fi
@@ -267,7 +269,7 @@ pip install --upgrade pip==8.1.2
 
 # Force tensorflow reinstallation. Otherwise it may not get installed from
 # last build if it had the same version number as previous build.
-PIP_FLAGS="--upgrade --force-reinstall --no-deps"
+PIP_FLAGS="--upgrade --force-reinstall"
 pip install -v ${PIP_FLAGS} ${WHL_PATH} || \
     die "pip install (forcing to reinstall tensorflow) FAILED"
 echo "Successfully installed pip package ${WHL_PATH}"
