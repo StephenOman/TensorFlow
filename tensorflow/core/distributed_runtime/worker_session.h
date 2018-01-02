@@ -18,35 +18,44 @@ limitations under the License.
 
 #include <string>
 
+#include "tensorflow/core/common_runtime/device_mgr.h"
+#include "tensorflow/core/distributed_runtime/cluster_function_library_runtime.h"
 #include "tensorflow/core/distributed_runtime/graph_mgr.h"
-#include "tensorflow/core/distributed_runtime/rendezvous_mgr_interface.h"
 #include "tensorflow/core/distributed_runtime/worker_cache.h"
 
 namespace tensorflow {
 
+class ClusterFunctionLibraryRuntime;
 class GraphMgr;
-class RendezvousMgrInterface;
 class WorkerCacheInterface;
 
 // WorkerSession encapsulates all of the state relating to a given session.
 struct WorkerSession {
+  // The name of the session.
+  const string session_name;
+
   // The name of the worker. E.g., /job:mnist/replica:0/task:1.
   const string worker_name;
 
   // Object from which WorkerInterface instances can be obtained.
   const std::unique_ptr<WorkerCacheInterface> worker_cache;
 
-  // A set of rendezvous keyed by step ids.
-  const std::unique_ptr<RendezvousMgrInterface> rendezvous_mgr;
+  // Collection of local devices. These devices are typically RenamedDevices
+  // in all except the SessionMgr.legacy_session_. legacy_session_.device_mgr
+  // == worker_env_.device_mgr, which holds the true devices.
+  const std::unique_ptr<DeviceMgr> device_mgr;
 
   // graph_mgr keeps track of the registered graphs of this session.
   //
   // Note: graph_mgr must be deleted before rendezvous_mgr!
+  // Note: graph_mgr must be deleted before device_mgr!
   const std::unique_ptr<GraphMgr> graph_mgr;
 
-  WorkerSession(const string& worker_name,
+  std::unique_ptr<ClusterFunctionLibraryRuntime> cluster_flr;
+
+  WorkerSession(const string& session_name, const string& worker_name,
                 std::unique_ptr<WorkerCacheInterface> worker_cache,
-                std::unique_ptr<RendezvousMgrInterface> rendezvous_mgr,
+                std::unique_ptr<DeviceMgr> device_mgr,
                 std::unique_ptr<GraphMgr> graph_mgr);
 };
 

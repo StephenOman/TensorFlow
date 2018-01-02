@@ -16,7 +16,10 @@ limitations under the License.
 #include "tensorflow/core/framework/function_testlib.h"
 
 #include "tensorflow/core/framework/function.h"
+#include "tensorflow/core/framework/node_def.pb.h"
 #include "tensorflow/core/framework/tensor_testutil.h"
+#include "tensorflow/core/framework/versions.pb.h"
+#include "tensorflow/core/lib/core/threadpool.h"
 #include "tensorflow/core/public/version.h"
 
 namespace tensorflow {
@@ -90,6 +93,26 @@ FunctionDef XTimesTwo() {
       });
 }
 
+FunctionDef XTimesTwoInt32() {
+  const Tensor kTwo = test::AsScalar<int64>(2);
+  return FDH::Define(
+      // Name
+      "XTimesTwoInt32",
+      // Args
+      {"x: int32"},
+      // Return values
+      {"y: int32"}, {},
+      // Nodes
+      {
+          {{"two"}, "Const", {}, {{"value", kTwo}, {"dtype", DT_INT64}}},
+          {{"scale"},
+           "Cast",
+           {"two"},
+           {{"SrcT", DT_INT64}, {"DstT", DT_INT32}}},
+          {{"y"}, "Mul", {"x", "scale"}, {{"T", DT_INT32}}},
+      });
+}
+
 FunctionDef XTimesFour() {
   return FDH::Create(
       // Name
@@ -126,25 +149,33 @@ FunctionDef XTimes16() {
       {{"y", "y:y:0"}});
 }
 
-FunctionDef WXPlusB() {
-  return FDH::Define(
-      // Name
-      "WXPlusB",
-      // Args
-      {"w: T", "x: T", "b: T"},
-      // Return values
-      {"y: T"},
-      // Attr def
-      {"T: {float, double}"},
-      // Nodes
-      {{{"mm"},
-        "MatMul",
-        {"w", "x"},
-        {{"T", "$T"},
-         {"transpose_a", false},
-         {"transpose_b", false},
+FunctionDef WXPlusB(){return FDH::Define(
+    // Name
+    "WXPlusB",
+    // Args
+    {"w: T", "x: T", "b: T"},
+    // Return values
+    {"y: T"},
+    // Attr def
+    {"T: {float, double}"},
+    // Nodes
+    {
+      {{"mm"},
+       "MatMul",
+       {"w", "x"},
+       {
+           {"T", "$T"}, {"transpose_a", false}, {"transpose_b", false},
+#ifdef INTEL_MKL
+       }},
+#else
          {"_kernel", "eigen"}}},
-       {{"y"}, "Add", {"mm", "b"}, {{"T", "$T"}}}});
+#endif
+      {
+        {"y"}, "Add", {"mm", "b"}, {
+          { "T", "$T" }
+        }
+      }
+    });
 }
 
 FunctionDef Swap() {
@@ -160,6 +191,12 @@ FunctionDef Swap() {
       // Nodes
       {{{"o0"}, "Identity", {"i1"}, {{"T", "$T"}}},
        {{"o1"}, "Identity", {"i0"}, {{"T", "$T"}}}});
+}
+
+void FunctionTestSchedClosure(std::function<void()> fn) {
+  static thread::ThreadPool* w =
+      new thread::ThreadPool(Env::Default(), "Test", 8);
+  w->Schedule(std::move(fn));
 }
 
 }  // end namespace function

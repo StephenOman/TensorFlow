@@ -88,7 +88,7 @@ class Barrier : public ResourceBase {
   template <typename T>
   void TryInsertMany(const Tensor& keys, int component_index,
                      const Tensor& values, OpKernelContext* ctx,
-                     DoneCallback callback) {
+                     const DoneCallback& callback) {
     TensorShape element_shape = values.shape();
     OP_REQUIRES_ASYNC(
         ctx, keys.NumElements() == 0 || element_shape.num_elements() > 0,
@@ -161,9 +161,11 @@ class Barrier : public ResourceBase {
         component_shape.InsertDim(0, insertion_size);
         Tensor component(ready_tuples[0][i].dtype(), component_shape);
         for (int b = 0; b < insertion_size; ++b) {
-          OP_REQUIRES_OK_ASYNC(ctx, QueueBase::CopyElementToSlice(
-                                        ready_tuples[b][i], &component, b),
-                               callback);
+          OP_REQUIRES_OK_ASYNC(
+              ctx,
+              batch_util::CopyElementToSlice(std::move(ready_tuples[b][i]),
+                                             &component, b),
+              callback);
         }
         insert_tuple.push_back(component);
       }
@@ -195,7 +197,8 @@ class Barrier : public ResourceBase {
   }
 
   void TryTakeMany(int num_elements, bool allow_small_batch, int64 timeout,
-                   OpKernelContext* ctx, IndicesKeysValuesCallback callback) {
+                   OpKernelContext* ctx,
+                   const IndicesKeysValuesCallback& callback) {
     int num_elements_to_deliver = num_elements;
     {
       mutex_lock lock(mu_);
@@ -247,7 +250,7 @@ class Barrier : public ResourceBase {
   }
 
   void Close(OpKernelContext* ctx, bool cancel_pending_enqueues,
-             DoneCallback callback) {
+             const DoneCallback& callback) {
     mutex_lock lock(mu_);
     // We're allowed to close twice if the first close wasn't a
     // cancel but the second one is.
@@ -399,7 +402,8 @@ class Barrier : public ResourceBase {
   }
 
   void CloseQueueLocked(OpKernelContext* ctx, bool cancel_pending_enqueues,
-                        DoneCallback callback) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+                        const DoneCallback& callback)
+      EXCLUSIVE_LOCKS_REQUIRED(mu_) {
     // CloseQueueLocked may only be called with mu_ held.
     if (!cancel_pending_enqueues && queue_closed_) {
       callback();
@@ -411,7 +415,7 @@ class Barrier : public ResourceBase {
     }
     queue_closed_ = true;
     if (cancel_pending_enqueues) queue_cancelled_ = true;
-    if (!ready_queue_->closed()) {
+    if (!ready_queue_->is_closed()) {
       ready_queue_->Close(ctx, cancel_pending_enqueues, callback);
     }
   }

@@ -31,7 +31,7 @@ AsyncExecution::AsyncExecution(Backend* backend,
     : backend_(CHECK_NOTNULL(backend)),
       streams_(std::move(streams)),
       profile_(profile),
-      result_(result) {
+      result_(std::move(result)) {
   for (const auto& stream : streams_) {
     CHECK(stream != nullptr);
   }
@@ -39,9 +39,7 @@ AsyncExecution::AsyncExecution(Backend* backend,
 
 tensorflow::Status AsyncExecution::BlockUntilDone() const {
   for (auto& stream : streams_) {
-    if (!stream->BlockHostUntilDone()) {
-      return InternalError("failed to block until done");
-    }
+    TF_RETURN_IF_ERROR(stream->BlockHostUntilDone());
   }
   return tensorflow::Status::OK();
 }

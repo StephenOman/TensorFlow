@@ -1,76 +1,33 @@
-# Installing TensorFlow on Mac OS X
+# Installing TensorFlow on macOS
 
-This guide explains how to install TensorFlow on Mac OS X.
+This guide explains how to install TensorFlow on macOS. Although these
+instructions might also work on other macOS variants, we have only
+tested (and we only support) these instructions on machines meeting the
+following requirements:
 
-## Determine which TensorFlow to install
+  * macOS X 10.11 (El Capitan) or higher
 
-You must choose the type of TensorFlow to install.  Your choices are as follows:
-
-  * **TensorFlow with CPU support only**. If your system does not have a
-    NVIDIA CUDA® GPU, you should install this version. Note that TensorFlow
-    with CPU support is typically easier to install than TensorFlow with
-    GPU support. Therefore, even if you have an NVIDIA CUDA GPU, we recommend
-    installing this version first as a diagnostic step just in case you run
-    into problems installing TensorFlow with GPU support.
-  * **TensorFlow with GPU support**. TensorFlow programs typically run
-    significantly faster on a GPU than on a CPU. Therefore, if your system has
-    a NVIDIA CUDA GPU meeting the prerequisites shown below and you need
-    to run performance-critical applications, you should ultimately
-    install this version.
-
-
-### Requirements to run TensorFlow with GPU support
-
-If you are installing TensorFlow with GPU support using one of the mechanisms
-described in this guide, then the following NVIDIA software must be
-installed on your system:
-
-
-  * CUDA Toolkit 8.0. For details, see
-    [NVIDIA's documentation](http://docs.nvidia.com/cuda/cuda-installation-guide-mac-os-x).
-    Ensure that you append the relevant CUDA pathnames to the
-    `LD_LIBRARY_PATH` environment variable as described in the
-    NVIDIA documentation.
-  * The NVIDIA drivers associated with CUDA Toolkit 8.0.
-  * cuDNN v5.1. For details, see
-    [NVIDIA's documentation](https://developer.nvidia.com/cudnn).
-    Ensure that you create the `CUDA_HOME` environment variable as described in
-    the NVIDIA documentation.
-  * GPU card with CUDA Compute Capability 3.0 or higher.  See
-    [NVIDIA documentation](https://developer.nvidia.com/cuda-gpus)
-    for a list of supported GPU cards.
-
-If you have an earlier version of the preceding packages, please upgrade to
-the specified versions. If upgrading is not possible, you may still run
-TensorFlow with GPU support, but only if you do both of the following:
-
-  * Install TensorFlow from sources as described
-    @{$install_sources$here}.
-  * Install or upgrade to at least the following NVIDIA versions:
-    * CUDA toolkit 7.0 or greater
-    * cuDNN v3 or greater
-    * GPU card with CUDA Compute Capability 3.0 or higher.
-
+Note: As of version 1.2, TensorFlow no longer provides GPU support on macOS.
 
 ## Determine how to install TensorFlow
 
 You must pick the mechanism by which you install TensorFlow. The supported choices are as follows:
 
-  * virtualenv
+  * Virtualenv
   * "native" pip
   * Docker
-  * installing from sources, which is for experts and is documented in
-    a separate guide.
+  * installing from sources, which is documented in
+    [a separate guide](https://www.tensorflow.org/install/install_sources).
 
-**We recommend the virtualenv installation.**
-[Virtualenv](https://virtualenv.pypa.io/en/stable/)
+**We recommend the Virtualenv installation.**
+[Virtualenv](https://virtualenv.pypa.io/en/stable)
 is a virtual Python environment isolated from other Python development,
 incapable of interfering with or being affected by other Python programs
-on the same machine.  During the virtualenv installation process,
+on the same machine.  During the Virtualenv installation process,
 you will install not only TensorFlow but also all the packages that
 TensorFlow requires.  (This is actually pretty easy.)
 To start working with TensorFlow, you simply need to "activate" the
-virtual environment.  All in all, virtualenv provides a safe and
+virtual environment.  All in all, Virtualenv provides a safe and
 reliable mechanism for installing and running TensorFlow.
 
 Native pip installs TensorFlow directly on your system without going through
@@ -81,16 +38,12 @@ to disable System Integrity Protection (SIP) in order to install through native
 pip.  However, if you understand SIP, pip, and your Python environment, a
 native pip installation is relatively easy to perform.
 
-[Docker](http://docker.com/) completely isolates the TensorFlow installation
+[Docker](http://docker.com) completely isolates the TensorFlow installation
 from pre-existing packages on your machine. The Docker container contains
 TensorFlow and all its dependencies. Note that the Docker image can be quite
 large (hundreds of MBs). You might choose the Docker installation if you are
 incorporating TensorFlow into a larger application architecture that
 already uses Docker.
-
-Important: Docker currently does not support TensorFlow with GPU support
-on Mac OS; that is, on Mac OS, Docker only supports TensorFlow with
-CPU support.
 
 In Anaconda, you may use conda to create a virtual environment.
 However, within Anaconda, we recommend installing TensorFlow with the
@@ -100,73 +53,72 @@ However, within Anaconda, we recommend installing TensorFlow with the
 That is, the TensorFlow team neither tests nor maintains the conda package.
 Use that package at your own risk.
 
-## Installing with virtualenv
+## Installing with Virtualenv
 
 Take the following steps to install TensorFlow with Virtualenv:
 
   1. Start a terminal (a shell). You'll perform all subsequent steps
      in this shell.
 
-  2. Install pip and virtualenv by issuing the following commands:
+  2. Install pip and Virtualenv by issuing the following commands:
 
      <pre> $ <b>sudo easy_install pip</b>
-     $ <b>sudo pip install --upgrade virtualenv</b> </pre>
+     $ <b>pip install --upgrade virtualenv</b> </pre>
 
-  3. Create a virtualenv environment by issuing a command of one
+  3. Create a Virtualenv environment by issuing a command of one
      of the following formats:
 
      <pre> $ <b>virtualenv --system-site-packages</b> <i>targetDirectory</i> # for Python 2.7
      $ <b>virtualenv --system-site-packages -p python3</b> <i>targetDirectory</i> # for Python 3.n
      </pre>
 
-     where <i>targetDirectory</i> identifies the top of the virtualenv tree.
+     where <i>targetDirectory</i> identifies the top of the Virtualenv tree.
      Our instructions assume that <i>targetDirectory</i>
      is `~/tensorflow`, but you may choose any directory.
 
-  4. Activate the virtualenv environment by issuing one of the
+  4. Activate the Virtualenv environment by issuing one of the
      following commands:
 
-     <pre>$ <b>source ~/tensorflow/bin/activate</b>      # If using bash, sh, ksh, or zsh
-    $ <b>source ~/tensorflow/bin/activate.csh</b>  # If using csh or tcsh </pre>
+     <pre>$ <b>cd <i>targetDirectory</i></b>
+    $ <b>source ./bin/activate</b>      # If using bash, sh, ksh, or zsh
+    $ <b>source ./bin/activate.csh</b>  # If using csh or tcsh </pre>
 
      The preceding `source` command should change your prompt to the following:
 
-     <pre> (tensorflow)$ </pre>
+     <pre> (<i>targetDirectory</i>)$ </pre>
 
-  5. If pip version 8.1 or later is installed on your system, issue one of
-     the following commands to install TensorFlow and all the packages that
-     TensorFlow requires into the active Virtualenv environment:
+  5. Ensure pip ≥8.1 is installed:
 
-     <pre> $ <b>pip install --upgrade tensorflow</b>      # for Python 2.7
-     $ <b>pip3 install --upgrade tensorflow</b>     # for Python 3.n
-     $ <b>pip install --upgrade tensorflow-gpu</b>  # for Python 2.7 and GPU
-     $ <b>pip3 install --upgrade tensorflow-gpu</b> # for Python 3.n and GPU </pre>
+     <pre> (<i>targetDirectory</i>)$ <b>easy_install -U pip</b></pre>
 
-     If the preceding command succeed, skip Step 6. If it failed,
-     perform Step 6.
+  6. Issue one of the following commands to install TensorFlow and all the
+     packages that TensorFlow requires into the active Virtualenv environment:
 
-  6. Optional. If Step 5 failed (typically because you invoked a pip version
+     <pre> (<i>targetDirectory</i>)$ <b>pip install --upgrade tensorflow</b>      # for Python 2.7
+     (<i>targetDirectory</i>)$ <b>pip3 install --upgrade tensorflow</b>     # for Python 3.n
+
+  7. Optional. If Step 6 failed (typically because you invoked a pip version
      lower than 8.1), install TensorFlow in the active
-     virtualenv environment by issuing a command of the following format:
+     Virtualenv environment by issuing a command of the following format:
 
      <pre> $ <b>pip install --upgrade</b> <i>tfBinaryURL</i>   # Python 2.7
      $ <b>pip3 install --upgrade</b> <i>tfBinaryURL</i>  # Python 3.n </pre>
 
      where <i>tfBinaryURL</i> identifies the URL
      of the TensorFlow Python package. The appropriate value of
-     <i>tfBinaryURL</i> depends on the operating system,
-     Python version, and GPU support. Find the appropriate value for
+     <i>tfBinaryURL</i> depends on the operating system and
+     Python version. Find the appropriate value for
      <i>tfBinaryURL</i> for your system
      [here](#the_url_of_the_tensorflow_python_package).
-     For example, if you are installing TensorFlow for Mac OS X,
-     Python 2.7, and CPU-only support, the command to install
+     For example, if you are installing TensorFlow for macOS,
+     Python 2.7, the command to install
      TensorFlow in the active Virtualenv is as follows:
 
      <pre> $ <b>pip3 install --upgrade \
-     https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py2-none-any.whl</b></pre>
+     https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.4.0-py2-none-any.whl</b></pre>
 
 If you encounter installation problems, see
-[Common Installation Problems](#CommonInstallationProblems).
+[Common Installation Problems](#common-installation-problems).
 
 
 ### Next Steps
@@ -175,26 +127,28 @@ After installing TensorFlow,
 [validate your installation](#ValidateYourInstallation)
 to confirm that the installation worked properly.
 
-Note that you must activate the virtualenv environment each time you
-use TensorFlow in a new shell.  If the virtualenv environment is not
-currently active (that is, the prompt is not `(tensorflow)`, invoke
+Note that you must activate the Virtualenv environment each time you
+use TensorFlow in a new shell.  If the Virtualenv environment is not
+currently active (that is, the prompt is not `(<i>targetDirectory</i>)`, invoke
 one of the following commands:
 
-<pre>$ <b>source ~/tensorflow/bin/activate</b>      # bash, sh, ksh, or zsh
-$ <b>source ~/tensorflow/bin/activate.csh</b>  # csh or tcsh </pre>
+<pre>$ <b>cd <i>targetDirectory</i></b>
+$ <b>source ./bin/activate</b>      # If using bash, sh, ksh, or zsh
+$ <b>source ./bin/activate.csh</b>  # If using csh or tcsh </pre>
+
 
 Your prompt will transform to the following to indicate that your
 tensorflow environment is active:
 
-<pre> (tensorflow)$ </pre>
+<pre> (<i>targetDirectory</i>)$ </pre>
 
-When the virtualenv environment is active, you may run
+When the Virtualenv environment is active, you may run
 TensorFlow programs from this shell.
 
 When you are done using TensorFlow, you may deactivate the
 environment by issuing the following command:
 
-<pre> (tensorflow)$ <b>deactivate</b> </pre>
+<pre> (<i>targetDirectory</i>)$ <b>deactivate</b> </pre>
 
 The prompt will revert back to your default prompt (as defined by `PS1`).
 
@@ -263,10 +217,8 @@ take the following steps:
 
   1. Install TensorFlow by invoking **one** of the following commands:
 
-     <pre> $ <b>pip install tensorflow</b>      # Python 2.7; CPU support (no GPU support)
-     $ <b>pip3 install tensorflow</b>     # Python 3.n; CPU support (no GPU support)
-     $ <b>pip install tensorflow-gpu</b>  # Python 2.7;  GPU support
-     $ <b>pip3 install tensorflow-gpu</b> # Python 3.n; GPU support </pre>
+     <pre> $ <b>pip install tensorflow</b>      # Python 2.7; CPU support
+     $ <b>pip3 install tensorflow</b>     # Python 3.n; CPU support
 
      If the preceding command runs to completion, you should now
      [validate your installation](#ValidateYourInstallation).
@@ -279,17 +231,17 @@ take the following steps:
 
      where <i>tfBinaryURL</i> identifies the URL of the TensorFlow Python
      package. The appropriate value of <i>tfBinaryURL</i> depends on the
-     operating system, Python version, and GPU support. Find the appropriate
+     operating system and Python version. Find the appropriate
      value for <i>tfBinaryURL</i>
      [here](#the_url_of_the_tensorflow_python_package).  For example, if
-     you are installing TensorFlow for Mac OS, Python 2.7, and CPU-only
-     support, issue the following command:
+     you are installing TensorFlow for Mac OS and Python 2.7
+     issue the following command:
 
      <pre> $ <b>sudo pip3 install --upgrade \
-     https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py2-none-any.whl</b> </pre>
+     https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.4.0-py2-none-any.whl</b> </pre>
 
      If the preceding command fails, see
-     [Common installation problems](#CommonInstallationProblems).
+     [installation problems](#common-installation-problems).
 
 
 
@@ -319,9 +271,6 @@ Follow these steps to install TensorFlow through Docker.
      binary images.
 
 The remainder of this section explains how to launch a Docker container.
-
-**Note**: You may only launch a Docker container with CPU support.
-(Docker doesn't provide GPU support on Mac OS.)
 
 To launch a Docker container that holds the TensorFlow binary image,
 enter a command of the following format:
@@ -380,25 +329,25 @@ Take the following steps to install TensorFlow in an Anaconda environment:
   2. Create a conda environment named `tensorflow`
      by invoking the following command:
 
-     <pre>$ <b>conda create -n tensorflow</b></pre>
+     <pre>$ <b>conda create -n tensorflow pip python=2.7 # or python=3.3, etc.</b></pre>
 
   3. Activate the conda environment by issuing the following command:
 
      <pre>$ <b>source activate tensorflow</b>
-     (tensorflow)$  # Your prompt should change</pre>
+     (<i>targetDirectory</i>)$  # Your prompt should change</pre>
 
   4. Issue a command of the following format to install
      TensorFlow inside your conda environment:
 
-     <pre>(tensorflow)<b>$ pip install --ignore-installed --upgrade</b> <i>TF_PYTHON_URL</i></pre>
+     <pre>(<i>targetDirectory</i>)<b>$ pip install --ignore-installed --upgrade</b> <i>TF_PYTHON_URL</i></pre>
 
      where <i>TF_PYTHON_URL</i> is the
      [URL of the TensorFlow Python package](#the_url_of_the_tensorflow_python_package).
      For example, the following command installs the CPU-only version of
      TensorFlow for Python 2.7:
 
-     <pre> (tensorflow)$ <b>pip install --ignore-installed --upgrade \
-     https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py2-none-any.whl</b></pre>
+     <pre> (<i>targetDirectory</i>)$ <b>pip install --ignore-installed --upgrade \
+     https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.4.0-py2-none-any.whl</b></pre>
 
 
 <a name="ValidateYourInstallation"></a>
@@ -412,11 +361,11 @@ To validate your TensorFlow installation, do the following:
 
 ### Prepare your environment
 
-If you installed on native pip, virtualenv, or Anaconda, then
+If you installed on native pip, Virtualenv, or Anaconda, then
 do the following:
 
   1. Start a terminal.
-  2. If you installed with virtualenv or Anaconda, activate your container.
+  2. If you installed with Virtualenv or Anaconda, activate your container.
   3. If you installed TensorFlow source code, navigate to any
      directory *except* one containing TensorFlow source code.
 
@@ -468,17 +417,6 @@ the `tensorflow` tag.
 <table>
 <tr> <th>Stack Overflow Link</th> <th>Error Message</th> </tr>
 
-<tr>
-  <td><a href="https://stackoverflow.com/q/36159194">36159194</a></td>
-  <td><pre>ImportError: libcudart.so.<i>Version</i>: cannot open shared object file:
-  No such file or directory</pre></td>
-</tr>
-
-<tr>
-  <td><a href="https://stackoverflow.com/q/41991101">41991101</a></td>
-  <td><pre>ImportError: libcudnn.<i>Version</i>: cannot open shared object file:
-  No such file or directory</pre></td>
-</tr>
 
 <tr>
   <td><a href="http://stackoverflow.com/q/42006320">42006320</a></td>
@@ -544,17 +482,6 @@ ImportError: cannot import name 'descriptor'</pre>
   </td>
 </tr>
 
-<tr>
-  <td><a href="http://stackoverflow.com/q/42073336">42073336</a></td>
-  <td>An <tt>import tensorflow</tt> statement triggers the following error:
-<pre>
->>> import tensorflow as tf
-I tensorflow/stream_executor/dso_loader.cc:108] successfully opened CUDA library libcublas.dylib locally
-I tensorflow/stream_executor/dso_loader.cc:108] successfully opened CUDA library libcudnn.dylib locally
-I tensorflow/stream_executor/dso_loader.cc:108] successfully opened CUDA library libcufft.dylib locally
-"import tensorflow" terminated by signal SIGSEGV (Address boundary error)
-</pre></td>
-</tr>
 
 <tr>
   <td><a href="http://stackoverflow.com/q/42075397">42075397</a></td>
@@ -572,15 +499,6 @@ Terminal window to review and agree to the Xcode license agreements.
 RuntimeError: Broken toolchain: cannot link a simple C program</pre>
 </td>
 
-<tr>
-  <td><a href="http://stackoverflow.com/questions/42376790/">42376790</a></td>
-  <td>After installing for GPU, an `import tensorflow` statement
-      triggers the following error:
-<pre>tensorflow/stream_executor/dso_loader.cc:135] successfully opened CUDA
-  library libcublas.8.0.dylib locally
-  Segmentation fault: 11
-</pre></td>
-</tr>
 
 </table>
 
@@ -595,82 +513,20 @@ The value you specify depends on three factors:
 
   * operating system
   * Python version
-  * CPU only vs. GPU support
 
 This section documents the relevant values for Mac OS installations.
 
 ### Python 2.7
 
-CPU only:
 
 <pre>
-https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py2-none-any.whl
+https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.4.0-py2-none-any.whl
 </pre>
-
-GPU support:
-
-<pre>
-https://storage.googleapis.com/tensorflow/mac/gpu/tensorflow_gpu-1.0.1-py2-none-any.whl
-</pre>
-
-Requires CUDA toolkit 8.0 and CuDNN v5. For other versions, see
-[Installing TensorFlow from Sources](install_sources.md).
 
 
 ### Python 3.4, 3.5, or 3.6
 
-CPU only:
 
 <pre>
-https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py3-none-any.whl
+https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.4.0-py3-none-any.whl
 </pre>
-
-GPU support:
-
-<pre>
-https://storage.googleapis.com/tensorflow/mac/gpu/tensorflow_gpu-1.0.1-py3-none-any.whl
-</pre>
-
-Requires CUDA toolkit 8.0 and CuDNN v5. For other versions, see
-[Installing TensorFlow from Sources](install_sources.md).
-
-
-
-<a name="Protobuf31"></a>
-## Protobuf pip package 3.1
-
-You can skip this section unless you are seeing problems related
-to the protobuf pip package.
-
-**NOTE:** If your TensorFlow programs are running slowly, you might
-have a problem related to the protobuf pip package.
-
-The TensorFlow pip package depends on protobuf pip package version 3.1. The
-protobuf pip package downloaded from PyPI (when invoking
-<tt>pip install protobuf</tt>) is a Python-only library containing
-Python implementations of proto serialization/deserialization that can run
-**10x-50x slower** than the C++ implementation. Protobuf also supports a
-binary extension for the Python package that contains fast
-C++ based proto parsing.  This extension is not available in the
-standard Python-only pip package.  We have created a custom binary
-pip package for protobuf that contains the binary extension. To install
-the custom binary protobuf pip package, invoke one of the following commands:
-
-  * for Python 2.7:
-
-    <pre>$ <b>pip install --upgrade \
-    https://storage.googleapis.com/tensorflow/linux/cpu/protobuf-3.1.0-cp27-none-linux_x86_64.whl</b></pre>
-
-  * for Python 3.n:
-
-    <pre>$ <b>pip3 install --upgrade \
-    https://storage.googleapis.com/tensorflow/linux/cpu/protobuf-3.1.0-cp35-none-linux_x86_64.whl</b> </pre>
-
-Installing this protobuf package will overwrite the existing protobuf package.
-Note that the binary pip package already has support for protobufs
-larger than 64MB, which should fix errors such as these:
-
-<pre>[libprotobuf ERROR google/protobuf/src/google/protobuf/io/coded_stream.cc:207]
-A protocol message was rejected because it was too big (more than 67108864 bytes).
-To increase the limit (or to disable these warnings), see
-CodedInputStream::SetTotalBytesLimit() in google/protobuf/io/coded_stream.h.</pre>

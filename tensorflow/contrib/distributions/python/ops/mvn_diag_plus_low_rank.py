@@ -86,7 +86,7 @@ class MultivariateNormalDiagPlusLowRank(
   #### Examples
 
   ```python
-  ds = tf.contrib.distributions
+  tfd = tf.contrib.distributions
 
   # Initialize a single 3-variate Gaussian with covariance `cov = S @ S.T`,
   # `S = diag(d) + U @ diag(m) @ U.T`. The perturbation, `U @ diag(m) @ U.T`, is
@@ -97,7 +97,7 @@ class MultivariateNormalDiagPlusLowRank(
        [-1, 1],
        [2, -0.5]]        # shape: [3, 2]
   m = [4., 5]            # shape: [2]
-  mvn = ds.MultivariateNormalDiagPlusLowRank(
+  mvn = tfd.MultivariateNormalDiagPlusLowRank(
       loc=mu
       scale_diag=d
       scale_perturb_factor=U,
@@ -118,7 +118,7 @@ class MultivariateNormalDiagPlusLowRank(
   m = [[0.1, 0.2],
        [0.4, 0.5]]         # shape: [b, r] = [2, 2]
 
-  mvn = ds.MultivariateNormalDiagPlusLowRank(
+  mvn = tfd.MultivariateNormalDiagPlusLowRank(
       loc=mu,
       scale_perturb_factor=U,
       scale_perturb_diag=m)
@@ -155,8 +155,8 @@ class MultivariateNormalDiagPlusLowRank(
     The `batch_shape` is the broadcast shape between `loc` and `scale`
     arguments.
 
-    The `event_shape` is given by the last dimension of `loc` or the last
-    dimension of the matrix implied by `scale`.
+    The `event_shape` is given by last dimension of the matrix implied by
+    `scale`. The last dimension of `loc` (if provided) must broadcast with this.
 
     Recall that `covariance = scale @ scale.T`. A (non-batch) `scale` matrix is:
 
@@ -237,7 +237,7 @@ class MultivariateNormalDiagPlusLowRank(
             scale_perturb_diag,
             name="scale_perturb_diag")
         if has_low_rank:
-          scale = linalg.LinearOperatorUDVHUpdate(
+          scale = linalg.LinearOperatorLowRankUpdate(
               scale,
               u=scale_perturb_factor,
               diag_update=scale_perturb_diag,

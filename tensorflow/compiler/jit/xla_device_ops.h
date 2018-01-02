@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/resource_mgr.h"
+#include "tensorflow/core/kernels/cast_op.h"
 #include "tensorflow/core/kernels/constant_op.h"
 #include "tensorflow/core/kernels/control_flow_ops.h"
 #include "tensorflow/core/kernels/identity_op.h"
@@ -53,6 +54,9 @@ class XlaDeviceDummyOp : public OpKernel {
       Name("_HostSend").Device(DEVICE).HostMemory("tensor"), SendOp);          \
   REGISTER_KERNEL_BUILDER(                                                     \
       Name("_HostRecv").Device(DEVICE).HostMemory("tensor"), RecvOp);          \
+  REGISTER_KERNEL_BUILDER(                                                     \
+      Name("_HostCast").Device(DEVICE).HostMemory("x").HostMemory("y"),        \
+      CpuCastOp);                                                              \
   REGISTER_KERNEL_BUILDER(Name("NoOp").Device(DEVICE), NoOp);                  \
   REGISTER_KERNEL_BUILDER(                                                     \
       Name("Const").Device(DEVICE).TypeConstraint("dtype", TYPES),             \
@@ -63,29 +67,9 @@ class XlaDeviceDummyOp : public OpKernel {
   REGISTER_KERNEL_BUILDER(Name("PlaceholderV2").Device(DEVICE),                \
                           PlaceholderOp);                                      \
                                                                                \
-  REGISTER_KERNEL_BUILDER(Name("ControlTrigger").Device(DEVICE),               \
-                          ControlTriggerOp);                                   \
-  REGISTER_KERNEL_BUILDER(Name("Enter").Device(DEVICE), EnterOp);              \
-  REGISTER_KERNEL_BUILDER(Name("Exit").Device(DEVICE), ExitOp);                \
-  REGISTER_KERNEL_BUILDER(Name("NextIteration").Device(DEVICE),                \
-                          NextIterationOp);                                    \
-  REGISTER_KERNEL_BUILDER(Name("Switch").Device(DEVICE).HostMemory("pred"),    \
-                          SwitchOp);                                           \
-  REGISTER_KERNEL_BUILDER(                                                     \
-      Name("Merge").Device(DEVICE).HostMemory("value_index"), MergeOp);        \
-  REGISTER_KERNEL_BUILDER(Name("LoopCond")                                     \
-                              .Device(DEVICE)                                  \
-                              .HostMemory("input")                             \
-                              .HostMemory("output"),                           \
-                          IdentityOp);                                         \
-                                                                               \
   REGISTER_KERNEL_BUILDER(                                                     \
       Name("VarHandleOp").Device(DEVICE).HostMemory("resource"),               \
       ResourceHandleOp<Var>);
-
-// TODO(b/32507444): the registrations for the control flow operators are
-// temporary and exist primarily to work around a bug in the graph partitioning
-// code.
 
 }  // namespace tensorflow
 

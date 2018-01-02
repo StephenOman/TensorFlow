@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import os
 import sys
 
 from tensorflow.core.protobuf import saver_pb2
@@ -53,7 +54,7 @@ def tfadd_with_ckpt(out_dir):
     sess.run(init_op)
     sess.run(y.assign(y + 42))
     # Without the checkpoint, the variable won't be set to 42.
-    ckpt = '%s/test_graph_tfadd_with_ckpt.ckpt' % out_dir
+    ckpt = os.path.join(out_dir, 'test_graph_tfadd_with_ckpt.ckpt')
     saver.save(sess, ckpt)
 
 
@@ -68,10 +69,10 @@ def tfadd_with_ckpt_saver(out_dir):
     sess.run(init_op)
     sess.run(y.assign(y + 42))
     # Without the checkpoint, the variable won't be set to 42.
-    ckpt_file = '%s/test_graph_tfadd_with_ckpt_saver.ckpt' % out_dir
+    ckpt_file = os.path.join(out_dir, 'test_graph_tfadd_with_ckpt_saver.ckpt')
     saver.save(sess, ckpt_file)
     # Without the SaverDef, the restore op won't be named correctly.
-    saver_file = '%s/test_graph_tfadd_with_ckpt_saver.saver' % out_dir
+    saver_file = os.path.join(out_dir, 'test_graph_tfadd_with_ckpt_saver.saver')
     with open(saver_file, 'wb') as f:
       f.write(saver.as_saver_def().SerializeToString())
 
@@ -107,12 +108,29 @@ def tffunction(_):
   test_func(x, y, name='func_call')  # pylint: disable=unexpected-keyword-arg
 
 
+def tfsplits(_):
+  """A more complex graph, including splits."""
+  x = array_ops.placeholder(dtypes.float32, shape=[2, 2], name='x')
+  y = array_ops.placeholder(dtypes.float32, shape=[2, 2], name='y')
+  for _ in range(3):
+    x0, x1 = array_ops.split(x, 2, 0)
+    y0, y1 = array_ops.split(y, 2, 0)
+    x0 += 1
+    y0 += 1
+    z = math_ops.matmul(x, y, name='x_y_prod')
+    a = array_ops.concat([x0, y1], axis=0, name='concat_x0_y1')
+    b = array_ops.concat([y0, x1], axis=0, name='concat_y0_x1')
+    x = math_ops.matmul(a, b, name='a_b')
+    y = math_ops.add(x, z)
+  array_ops.identity(y, name='result')
+
+
 def write_graph(build_graph, out_dir):
   """Build a graph using build_graph and write it out."""
   g = ops.Graph()
   with g.as_default():
     build_graph(out_dir)
-    filename = '%s/test_graph_%s.pb' % (out_dir, build_graph.__name__)
+    filename = os.path.join(out_dir, 'test_graph_%s.pb' % build_graph.__name__)
     with open(filename, 'wb') as f:
       f.write(g.as_graph_def().SerializeToString())
 
@@ -125,6 +143,7 @@ def main(_):
   write_graph(tfmatmul, FLAGS.out_dir)
   write_graph(tfmatmulandadd, FLAGS.out_dir)
   write_graph(tffunction, FLAGS.out_dir)
+  write_graph(tfsplits, FLAGS.out_dir)
 
 
 if __name__ == '__main__':

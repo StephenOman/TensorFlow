@@ -61,11 +61,13 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import contextlib
-import functools
+
+from tensorflow.python.util import tf_contextlib
+from tensorflow.python.util import tf_decorator
 
 __all__ = ['arg_scope',
            'add_arg_scope',
+           'current_arg_scope',
            'has_arg_scope',
            'arg_scoped_arguments']
 
@@ -82,7 +84,7 @@ def _get_arg_stack():
     return _ARGSTACK
 
 
-def _current_arg_scope():
+def current_arg_scope():
   stack = _get_arg_stack()
   return stack[-1]
 
@@ -106,7 +108,7 @@ def _add_op(op):
     _DECORATED_OPS[key_op] = _kwarg_names(op)
 
 
-@contextlib.contextmanager
+@tf_contextlib.contextmanager
 def arg_scope(list_ops_or_scope, **kwargs):
   """Stores the default arguments for the given set of list_ops.
 
@@ -143,7 +145,7 @@ def arg_scope(list_ops_or_scope, **kwargs):
       raise TypeError('list_ops_or_scope must either be a list/tuple or reused'
                       'scope (i.e. dict)')
     try:
-      current_scope = _current_arg_scope().copy()
+      current_scope = current_arg_scope().copy()
       for op in list_ops_or_scope:
         key_op = _key_op(op)
         if not has_arg_scope(op):
@@ -170,9 +172,8 @@ def add_arg_scope(func):
   Returns:
     A tuple with the decorated function func_with_args().
   """
-  @functools.wraps(func)
   def func_with_args(*args, **kwargs):
-    current_scope = _current_arg_scope()
+    current_scope = current_arg_scope()
     current_args = kwargs
     key_func = _key_op(func)
     if key_func in current_scope:
@@ -181,8 +182,7 @@ def add_arg_scope(func):
     return func(*args, **current_args)
   _add_op(func)
   setattr(func_with_args, '_key_op', _key_op(func))
-  setattr(func_with_args, '__doc__', func.__doc__)
-  return func_with_args
+  return tf_decorator.make_decorator(func, func_with_args)
 
 
 def has_arg_scope(func):

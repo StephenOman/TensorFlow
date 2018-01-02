@@ -18,10 +18,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from types import FunctionType, GeneratorType
 from collections import Container
+from types import FunctionType
+from types import GeneratorType
 
-from tensorflow.contrib.learn.python.learn.dataframe.queues import feeding_functions
+from tensorflow.python.estimator.inputs.queues.feeding_functions import _enqueue_data as enqueue_data
 
 
 def generator_input_fn(x,
@@ -30,12 +31,14 @@ def generator_input_fn(x,
                        num_epochs=1,
                        shuffle=True,
                        queue_capacity=1000,
-                       num_threads=1):
-  """Returns input function that would dicts of numpy arrays
-       yielded from a generator.
-  
-  It is assumed that every dict yielded from the dictionary represents
-  a single sample. The generator should consume a single epoch of the data.
+                       num_threads=1,
+                       pad_value=None):
+  """Returns input function that returns dicts of numpy arrays
+     yielded from a generator.
+
+  It is assumed that every dict of numpy arrays yielded from the dictionary
+  represents a single sample. The generator should consume a single epoch of the
+  data.
 
   This returns a function outputting `features` and `target` based on the dict
   of numpy arrays. The dict `features` has the same keys as an element yielded
@@ -67,6 +70,7 @@ def generator_input_fn(x,
       time.
     queue_capacity: Integer, size of queue to accumulate.
     num_threads: Integer, number of threads used for reading and enqueueing.
+    pad_value: default value for dynamic padding of data samples, if provided.
 
   Returns:
     Function, that returns a feature `dict` with `Tensors` and an optional
@@ -82,47 +86,45 @@ def generator_input_fn(x,
     KeyError: `key` mismatch between dicts emitted from `x()`
   """
   if not isinstance(x, FunctionType):
-    raise TypeError('x must be generator function; got {}'.format(
-        type(x).__name__))
+    raise TypeError(
+        'x must be generator function; got {}'.format(type(x).__name__))
   generator = x()
   if not isinstance(generator, GeneratorType):
-    raise TypeError('x() must be generator; got {}'.format(
-        type(generator).__name__))
+    raise TypeError(
+        'x() must be generator; got {}'.format(type(generator).__name__))
   data = next(generator)
   if not isinstance(data, dict):
-    raise TypeError('x() must yield dict; got {}'.format(
-        type(data).__name__))
+    raise TypeError('x() must yield dict; got {}'.format(type(data).__name__))
   input_keys = sorted(next(x()).keys())
   if target_key is not None:
     if isinstance(target_key, str):
       target_key = [target_key]
-    elif isinstance(target_key,  Container):
+    elif isinstance(target_key, Container):
       for item in target_key:
         if not isinstance(item, str):
-          raise TypeError(
-              'target_key must be str or Container of str; got {}'.format(
-                  type(item).__name__))
+          raise TypeError('target_key must be str or Container of str; got {}'.
+                          format(type(item).__name__))
         if item not in input_keys:
           raise KeyError(
               'target_key not in yielded dict. Expected {} keys; got {}'.format(
                   input_keys, item))
     else:
-      raise TypeError(
-          'target_key must be str or Container of str; got {}'.format(
-              type(target_key).__name__))
+      raise TypeError('target_key must be str or Container of str; got {}'.
+                      format(type(target_key).__name__))
 
   def _generator_input_fn():
     """generator input function."""
-    queue = feeding_functions.enqueue_data(
-      x,
-      queue_capacity,
-      shuffle=shuffle,
-      num_threads=num_threads,
-      enqueue_size=batch_size,
-      num_epochs=num_epochs)
+    queue = enqueue_data(
+        x,
+        queue_capacity,
+        shuffle=shuffle,
+        num_threads=num_threads,
+        enqueue_size=batch_size,
+        num_epochs=num_epochs,
+        pad_value=pad_value)
 
-    features = (queue.dequeue_many(batch_size) if num_epochs is None
-                else queue.dequeue_up_to(batch_size))
+    features = (queue.dequeue_many(batch_size)
+                if num_epochs is None else queue.dequeue_up_to(batch_size))
     if not isinstance(features, list):
       features = [features]
     features = dict(zip(input_keys, features))
@@ -133,4 +135,5 @@ def generator_input_fn(x,
         target = features.pop(target_key[0])
       return features, target
     return features
+
   return _generator_input_fn

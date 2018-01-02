@@ -27,9 +27,16 @@ easy_install3 -U pip
 pip2 install wheel
 pip3 install wheel
 
+pip2 install virtualenv
+pip3 install virtualenv
+
 # Install six.
 pip2 install --upgrade six==1.10.0
 pip3 install --upgrade six==1.10.0
+
+# Install absl-py.
+pip2 install --upgrade absl-py
+pip3 install --upgrade absl-py
 
 # Install werkzeug.
 pip2 install --upgrade werkzeug==0.11.10
@@ -44,8 +51,8 @@ pip2 install --upgrade markdown==2.6.8
 pip3 install --upgrade markdown==2.6.8
 
 # Install protobuf.
-pip2 install --upgrade protobuf==3.2.0
-pip3 install --upgrade protobuf==3.2.0
+pip2 install --upgrade protobuf==3.3.0
+pip3 install --upgrade protobuf==3.3.0
 
 # Remove obsolete version of six, which can sometimes confuse virtualenv.
 rm -rf /usr/lib/python3/dist-packages/six*
@@ -62,7 +69,7 @@ pip3 install scipy==0.18.1
 pip2 install scikit-learn==0.18.1
 pip3 install scikit-learn==0.18.1
 
-# pandas required by tf.learn/inflow
+# pandas required by `inflow`
 pip2 install pandas==0.19.2
 pip3 install pandas==0.19.2
 
@@ -73,8 +80,8 @@ pip2 install py-cpuinfo
 pip3 install py-cpuinfo
 
 # pylint tests require the following:
-pip2 install pylint
-pip3 install pylint
+pip2 install pylint==1.6.4
+pip3 install pylint==1.6.4
 
 # pep8 tests require the following:
 pip2 install pep8
@@ -85,3 +92,11 @@ pip2 install mock
 
 pip2 install portpicker
 pip3 install portpicker
+
+# TensorFlow Serving integration tests require the following:
+pip2 install grpcio
+pip3 install grpcio
+
+# Eager-to-graph execution needs gast:
+pip2 install --upgrade gast
+pip3 install --upgrade gast

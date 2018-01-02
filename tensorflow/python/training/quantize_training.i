@@ -24,8 +24,10 @@ static PyObject* DoQuantizeTrainingOnGraphDefHelper(
     int num_bits,
     TF_Status* out_status) {
   string result;
+  // TODO(suharshs): Make the QuantizeAndDequantizeV2 configurable.
   tensorflow::Status status =
-      tensorflow::DoQuantizeTrainingOnSerializedGraphDef(input_graph, num_bits, &result);
+      tensorflow::DoQuantizeTrainingOnSerializedGraphDef(input_graph, num_bits,
+      "QuantizeAndDequantizeV2", &result);
   if (!status.ok()) {
     Set_TF_Status_from_Status(out_status, status);
     Py_RETURN_NONE;
@@ -63,6 +65,9 @@ def do_quantize_training_on_graphdef(input_graph, num_bits):
 
   graph.ParseFromString(result_graph_string)
   return graph
+
+do_quantize_training_on_graphdef._tf_api_names = [
+    'train.do_quantize_training_on_graphdef']
 %}
 
 %unignoreall

@@ -20,8 +20,6 @@ from __future__ import print_function
 
 import numpy as np
 
-from tensorflow.contrib.distributions.python.ops import distribution
-from tensorflow.contrib.distributions.python.ops import distribution_util
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -32,6 +30,8 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import random_ops
+from tensorflow.python.ops.distributions import distribution
+from tensorflow.python.ops.distributions import util as distribution_util
 
 
 __all__ = [
@@ -88,8 +88,9 @@ class InverseGamma(distribution.Distribution):
   #### Examples
 
   ```python
-  dist = InverseGamma(concentration=3.0, rate=2.0)
-  dist2 = InverseGamma(concentration=[3.0, 4.0], rate=[2.0, 3.0])
+  tfd = tf.contrib.distributions
+  dist = tfd.InverseGamma(concentration=3.0, rate=2.0)
+  dist2 = tfd.InverseGamma(concentration=[3.0, 4.0], rate=[2.0, 3.0])
   ```
 
   """

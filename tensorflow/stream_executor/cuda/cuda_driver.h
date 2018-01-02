@@ -77,7 +77,7 @@ class CUDADriver {
 
   // Destroys a CUDA stream associated with the given context.
   // stream is owned by the caller, must not be null, and *stream is set to null
-  // if the stream is successfuly destroyed.
+  // if the stream is successfully destroyed.
   // http://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__STREAM.html#group__CUDA__STREAM_1g244c8833de4596bcd31a06cdf21ee758
   static void DestroyStream(CudaContext* context, CUstream *stream);
 
@@ -304,7 +304,7 @@ class CUDADriver {
   // amount of time?
   //
   // http://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__STREAM.html#group__CUDA__STREAM_1g15e49dd91ec15991eb7c0a741beb7dad
-  static bool SynchronizeStream(CudaContext* context, CUstream stream);
+  static port::Status SynchronizeStream(CudaContext* context, CUstream stream);
 
   // Blocks the calling thread until the operations associated with the context
   // have been completed, via cuCtxSynchronize.

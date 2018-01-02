@@ -19,7 +19,7 @@ limitations under the License.
 #include <iostream>
 #include <vector>
 
-#include "external/llvm/include/llvm/ADT/Triple.h"
+#include "llvm/ADT/Triple.h"
 #include "tensorflow/compiler/xla/client/client_library.h"
 #include "tensorflow/compiler/xla/client/computation_builder.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_compiler.h"
@@ -42,7 +42,7 @@ xla::Computation Doubler(xla::Client* client) {
 int main(int argc, char** argv) {
   tensorflow::port::InitMain(argv[0], &argc, &argv);
 
-  auto client = xla::ClientLibrary::LocalClientOrDie();
+  auto client = xla::ClientLibrary::GetOrCreateCompileOnlyClient().ValueOrDie();
 
   xla::ComputationBuilder builder(client, "aot_test_helper");
   auto opaque_shape = xla::ShapeUtil::MakeOpaqueShape();
@@ -63,8 +63,6 @@ int main(int argc, char** argv) {
     triple_string = "x86_64-apple-macosx";
   } else if (target_cpu == "arm") {
     triple_string = "aarch64-none-linux-gnu";
-  } else if (target_cpu == "ppc") {
-    triple_string = "powerpc64le-unknown-linux-gnu";
   } else if (target_cpu == "local") {
     triple_string = xla::llvm_ir::AsString(llvm::sys::getDefaultTargetTriple());
   } else {
@@ -74,7 +72,7 @@ int main(int argc, char** argv) {
   llvm::Triple triple(xla::llvm_ir::AsStringRef(triple_string));
 
   xla::Computation computation = builder.Build().ConsumeValueOrDie();
-  xla::LocalClient::AheadOfTimeComputationInstance instance{
+  xla::CompileOnlyClient::AotComputationInstance instance{
       &computation, /*argument_layouts=*/{&opaque_shape}, &r0f32};
 
   xla::cpu::CpuAotCompilationOptions options(
@@ -88,11 +86,11 @@ int main(int argc, char** argv) {
       std::move(results.front()));
   // It's lame to hard-code the buffer assignments, but we need
   // local_client_aot_test.cc to be able to easily invoke the function.
-  CHECK_EQ(result->result_buffer_index(), 0);
+  CHECK_EQ(result->result_buffer_index(), 1);
   CHECK_EQ(result->buffer_sizes().size(), 3);
-  CHECK_EQ(result->buffer_sizes()[0], sizeof(float));  // result buffer
-  CHECK_EQ(result->buffer_sizes()[1], -1);             // param buffer
-  CHECK_EQ(result->buffer_sizes()[2], 20);             // temp buffer
+  CHECK_EQ(result->buffer_sizes()[0], -1);             // param buffer
+  CHECK_EQ(result->buffer_sizes()[1], sizeof(float));  // result buffer
+  CHECK_EQ(result->buffer_sizes()[2], sizeof(float));  // temp buffer
   if (triple.isOSBinFormatELF()) {
     // Check the ELF magic.
     CHECK_EQ(result->object_file_data()[0], 0x7F);

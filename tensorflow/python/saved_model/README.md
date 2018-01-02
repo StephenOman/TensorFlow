@@ -93,7 +93,7 @@ with an asset of the same name, only the first version is retained.
 Each meta graph added to the SavedModel must be annotated with user specified
 tags. The tags provide a means to identify the specific meta graph to load and
 restore, along with the shared set of variables and assets. These tags
-typically annotate a MetaGraph with it's functionality (e.g. serving or
+typically annotate a MetaGraph with its functionality (e.g. serving or
 training), and possibly hardware specific aspects such as GPU.
 
 #### Usage
@@ -102,11 +102,11 @@ The typical usage of `builder` is as follows:
 ~~~python
 export_dir = ...
 ...
-builder = saved_model_builder.SavedModelBuilder(export_dir)
+builder = tf.saved_model.builder.SavedModelBuilder(export_dir)
 with tf.Session(graph=tf.Graph()) as sess:
   ...
   builder.add_meta_graph_and_variables(sess,
-                                       [tag_constants.TRAINING],
+                                       [tf.saved_model.tag_constants.TRAINING],
                                        signature_def_map=foo_signatures,
                                        assets_collection=foo_assets)
 ...
@@ -132,7 +132,7 @@ the specific meta graph def, will be restored into the supplied session.
 export_dir = ...
 ...
 with tf.Session(graph=tf.Graph()) as sess:
-  loader.load(sess, [tag_constants.TRAINING], export_dir)
+  tf.saved_model.loader.load(sess, [tag_constants.TRAINING], export_dir)
   ...
 ~~~
 

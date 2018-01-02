@@ -100,6 +100,10 @@ void SpaceToBatchOpCompute(OpKernelContext* context,
   for (int block_dim = 0; block_dim < block_dims; ++block_dim) {
     block_shape_product *= block_shape[block_dim];
   }
+  OP_REQUIRES(
+      context, block_shape_product > 0,
+      errors::InvalidArgument("Product of block sizes must be positive, got ",
+                              block_shape_product));
 
   const int internal_block_dims =
       block_dims - removed_prefix_block_dims - removed_suffix_block_dims;
@@ -244,40 +248,34 @@ class SpaceToBatchOp : public OpKernel {
   Tensor block_shape_;
 };
 
-#define REGISTER(T)                                                  \
-  REGISTER_KERNEL_BUILDER(Name("SpaceToBatchND")                     \
-                              .Device(DEVICE_CPU)                    \
-                              .TypeConstraint<T>("T")                \
-                              .TypeConstraint<int32>("Tblock_shape") \
-                              .TypeConstraint<int32>("Tpaddings")    \
-                              .HostMemory("block_shape")             \
-                              .HostMemory("paddings"),               \
-                          SpaceToBatchNDOp<CPUDevice, T>);           \
-  REGISTER_KERNEL_BUILDER(Name("SpaceToBatch")                       \
-                              .Device(DEVICE_CPU)                    \
-                              .TypeConstraint<T>("T")                \
-                              .TypeConstraint<int32>("Tpaddings")    \
-                              .HostMemory("paddings"),               \
+#define REGISTER(T)                                        \
+  REGISTER_KERNEL_BUILDER(Name("SpaceToBatchND")           \
+                              .Device(DEVICE_CPU)          \
+                              .TypeConstraint<T>("T")      \
+                              .HostMemory("block_shape")   \
+                              .HostMemory("paddings"),     \
+                          SpaceToBatchNDOp<CPUDevice, T>); \
+  REGISTER_KERNEL_BUILDER(Name("SpaceToBatch")             \
+                              .Device(DEVICE_CPU)          \
+                              .TypeConstraint<T>("T")      \
+                              .HostMemory("paddings"),     \
                           SpaceToBatchOp<CPUDevice, T>);
 
 TF_CALL_REAL_NUMBER_TYPES(REGISTER);
 #undef REGISTER
 
 #if GOOGLE_CUDA
-#define REGISTER(T)                                                  \
-  REGISTER_KERNEL_BUILDER(Name("SpaceToBatchND")                     \
-                              .Device(DEVICE_GPU)                    \
-                              .TypeConstraint<T>("T")                \
-                              .TypeConstraint<int32>("Tblock_shape") \
-                              .TypeConstraint<int32>("Tpaddings")    \
-                              .HostMemory("block_shape")             \
-                              .HostMemory("paddings"),               \
-                          SpaceToBatchNDOp<GPUDevice, T>);           \
-  REGISTER_KERNEL_BUILDER(Name("SpaceToBatch")                       \
-                              .Device(DEVICE_GPU)                    \
-                              .TypeConstraint<T>("T")                \
-                              .TypeConstraint<int32>("Tpaddings")    \
-                              .HostMemory("paddings"),               \
+#define REGISTER(T)                                        \
+  REGISTER_KERNEL_BUILDER(Name("SpaceToBatchND")           \
+                              .Device(DEVICE_GPU)          \
+                              .TypeConstraint<T>("T")      \
+                              .HostMemory("block_shape")   \
+                              .HostMemory("paddings"),     \
+                          SpaceToBatchNDOp<GPUDevice, T>); \
+  REGISTER_KERNEL_BUILDER(Name("SpaceToBatch")             \
+                              .Device(DEVICE_GPU)          \
+                              .TypeConstraint<T>("T")      \
+                              .HostMemory("paddings"),     \
                           SpaceToBatchOp<GPUDevice, T>);
 
 TF_CALL_GPU_NUMBER_TYPES(REGISTER);

@@ -78,7 +78,7 @@ namespace xla {
   int64 scale = 1;
   int64 linear_index = 0;
   bool first = true;
-  for (auto dimension : shape.layout().minor_to_major()) {
+  for (auto dimension : LayoutUtil::MinorToMajor(shape)) {
     if (first) {
       // Avoid two multiplies on the first loop iteration
       linear_index = multi_index[dimension];
@@ -110,7 +110,7 @@ namespace xla {
 
   // Accumulated product D{L(0)} * D{L(1)} * ...
   int64 divisor = 1;
-  for (auto dimension : shape.layout().minor_to_major()) {
+  for (auto dimension : LayoutUtil::MinorToMajor(shape)) {
     multi_index[dimension] =
         (linear_index / divisor) % shape.dimensions(dimension);
     divisor *= shape.dimensions(dimension);
@@ -118,17 +118,35 @@ namespace xla {
   return multi_index;
 }
 
-/* static */ bool IndexUtil::BumpIndices(const Shape& shape,
-                                         std::vector<int64>* indices) {
-  for (int64 dimno = indices->size() - 1; dimno >= 0; --dimno) {
+/* static */ bool IndexUtil::BumpIndices(
+    const Shape& shape, tensorflow::gtl::MutableArraySlice<int64> indices) {
+  for (int64 dimno = indices.size() - 1; dimno >= 0; --dimno) {
     int64 limit = shape.dimensions(dimno);
-    if ((*indices)[dimno] + 1 < limit) {
-      (*indices)[dimno]++;
-      std::fill(indices->begin() + dimno + 1, indices->end(), 0);
+    if (indices[dimno] + 1 < limit) {
+      indices[dimno]++;
+      std::fill(indices.begin() + dimno + 1, indices.end(), 0);
       return true;
     }
   }
   return false;
+}
+
+/* static */ int64 IndexUtil::GetDimensionStride(const Shape& shape,
+                                                 int64 dimension) {
+  int64 pdim_size = LayoutUtil::PaddedDimensions(shape).size();
+  int64 stride = 1;
+  DCHECK(pdim_size == 0 || pdim_size == shape.dimensions_size());
+  for (auto dim : LayoutUtil::MinorToMajor(shape)) {
+    if (dim == dimension) {
+      break;
+    }
+    if (pdim_size == 0) {
+      stride *= shape.dimensions(dim);
+    } else {
+      stride *= LayoutUtil::PaddedDimension(shape, dim);
+    }
+  }
+  return stride;
 }
 
 }  // namespace xla

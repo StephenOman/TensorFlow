@@ -31,6 +31,7 @@ from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import tensor_util
+from tensorflow.python.layers import utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import data_flow_ops
@@ -47,7 +48,6 @@ _dtypes = input_py._dtypes
 _store_sparse_tensors = input_py._store_sparse_tensors
 _validate_keep_input = input_py._validate_keep_input
 _shapes = input_py._shapes
-_smart_cond = input_py._smart_cond
 _which_queue = input_py._which_queue
 
 # pylint: enable=protected-access
@@ -88,7 +88,7 @@ def bucket(tensors,
   This function is implemented using several queues. A `QueueRunner` for the
   queues is added to the current `Graph`'s `QUEUE_RUNNER` collection.
 
-  As the returned tensors are the result of of a dequeue operation, evaluating
+  As the returned tensors are the result of a dequeue operation, evaluating
   them will throw a `tf.errors.OutOfRangeError` when the input queue is
   exhausted.  If these tensors are feeding another input queue, its queue runner
   will catch this exception, however, if they are used in your main thread
@@ -239,7 +239,7 @@ def bucket(tensors,
       ]
       return control_flow_ops.group(*enqueues, name="group_enqueues")
 
-    maybe_enqueue = _smart_cond(
+    maybe_enqueue = utils.smart_cond(
         keep_input,
         enqueue_which,
         control_flow_ops.no_op)
@@ -251,24 +251,36 @@ def bucket(tensors,
     else:
       which_dequeue = lambda q: q.dequeue_many
 
+    def make_list(t):
+      if isinstance(t, (list, tuple)):
+        return t
+      else:
+        return [t]
+
     enqueues_to_top = [
         top_queue.enqueue(
-            [constant_op.constant(i)] + which_dequeue(q)(
-                bs, name="read_bucket_%d" % i),
+            [constant_op.constant(i)] + make_list(which_dequeue(q)(
+                bs, name="read_bucket_%d" % i)),
             name="enqueue_from_bucket_%d" % i)
         for i, (q, bs) in enumerate(zip(bucket_queues, batch_size))
     ]
 
-    for i, q in enumerate(bucket_queues):
-      queue_runner.add_queue_runner(
-          queue_runner.QueueRunner(
-              q, [enqueues_to_top[i]],
-              queue_closed_exception_types=(errors.OutOfRangeError,
-                                            errors.CancelledError)))
+    queue_runner.add_queue_runner(
+        queue_runner.QueueRunner(
+            bucket_queues[0], enqueues_to_top,
+            close_op=top_queue.close(),
+            cancel_op=top_queue.close(cancel_pending_enqueues=True),
+            queue_closed_exception_types=(errors.OutOfRangeError,
+                                          errors.CancelledError)))
     queue_runner.add_queue_runner(
         queue_runner.QueueRunner(
             top_queue,
             bucket_enqueue_ops,
+            close_op=control_flow_ops.group(
+                *[q.close() for q in bucket_queues]),
+            cancel_op=control_flow_ops.group(
+                *[q.close(cancel_pending_enqueues=True)
+                  for q in bucket_queues]),
             queue_closed_exception_types=(errors.OutOfRangeError,
                                           errors.CancelledError)))
 
@@ -282,6 +294,8 @@ def bucket(tensors,
     dequeued = top_queue.dequeue(name="dequeue_top")
     which_bucket_dequeued = dequeued[0]
     dequeued = dequeued[1:]
+    if len(dequeued) == 1:
+      dequeued = dequeued[0]
     dequeued = _restore_sparse_tensors(dequeued, sparse_info)
     return (which_bucket_dequeued, _as_original_type(tensors, dequeued))
 

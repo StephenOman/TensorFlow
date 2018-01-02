@@ -36,7 +36,7 @@ class TestUpgrade(test_util.TensorFlowTestCase):
   def _upgrade(self, old_file_text):
     in_file = six.StringIO(old_file_text)
     out_file = six.StringIO()
-    upgrader = tf_upgrade.TensorFlowCodeUpgrader()
+    upgrader = tf_upgrade.ASTCodeUpgrader(tf_upgrade.TFAPIChangeSpec())
     count, report, errors = (
         upgrader.process_opened_file("test.py", in_file,
                                      "test_out.py", out_file))
@@ -139,7 +139,7 @@ class TestUpgradeFiles(test_util.TensorFlowTestCase):
     upgraded = "tf.multiply(a, b)\n"
     temp_file.write(original)
     temp_file.close()
-    upgrader = tf_upgrade.TensorFlowCodeUpgrader()
+    upgrader = tf_upgrade.ASTCodeUpgrader(tf_upgrade.TFAPIChangeSpec())
     upgrader.process_file(temp_file.name, temp_file.name)
     self.assertAllEqual(open(temp_file.name).read(), upgraded)
     os.unlink(temp_file.name)

@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import math
 import numpy as np
-from tensorflow.contrib.distributions.python.ops import distribution
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -29,6 +28,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import random_ops
+from tensorflow.python.ops.distributions import distribution
 
 
 class _Gumbel(distribution.Distribution):
@@ -44,7 +44,7 @@ class _Gumbel(distribution.Distribution):
 
   where `loc = mu` and `scale = sigma`.
 
-  The cumulative densifyt function of this distribution is,
+  The cumulative density function of this distribution is,
 
   ```cdf(x; mu, sigma) = exp(-exp(-(x - mu) / sigma))```
 
@@ -62,15 +62,17 @@ class _Gumbel(distribution.Distribution):
   Examples of initialization of one or a batch of distributions.
 
   ```python
+  tfd = tf.contrib.distributions
+
   # Define a single scalar Gumbel distribution.
-  dist = tf.contrib.distributions.Gumbel(loc=0., scale=3.)
+  dist = tfd.Gumbel(loc=0., scale=3.)
 
   # Evaluate the cdf at 1, returning a scalar.
   dist.cdf(1.)
 
   # Define a batch of two scalar valued Gumbels.
   # The first has mean 1 and scale 11, the second 2 and 22.
-  dist = tf.contrib.distributions.Gumbel(loc=[1, 2.], scale=[11, 22.])
+  dist = tfd.Gumbel(loc=[1, 2.], scale=[11, 22.])
 
   # Evaluate the pdf of the first distribution on 0, and the second on 1.5,
   # returning a length two tensor.
@@ -85,7 +87,7 @@ class _Gumbel(distribution.Distribution):
   ```python
   # Define a batch of two scalar valued Logistics.
   # Both have mean 1, but different scales.
-  dist = tf.contrib.distributions.Gumbel(loc=1., scale=[11, 22.])
+  dist = tfd.Gumbel(loc=1., scale=[11, 22.])
 
   # Evaluate the pdf of both distributions on the same point, 3.0,
   # returning a length 2 tensor.

@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import six
 
 from tensorflow.contrib.learn.python.learn.estimators import constants
 from tensorflow.contrib.learn.python.learn.estimators import model_fn
@@ -51,40 +52,49 @@ class ModelFnopsTest(test.TestCase):
         predictions=predictions,
         loss=constant_op.constant([1]),
         train_op=control_flow_ops.no_op(),
-        eval_metric_ops={"metric_key": (control_flow_ops.no_op(),
-                                        control_flow_ops.no_op())},
-        # zzz
+        eval_metric_ops={
+            "metric_key": (constant_op.constant(1.), control_flow_ops.no_op()),
+            "loss": (constant_op.constant(1.), control_flow_ops.no_op()),
+        },
         training_chief_hooks=[basic_session_run_hooks.StepCounterHook()],
         training_hooks=[basic_session_run_hooks.StepCounterHook()],
         output_alternatives=output_alternatives,
         scaffold=monitored_session.Scaffold())
 
-  def assertEquals_except_export(self, model_fn_ops, estimator_spec):
+  def assertEquals_except_export_and_eval_loss(
+      self, model_fn_ops, estimator_spec):
+    expected_eval_metric_ops = {}
+    for key, value in six.iteritems(model_fn_ops.eval_metric_ops):
+      if key != "loss":
+        expected_eval_metric_ops[key] = value
     self.assertEqual(model_fn_ops.predictions, estimator_spec.predictions)
     self.assertEqual(model_fn_ops.loss, estimator_spec.loss)
     self.assertEqual(model_fn_ops.train_op, estimator_spec.train_op)
-    self.assertEqual(model_fn_ops.eval_metric_ops,
+    self.assertEqual(expected_eval_metric_ops,
                      estimator_spec.eval_metric_ops)
-    self.assertEqual(model_fn_ops.training_chief_hooks,
-                     estimator_spec.training_chief_hooks)
-    self.assertEqual(model_fn_ops.training_hooks, estimator_spec.training_hooks)
+    self.assertAllEqual(model_fn_ops.training_chief_hooks,
+                        estimator_spec.training_chief_hooks)
+    self.assertAllEqual(model_fn_ops.training_hooks,
+                        estimator_spec.training_hooks)
     self.assertEqual(model_fn_ops.scaffold, estimator_spec.scaffold)
 
   def testEstimatorSpec_except_export(self):
     predictions = self.create_predictions()
-    model_fn_ops = self.create_model_fn_ops(predictions, None)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, None, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
   def testEstimatorSpec_export_regression_with_scores(self):
     predictions = self.create_predictions()
     output_alternatives = {"regression_head": (
         constants.ProblemType.LINEAR_REGRESSION, predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       regression_output = estimator_spec.export_outputs["regression_head"]
@@ -100,10 +110,11 @@ class ModelFnopsTest(test.TestCase):
     output_alternatives = {"regression_head": (
         constants.ProblemType.LINEAR_REGRESSION,
         output_alternatives_predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       regression_output = estimator_spec.export_outputs["regression_head"]
@@ -112,14 +123,15 @@ class ModelFnopsTest(test.TestCase):
       self.assertAllEqual(predictions["probabilities"].eval(),
                           regression_output.value.eval())
 
-  def testEstimatorSpec_export_classsification(self):
+  def testEstimatorSpec_export_classification(self):
     predictions = self.create_predictions()
     output_alternatives = {"classification_head": (
         constants.ProblemType.CLASSIFICATION, predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       classification_output = estimator_spec.export_outputs[
@@ -131,16 +143,17 @@ class ModelFnopsTest(test.TestCase):
       self.assertAllEqual(predictions["classes"].eval(),
                           classification_output.classes.eval())
 
-  def testEstimatorSpec_export_classsification_with_missing_scores(self):
+  def testEstimatorSpec_export_classification_with_missing_scores(self):
     predictions = self.create_predictions()
     output_alternatives_predictions = predictions.copy()
     del output_alternatives_predictions["scores"]
     output_alternatives = {"classification_head": (
         constants.ProblemType.CLASSIFICATION, output_alternatives_predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       classification_output = estimator_spec.export_outputs[
@@ -152,17 +165,18 @@ class ModelFnopsTest(test.TestCase):
       self.assertAllEqual(predictions["classes"].eval(),
                           classification_output.classes.eval())
 
-  def testEstimatorSpec_export_classsification_with_missing_scores_proba(self):
+  def testEstimatorSpec_export_classification_with_missing_scores_proba(self):
     predictions = self.create_predictions()
     output_alternatives_predictions = predictions.copy()
     del output_alternatives_predictions["scores"]
     del output_alternatives_predictions["probabilities"]
     output_alternatives = {"classification_head": (
         constants.ProblemType.CLASSIFICATION, output_alternatives_predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       classification_output = estimator_spec.export_outputs[
@@ -173,16 +187,17 @@ class ModelFnopsTest(test.TestCase):
       self.assertAllEqual(predictions["classes"].eval(),
                           classification_output.classes.eval())
 
-  def testEstimatorSpec_export_classsification_with_missing_classes(self):
+  def testEstimatorSpec_export_classification_with_missing_classes(self):
     predictions = self.create_predictions()
     output_alternatives_predictions = predictions.copy()
     del output_alternatives_predictions["classes"]
     output_alternatives = {"classification_head": (
         constants.ProblemType.CLASSIFICATION, output_alternatives_predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       classification_output = estimator_spec.export_outputs[
@@ -193,17 +208,18 @@ class ModelFnopsTest(test.TestCase):
                           classification_output.scores.eval())
       self.assertIsNone(classification_output.classes)
 
-  def testEstimatorSpec_export_classsification_with_nonstring_classes(self):
+  def testEstimatorSpec_export_classification_with_nonstring_classes(self):
     predictions = self.create_predictions()
     output_alternatives_predictions = predictions.copy()
     output_alternatives_predictions["classes"] = constant_op.constant(
         [1, 2, 3])
     output_alternatives = {"classification_head": (
         constants.ProblemType.CLASSIFICATION, output_alternatives_predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       classification_output = estimator_spec.export_outputs[
@@ -218,10 +234,11 @@ class ModelFnopsTest(test.TestCase):
     predictions = self.create_predictions()
     output_alternatives = {"logistic_head": (
         constants.ProblemType.LOGISTIC_REGRESSION, predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       logistic_output = estimator_spec.export_outputs["logistic_head"]
@@ -237,10 +254,11 @@ class ModelFnopsTest(test.TestCase):
     output_alternatives = {"unspecified_head": (
         constants.ProblemType.UNSPECIFIED, predictions)}
 
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER)
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec()
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       unspecified_output = estimator_spec.export_outputs["unspecified_head"]
@@ -255,11 +273,11 @@ class ModelFnopsTest(test.TestCase):
             constants.ProblemType.LINEAR_REGRESSION, predictions),
         "classification_head": (
             constants.ProblemType.CLASSIFICATION, predictions)}
-    model_fn_ops = self.create_model_fn_ops(predictions, output_alternatives)
+    model_fn_ops = self.create_model_fn_ops(
+        predictions, output_alternatives, mode=model_fn.ModeKeys.INFER)
 
-    estimator_spec = model_fn_ops.estimator_spec(model_fn.ModeKeys.INFER,
-                                                 "regression_head")
-    self.assertEquals_except_export(model_fn_ops, estimator_spec)
+    estimator_spec = model_fn_ops.estimator_spec("regression_head")
+    self.assertEquals_except_export_and_eval_loss(model_fn_ops, estimator_spec)
 
     with session.Session():
       regression_output = estimator_spec.export_outputs["regression_head"]

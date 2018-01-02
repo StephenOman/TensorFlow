@@ -222,8 +222,7 @@ def stack_blocks_dense(net,
   return net
 
 
-def resnet_arg_scope(is_training=True,
-                     weight_decay=0.0001,
+def resnet_arg_scope(weight_decay=0.0001,
                      batch_norm_decay=0.997,
                      batch_norm_epsilon=1e-5,
                      batch_norm_scale=True):
@@ -235,8 +234,6 @@ def resnet_arg_scope(is_training=True,
     training ResNets from scratch, they might need to be tuned.
 
   Args:
-    is_training: Whether or not we are training the parameters in the batch
-      normalization layers of the model.
     weight_decay: The weight decay to use for regularizing the model.
     batch_norm_decay: The moving average decay when estimating layer activation
       statistics in batch normalization.
@@ -249,7 +246,6 @@ def resnet_arg_scope(is_training=True,
     An `arg_scope` to use for the resnet models.
   """
   batch_norm_params = {
-      'is_training': is_training,
       'decay': batch_norm_decay,
       'epsilon': batch_norm_epsilon,
       'scale': batch_norm_scale,

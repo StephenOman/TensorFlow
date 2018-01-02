@@ -5,9 +5,15 @@ licenses(["notice"])  # custom notice-style license, see LICENSE.md
 
 exports_files(["LICENSE.md"])
 
-load("@%ws%//third_party:common.bzl", "template_rule")
+load("@org_tensorflow//third_party:common.bzl", "template_rule")
 
 libjpegturbo_nocopts = "-[W]error"
+
+WIN_COPTS = [
+    "/Ox",
+    "/w14711",  # function 'function' selected for inline expansion
+    "/w14710",  # 'function' : function not inlined
+]
 
 libjpegturbo_copts = select({
     ":android": [
@@ -15,11 +21,8 @@ libjpegturbo_copts = select({
         "-fPIE",
         "-w",
     ],
-    ":windows": [
-        "/Ox",
-        "/w14711",  # function 'function' selected for inline expansion
-        "/w14710",  # 'function' : function not inlined
-    ],
+    ":windows": WIN_COPTS,
+    ":windows_msvc": WIN_COPTS,
     "//conditions:default": [
         "-O3",
         "-w",
@@ -320,13 +323,17 @@ JCONFIG_NOWIN_COMMON_SUBSTITUTIONS = {
     "#undef RIGHT_SHIFT_IS_UNSIGNED": "",
 }
 
-JCONFIG_NOWIN_SIMD_SUBSTITUTIONS = JCONFIG_NOWIN_COMMON_SUBSTITUTIONS + {
+JCONFIG_NOWIN_SIMD_SUBSTITUTIONS = {
     "#undef WITH_SIMD": "#define WITH_SIMD 1",
 }
 
-JCONFIG_NOWIN_NOSIMD_SUBSTITUTIONS = JCONFIG_NOWIN_COMMON_SUBSTITUTIONS + {
+JCONFIG_NOWIN_NOSIMD_SUBSTITUTIONS = {
     "#undef WITH_SIMD": "",
 }
+
+JCONFIG_NOWIN_SIMD_SUBSTITUTIONS.update(JCONFIG_NOWIN_COMMON_SUBSTITUTIONS)
+
+JCONFIG_NOWIN_NOSIMD_SUBSTITUTIONS.update(JCONFIG_NOWIN_COMMON_SUBSTITUTIONS)
 
 template_rule(
     name = "jconfig_nowin_nosimd",
@@ -370,6 +377,7 @@ genrule(
     outs = ["jconfig.h"],
     cmd = select({
         ":windows": "cp $(location jconfig_win.h) $@",
+        ":windows_msvc": "cp $(location jconfig_win.h) $@",
         ":k8": "cp $(location jconfig_nowin_simd.h) $@",
         ":armeabi-v7a": "cp $(location jconfig_nowin_simd.h) $@",
         ":arm64-v8a": "cp $(location jconfig_nowin_simd.h) $@",
@@ -386,6 +394,7 @@ genrule(
     outs = ["jconfigint.h"],
     cmd = select({
         ":windows": "cp $(location jconfigint_win.h) $@",
+        ":windows_msvc": "cp $(location jconfigint_win.h) $@",
         "//conditions:default": "cp $(location jconfigint_nowin.h) $@",
     }),
 )
@@ -482,5 +491,10 @@ config_setting(
 
 config_setting(
     name = "windows",
+    values = {"cpu": "x64_windows"},
+)
+
+config_setting(
+    name = "windows_msvc",
     values = {"cpu": "x64_windows_msvc"},
 )

@@ -1,4 +1,4 @@
-/* Copyright 2016 Google Inc. All Rights Reserved.
+/* Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -191,6 +191,10 @@ class BasicBatchScheduler : public BatchScheduler<TaskType> {
   Status Schedule(std::unique_ptr<TaskType>* task) override;
   size_t NumEnqueuedTasks() const override;
   size_t SchedulingCapacity() const override;
+
+  size_t max_task_size() const override {
+    return shared_scheduler_queue_->max_task_size();
+  }
 
  private:
   explicit BasicBatchScheduler(

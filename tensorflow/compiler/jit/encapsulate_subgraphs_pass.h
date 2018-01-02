@@ -34,6 +34,8 @@ namespace tensorflow {
 // 'input_permutation' and 'output_permutation' are initialized to the identity
 // permutation. 'nodedef' is the NodeDef for the call to the function under
 // construction, provided to allow additional attributes to be set.
+// The rewrite may also change the NodeDef's operator name, and that
+// name will be used as the name of the generated function.
 typedef std::function<Status(
     std::unique_ptr<Graph>* graph, std::vector<int>* input_permutation,
     std::vector<int>* output_permutation, NodeDef* node_def)>
@@ -46,6 +48,16 @@ typedef std::function<Status(
 // 'group_attribute' must be a string valued-attribute that names the new
 // functions to introduce.
 //
+// 'outside_compilation_attribute' must be a string-valued attribute that is
+// used to tag nodes within a subgraph to be part of an 'outside_compilation'
+// cluster within the subgraph. A cluster is formed from the set of nodes with
+// the same value of outside_compilation_subgraph and group_attribute. The nodes
+// in an outside_compilation cluster are left in the original graph. Edges
+// crossing from the subgraph to an outside_compilation cluster nested in the
+// subgraph are lifted into a SendToHost/RecvAtHost pair of nodes, and edges
+// crossing from an outside_compilation cluster into its enclosing subgraph are
+// lifted into a SendFromHost/RecvFromHost pair of nodes.
+//
 // If 'rewrite_subgraph_fn' is set, it is applied to each subgraph before
 // function conversion.
 //
@@ -53,14 +65,18 @@ typedef std::function<Status(
 // output graph, together with a "ParallelCheck" operator, that verifies that
 // the original and encapsulated subgraphs produce similar results.
 //
+// If 'reuse_existing_functions' is set, use an existing function with the
+// same name, if any.
+//
 // TODO(phawkins): currently, some information in control edges
 // is not preserved. Suppose you have A and B in the main
 // graph, C and D in a subgraph. B and C have control deps from A, D has control
 // dep from B. Originally D must run after C, post-transformation this
 // dependency is lost.
 Status EncapsulateSubgraphsInFunctions(
-    string group_attribute, const Graph& graph_in,
-    const RewriteSubgraphFn& rewrite_subgraph_fn, bool parallel_checking,
+    string group_attribute, string outside_compilation_attribute,
+    const Graph& graph_in, const RewriteSubgraphFn& rewrite_subgraph_fn,
+    bool parallel_checking, bool reuse_existing_functions,
     std::unique_ptr<Graph>* graph_out, FunctionLibraryDefinition* library);
 
 // The attribute that marks function calls produced by the encapsulate

@@ -22,7 +22,6 @@ import abc
 
 import six
 
-from tensorflow.contrib.distributions.python.ops import distribution
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -32,6 +31,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.ops.distributions import distribution
 
 __all__ = [
     "Deterministic",
@@ -290,8 +290,10 @@ class VectorDeterministic(_BaseDeterministic):
   #### Examples
 
   ```python
+  tfd = tf.contrib.distributions
+
   # Initialize a single VectorDeterministic supported at [0., 2.] in R^2.
-  constant = tf.contrib.distributions.Deterministic([0., 2.])
+  constant = tfd.Deterministic([0., 2.])
   constant.prob([0., 2.])
   ==> 1.
   constant.prob([0., 3.])
@@ -299,7 +301,7 @@ class VectorDeterministic(_BaseDeterministic):
 
   # Initialize a [3] batch of constants on R^2.
   loc = [[0., 1.], [2., 3.], [4., 5.]]
-  constant = constant_lib.VectorDeterministic(loc)
+  constant = tfd.VectorDeterministic(loc)
   constant.prob([[0., 1.], [1.9, 3.], [3.99, 5.]])
   ==> [1., 0., 0.]
   ```

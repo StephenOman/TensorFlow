@@ -20,17 +20,22 @@ limitations under the License.
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 
+#include "tensorflow/compiler/xla/test.h"
 #include "tensorflow/compiler/xla/test_helpers.h"
 #include "tensorflow/compiler/xla/types.h"
 
 namespace xla {
 namespace {
 
+using ::testing::ContainsRegex;
+using ::testing::HasSubstr;
+
 class ShapeInferenceTest : public ::testing::Test {
  protected:
   // Some handy scalar shapes.
   const Shape s32_ = ShapeUtil::MakeShape(S32, {});
   const Shape f32_ = ShapeUtil::MakeShape(F32, {});
+  const Shape f64_ = ShapeUtil::MakeShape(F64, {});
   const Shape pred_ = ShapeUtil::MakeShape(PRED, {});
 
   // Some handy vector and matrix shapes of F32 type.
@@ -128,23 +133,21 @@ TEST_F(ShapeInferenceTest, SelectBadShapes) {
   auto inferred_status_error1 = ShapeInference::InferTernaryOpShape(
       TernaryOperation::TRIOP_SELECT, pred_, matrix_64_48_, matrix_32_64_);
   ASSERT_FALSE(inferred_status_error1.ok());
-  ASSERT_MATCH(
-      inferred_status_error1.status().error_message(),
-      testing::ContainsRegex("operands to select must be the same shape"));
+  ASSERT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("operands to select must be the same shape"));
 
   auto inferred_status_error2 = ShapeInference::InferTernaryOpShape(
       TernaryOperation::TRIOP_SELECT, s32_, matrix_64_48_, matrix_64_48_);
   ASSERT_FALSE(inferred_status_error2.ok());
-  ASSERT_MATCH(inferred_status_error2.status().error_message(),
-               testing::ContainsRegex("pred operand must have PRED"));
+  ASSERT_THAT(inferred_status_error2.status().error_message(),
+              HasSubstr("pred operand must have PRED"));
 
   auto inferred_status_error3 = ShapeInference::InferTernaryOpShape(
       TernaryOperation::TRIOP_SELECT, ShapeUtil::MakeShape(PRED, {64}),
       matrix_64_48_, matrix_64_48_);
   ASSERT_FALSE(inferred_status_error3.ok());
-  ASSERT_MATCH(
-      inferred_status_error3.status().error_message(),
-      testing::ContainsRegex("with non-scalar predicate with dimensionality"));
+  ASSERT_THAT(inferred_status_error3.status().error_message(),
+              HasSubstr("with non-scalar predicate with dimensionality"));
 
   // Tuples have a TUPLE element type and cannot be the pred of a select.
   auto inferred_status_error4 = ShapeInference::InferTernaryOpShape(
@@ -152,9 +155,8 @@ TEST_F(ShapeInferenceTest, SelectBadShapes) {
       ShapeUtil::MakeTupleShape({f32_, f32_}),
       ShapeUtil::MakeTupleShape({f32_, f32_}));
   ASSERT_FALSE(inferred_status_error4.ok());
-  ASSERT_MATCH(
-      inferred_status_error4.status().error_message(),
-      testing::ContainsRegex("pred operand must have PRED element type"));
+  ASSERT_THAT(inferred_status_error4.status().error_message(),
+              HasSubstr("pred operand must have PRED element type"));
 }
 
 TEST_F(ShapeInferenceTest, ClampAllMatrix) {
@@ -250,6 +252,44 @@ TEST_F(ShapeInferenceTest, ClampBadShapes) {
                    .ok());
 }
 
+TEST_F(ShapeInferenceTest, Complex) {
+  auto complex_shape = [&](const Shape& lhs, const Shape& rhs,
+                           const tensorflow::gtl::ArraySlice<int64>& bcast) {
+    return ShapeInference::InferBinaryOpShape(BinaryOperation::BINOP_COMPLEX,
+                                              lhs, rhs, bcast);
+  };
+  // Inputs must be FP.
+  ASSERT_FALSE(complex_shape(s32_, s32_, {}).ok());
+  ASSERT_FALSE(complex_shape(pred_, pred_, {}).ok());
+  // Component types must match.
+  ASSERT_FALSE(complex_shape(f32_, f64_, {}).ok());
+  // Only F32->C64 supported.
+  ASSERT_FALSE(complex_shape(f64_, f64_, {}).ok());
+  // Validate correct uses.
+  Shape c64_32 = ShapeUtil::MakeShape(C64, {32});
+  TF_ASSERT_OK_AND_ASSIGN(Shape result, complex_shape(f32_, f32_, {}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, ShapeUtil::MakeShape(C64, {})));
+  TF_ASSERT_OK_AND_ASSIGN(result, complex_shape(vector_32_, f32_, {}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, c64_32));
+  TF_ASSERT_OK_AND_ASSIGN(result, complex_shape(f32_, vector_32_, {}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, c64_32));
+  TF_ASSERT_OK_AND_ASSIGN(result, complex_shape(vector_32_, f32_, {}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, c64_32));
+
+  Shape c64_32_64 = ShapeUtil::MakeShape(C64, {32, 64});
+  TF_ASSERT_OK_AND_ASSIGN(result,
+                          complex_shape(vector_64_, matrix_32_64_, {1}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, c64_32_64));
+  TF_ASSERT_OK_AND_ASSIGN(result,
+                          complex_shape(matrix_32_64_, vector_64_, {1}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, c64_32_64));
+  TF_ASSERT_OK_AND_ASSIGN(result,
+                          complex_shape(matrix_32_64_, matrix_32_64_, {}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, c64_32_64));
+  TF_ASSERT_OK_AND_ASSIGN(result, complex_shape(matrix_32_64_, f32_, {}));
+  ASSERT_TRUE(ShapeUtil::Equal(result, c64_32_64));
+}
+
 TEST_F(ShapeInferenceTest, VariadicOpTuplify) {
   StatusOr<Shape> result = ShapeInference::InferVariadicOpShape(
       VariadicOperation::VAROP_TUPLE, {&s32_, &f32_});
@@ -298,8 +338,8 @@ TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSourceShape) {
       operand_shape_, select_program_shape_, window_, source_shape_fail,
       init_value_shape_, scatter_program_shape_);
   ASSERT_FALSE(inferred_status_fail.ok());
-  ASSERT_MATCH(inferred_status_fail.status().error_message(),
-               testing::ContainsRegex("source shape does not match"));
+  ASSERT_THAT(inferred_status_fail.status().error_message(),
+              HasSubstr("source shape does not match"));
 }
 
 TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape1) {
@@ -309,9 +349,8 @@ TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape1) {
       operand_shape_, select_program_shape_fail, window_, source_shape_,
       init_value_shape_, scatter_program_shape_);
   ASSERT_FALSE(inferred_status_fail.ok());
-  ASSERT_MATCH(
-      inferred_status_fail.status().error_message(),
-      testing::ContainsRegex("select function must take 2 parameters"));
+  ASSERT_THAT(inferred_status_fail.status().error_message(),
+              HasSubstr("select function must take 2 parameters"));
 }
 
 TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape2) {
@@ -321,8 +360,8 @@ TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape2) {
       operand_shape_, select_program_shape_fail, window_, source_shape_,
       init_value_shape_, scatter_program_shape_);
   ASSERT_FALSE(inferred_status_fail.ok());
-  ASSERT_MATCH(inferred_status_fail.status().error_message(),
-               testing::ContainsRegex("select function must have rank-0 PRED"));
+  ASSERT_THAT(inferred_status_fail.status().error_message(),
+              HasSubstr("select function must have rank-0 PRED"));
 }
 
 TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape3) {
@@ -332,8 +371,8 @@ TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape3) {
       operand_shape_, select_program_shape_fail, window_, source_shape_,
       init_value_shape_, scatter_program_shape_);
   ASSERT_FALSE(inferred_status_fail.ok());
-  ASSERT_MATCH(inferred_status_fail.status().error_message(),
-               testing::ContainsRegex("select function's first parameter"));
+  ASSERT_THAT(inferred_status_fail.status().error_message(),
+              HasSubstr("select function's first parameter"));
 }
 
 TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape4) {
@@ -343,8 +382,8 @@ TEST_F(SelectAndScatterShapeInferenceTest, SelectAndScatterWrongSelectShape4) {
       operand_shape_, select_program_shape_fail, window_, source_shape_,
       init_value_shape_, scatter_program_shape_);
   ASSERT_FALSE(inferred_status_fail.ok());
-  ASSERT_MATCH(inferred_status_fail.status().error_message(),
-               testing::ContainsRegex("select function's second parameter"));
+  ASSERT_THAT(inferred_status_fail.status().error_message(),
+              HasSubstr("select function's second parameter"));
 }
 
 TEST_F(ShapeInferenceTest, Convolve) {
@@ -352,10 +391,14 @@ TEST_F(ShapeInferenceTest, Convolve) {
 
   // Dimension order: batch, feature, x0, x1
   Shape lhs_shape = ShapeUtil::MakeShape(F32, {10, 11, 3, 4});
-  dnums.set_batch_dimension(0);
-  dnums.set_feature_dimension(1);
-  dnums.add_spatial_dimensions(2);
-  dnums.add_spatial_dimensions(3);
+  dnums.set_input_batch_dimension(0);
+  dnums.set_output_batch_dimension(0);
+  dnums.set_input_feature_dimension(1);
+  dnums.set_output_feature_dimension(1);
+  dnums.add_input_spatial_dimensions(2);
+  dnums.add_output_spatial_dimensions(2);
+  dnums.add_input_spatial_dimensions(3);
+  dnums.add_output_spatial_dimensions(3);
 
   // Dimension order: x1, batch, feature, x0
   Shape rhs_shape = ShapeUtil::MakeShape(F32, {2, 12, 11, 3});
@@ -392,10 +435,14 @@ TEST_F(ShapeInferenceTest, ConvolveWithWindowDilation) {
 
   // Dimension order: batch, feature, x0, x1
   Shape lhs_shape = ShapeUtil::MakeShape(F32, {10, 11, 103, 4});
-  dnums.set_batch_dimension(0);
-  dnums.set_feature_dimension(1);
-  dnums.add_spatial_dimensions(2);
-  dnums.add_spatial_dimensions(3);
+  dnums.set_input_batch_dimension(0);
+  dnums.set_output_batch_dimension(0);
+  dnums.set_input_feature_dimension(1);
+  dnums.set_output_feature_dimension(1);
+  dnums.add_input_spatial_dimensions(2);
+  dnums.add_output_spatial_dimensions(2);
+  dnums.add_input_spatial_dimensions(3);
+  dnums.add_output_spatial_dimensions(3);
 
   // Dimension order: x1, batch, feature, x0
   Shape rhs_shape = ShapeUtil::MakeShape(F32, {2, 12, 11, 3});
@@ -433,10 +480,14 @@ TEST_F(ShapeInferenceTest, ConvolveWithBaseDilation) {
 
   // Dimension order: batch, feature, x0, x1
   Shape lhs_shape = ShapeUtil::MakeShape(F32, {10, 11, 3, 4});
-  dnums.set_batch_dimension(0);
-  dnums.set_feature_dimension(1);
-  dnums.add_spatial_dimensions(2);
-  dnums.add_spatial_dimensions(3);
+  dnums.set_input_batch_dimension(0);
+  dnums.set_output_batch_dimension(0);
+  dnums.set_input_feature_dimension(1);
+  dnums.set_output_feature_dimension(1);
+  dnums.add_input_spatial_dimensions(2);
+  dnums.add_output_spatial_dimensions(2);
+  dnums.add_input_spatial_dimensions(3);
+  dnums.add_output_spatial_dimensions(3);
 
   // Dimension order: x1, batch, feature, x0
   Shape rhs_shape = ShapeUtil::MakeShape(F32, {2, 12, 11, 4});
@@ -475,10 +526,14 @@ TEST_F(ShapeInferenceTest, ConvolveDimensionNumbersOverlapError) {
   Shape rhs_shape = ShapeUtil::MakeShape(F32, {12, 11, 3, 2});
 
   ConvolutionDimensionNumbers dnums;
-  dnums.set_batch_dimension(3);
-  dnums.set_feature_dimension(2);
-  dnums.add_spatial_dimensions(0);
-  dnums.add_spatial_dimensions(1);
+  dnums.set_input_batch_dimension(3);
+  dnums.set_output_batch_dimension(3);
+  dnums.set_input_feature_dimension(2);
+  dnums.set_output_feature_dimension(2);
+  dnums.add_input_spatial_dimensions(0);
+  dnums.add_output_spatial_dimensions(0);
+  dnums.add_input_spatial_dimensions(1);
+  dnums.add_output_spatial_dimensions(1);
   dnums.set_kernel_input_feature_dimension(0);  // duplicated with kernel_x0
   dnums.set_kernel_output_feature_dimension(3);
   dnums.add_kernel_spatial_dimensions(0);
@@ -498,14 +553,14 @@ TEST_F(ShapeInferenceTest, ConvolveDimensionNumbersOverlapError) {
   auto inferred_status =
       ShapeInference::InferConvolveShape(lhs_shape, rhs_shape, window, dnums);
   ASSERT_FALSE(inferred_status.ok());
-  ASSERT_MATCH(inferred_status.status().error_message(),
-               testing::ContainsRegex("each dimension exactly once"));
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("each dimension exactly once"));
 }
 
 TEST_F(ShapeInferenceTest, MapThatChangesElementType) {
   Shape arg = ShapeUtil::MakeShape(F32, {20});
   ProgramShape to_apply = ShapeUtil::MakeProgramShape({f32_}, s32_);
-  auto inferred_status = ShapeInference::InferMapShape({&arg}, to_apply);
+  auto inferred_status = ShapeInference::InferMapShape({&arg}, to_apply, {0});
   EXPECT_IS_OK(inferred_status.status());
   Shape expected = ShapeUtil::MakeShape(S32, {20});
   EXPECT_TRUE(ShapeUtil::Equal(expected, inferred_status.ValueOrDie()));
@@ -514,95 +569,95 @@ TEST_F(ShapeInferenceTest, MapThatChangesElementType) {
 TEST_F(ShapeInferenceTest, Map) {
   auto inferred_status_r1f32 = ShapeInference::InferMapShape(
       {&vector_32_, &vector_32_},
-      ShapeUtil::MakeProgramShape({f32_, f32_}, f32_));
+      ShapeUtil::MakeProgramShape({f32_, f32_}, f32_), {0});
   EXPECT_IS_OK(inferred_status_r1f32.status());
   EXPECT_TRUE(ShapeUtil::Equal(vector_32_, inferred_status_r1f32.ValueOrDie()));
 
   // It's OK to provide a single argument, as long as the applied arity matches
   // (this degenerates to a Map).
   auto inferred_status_r1f32_one = ShapeInference::InferMapShape(
-      {&vector_32_}, ShapeUtil::MakeProgramShape({f32_}, f32_));
+      {&vector_32_}, ShapeUtil::MakeProgramShape({f32_}, f32_), {0});
   EXPECT_IS_OK(inferred_status_r1f32_one.status());
   EXPECT_TRUE(
       ShapeUtil::Equal(vector_32_, inferred_status_r1f32_one.ValueOrDie()));
 
   auto inferred_status_r2s32 = ShapeInference::InferMapShape(
       {&s32matrix_64_64_, &s32matrix_64_64_, &s32matrix_64_64_},
-      ShapeUtil::MakeProgramShape({s32_, s32_, s32_}, s32_));
+      ShapeUtil::MakeProgramShape({s32_, s32_, s32_}, s32_), {0, 1});
   EXPECT_IS_OK(inferred_status_r2s32.status());
   EXPECT_TRUE(
       ShapeUtil::Equal(s32matrix_64_64_, inferred_status_r2s32.ValueOrDie()));
 
   auto no_args_error = ShapeInference::InferMapShape(
-      {}, ShapeUtil::MakeProgramShape({f32_, f32_}, f32_));
+      {}, ShapeUtil::MakeProgramShape({f32_, f32_}, f32_), {});
   ASSERT_FALSE(no_args_error.ok());
-  ASSERT_MATCH(no_args_error.status().error_message(),
-               testing::ContainsRegex("expects at least one argument"));
+  ASSERT_THAT(no_args_error.status().error_message(),
+              HasSubstr("expects at least one argument"));
 
   auto args_diff_shapes_error = ShapeInference::InferMapShape(
       {&vector_32_, &vector_64_},
-      ShapeUtil::MakeProgramShape({f32_, f32_}, f32_));
+      ShapeUtil::MakeProgramShape({f32_, f32_}, f32_), {0});
   ASSERT_FALSE(args_diff_shapes_error.ok());
-  ASSERT_MATCH(
-      args_diff_shapes_error.status().error_message(),
-      testing::ContainsRegex("requires all operands to have the same shape"));
+  ASSERT_THAT(args_diff_shapes_error.status().error_message(),
+              HasSubstr("requires all operands to have the same shape"));
 
   auto arity_error = ShapeInference::InferMapShape(
-      {&vector_32_, &vector_32_}, ShapeUtil::MakeProgramShape({f32_}, f32_));
+      {&vector_32_, &vector_32_}, ShapeUtil::MakeProgramShape({f32_}, f32_),
+      {0});
   ASSERT_FALSE(arity_error.ok());
-  ASSERT_MATCH(arity_error.status().error_message(),
-               testing::ContainsRegex("function arity must match"));
+  ASSERT_THAT(arity_error.status().error_message(),
+              HasSubstr("function arity must match"));
 
   auto output_shape_error = ShapeInference::InferMapShape(
       {&vector_32_, &vector_32_},
-      ShapeUtil::MakeProgramShape({f32_, f32_}, vector_32_));
+      ShapeUtil::MakeProgramShape({f32_, f32_}, vector_32_), {0});
   ASSERT_FALSE(output_shape_error.ok());
-  ASSERT_MATCH(output_shape_error.status().error_message(),
-               testing::ContainsRegex("result has to be a scalar"));
+  ASSERT_THAT(output_shape_error.status().error_message(),
+              HasSubstr("result has to be a scalar"));
 
   auto param_shape_error = ShapeInference::InferMapShape(
       {&vector_32_, &vector_32_},
-      ShapeUtil::MakeProgramShape({vector_32_, f32_}, f32_));
+      ShapeUtil::MakeProgramShape({vector_32_, f32_}, f32_), {0});
   ASSERT_FALSE(param_shape_error.ok());
-  ASSERT_MATCH(param_shape_error.status().error_message(),
-               testing::ContainsRegex("parameter has to be a scalar"));
+  ASSERT_THAT(param_shape_error.status().error_message(),
+              HasSubstr("parameter has to be a scalar"));
 
   auto param_element_type_error = ShapeInference::InferMapShape(
       {&vector_32_, &vector_32_},
-      ShapeUtil::MakeProgramShape({f32_, s32_}, f32_));
+      ShapeUtil::MakeProgramShape({f32_, s32_}, f32_), {0});
   ASSERT_FALSE(param_element_type_error.ok());
-  ASSERT_MATCH(param_element_type_error.status().error_message(),
-               testing::ContainsRegex("parameter type has to match argument"));
+  ASSERT_THAT(param_element_type_error.status().error_message(),
+              HasSubstr("parameter type has to match argument"));
 
   Shape arg = ShapeUtil::MakeShape(F32, {20});
   ProgramShape to_apply = ShapeUtil::MakeProgramShape({f32_}, f32_);
-  auto inferred_status = ShapeInference::InferMapShape({&arg}, to_apply);
+  auto inferred_status = ShapeInference::InferMapShape({&arg}, to_apply, {0});
   EXPECT_IS_OK(inferred_status.status());
   EXPECT_TRUE(ShapeUtil::Equal(arg, inferred_status.ValueOrDie()));
 
   auto inferred_status_error1 = ShapeInference::InferMapShape(
-      {&arg}, ShapeUtil::MakeProgramShape({f32_, f32_}, f32_));
+      {&arg}, ShapeUtil::MakeProgramShape({f32_, f32_}, f32_), {0});
   ASSERT_FALSE(inferred_status_error1.ok());
-  ASSERT_MATCH(inferred_status_error1.status().error_message(),
-               testing::ContainsRegex("arity must match number of arguments"));
+  ASSERT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("arity must match number of arguments"));
 
   auto inferred_status_error2 = ShapeInference::InferMapShape(
-      {&arg}, ShapeUtil::MakeProgramShape({vector_32_}, f32_));
+      {&arg}, ShapeUtil::MakeProgramShape({vector_32_}, f32_), {0});
   ASSERT_FALSE(inferred_status_error2.ok());
-  ASSERT_MATCH(inferred_status_error2.status().error_message(),
-               testing::ContainsRegex("has to be a scalar"));
+  ASSERT_THAT(inferred_status_error2.status().error_message(),
+              HasSubstr("has to be a scalar"));
 
   auto inferred_status_error3 = ShapeInference::InferMapShape(
-      {&arg}, ShapeUtil::MakeProgramShape({f32_}, vector_32_));
+      {&arg}, ShapeUtil::MakeProgramShape({f32_}, vector_32_), {0});
   ASSERT_FALSE(inferred_status_error3.ok());
-  ASSERT_MATCH(inferred_status_error3.status().error_message(),
-               testing::ContainsRegex("has to be a scalar"));
+  ASSERT_THAT(inferred_status_error3.status().error_message(),
+              HasSubstr("has to be a scalar"));
 
   auto inferred_status_error5 = ShapeInference::InferMapShape(
-      {&arg}, ShapeUtil::MakeProgramShape({s32_}, s32_));
+      {&arg}, ShapeUtil::MakeProgramShape({s32_}, s32_), {0});
   ASSERT_FALSE(inferred_status_error5.ok());
-  ASSERT_MATCH(inferred_status_error5.status().error_message(),
-               testing::ContainsRegex("parameter type has to match argument"));
+  ASSERT_THAT(inferred_status_error5.status().error_message(),
+              HasSubstr("parameter type has to match argument"));
 }
 
 TEST_F(ReduceShapeInferenceTest, ReduceVectorToScalar) {
@@ -656,8 +711,8 @@ TEST_F(ReduceShapeInferenceTest, ErrorOutOfBoundsDimension) {
       ShapeUtil::MakeShape(F32, {5, 3}), f32_, /*dimensions_to_reduce=*/{3, 4},
       to_apply);
   EXPECT_FALSE(inferred_status.ok());
-  EXPECT_MATCH(inferred_status.status().error_message(),
-               testing::ContainsRegex("out-of-bounds dimension"));
+  EXPECT_THAT(inferred_status.status().error_message(),
+              HasSubstr("out-of-bounds dimension"));
 }
 
 TEST_F(ReduceShapeInferenceTest, ErrorToApplyArity) {
@@ -666,8 +721,8 @@ TEST_F(ReduceShapeInferenceTest, ErrorToApplyArity) {
       ShapeInference::InferReduceShape(ShapeUtil::MakeShape(F32, {5, 3}), f32_,
                                        /*dimensions_to_reduce=*/{0}, to_apply);
   EXPECT_FALSE(inferred_status.ok());
-  EXPECT_MATCH(inferred_status.status().error_message(),
-               testing::ContainsRegex("take 2 parameters"));
+  EXPECT_THAT(inferred_status.status().error_message(),
+              HasSubstr("take 2 parameters"));
 }
 
 TEST_F(ReduceShapeInferenceTest, ErrorElementTypeVsApplyType) {
@@ -676,23 +731,50 @@ TEST_F(ReduceShapeInferenceTest, ErrorElementTypeVsApplyType) {
       ShapeInference::InferReduceShape(ShapeUtil::MakeShape(F32, {5, 3}), f32_,
                                        /*dimensions_to_reduce=*/{0}, to_apply);
   EXPECT_FALSE(inferred_status.ok());
-  EXPECT_MATCH(inferred_status.status().error_message(),
-               testing::ContainsRegex("first parameter shape differs"));
+  EXPECT_THAT(inferred_status.status().error_message(),
+              HasSubstr("first parameter shape differs"));
 }
 
 TEST_F(ShapeInferenceTest, InferSliceShapeRank2) {
   Shape matrix_shape = ShapeUtil::MakeShape(F32, {128, 64});
   auto inferred_status =
-      ShapeInference::InferSliceShape(matrix_shape, {32, 0}, {64, 64});
+      ShapeInference::InferSliceShape(matrix_shape, {32, 0}, {64, 64}, {1, 1});
   ASSERT_IS_OK(inferred_status.status());
   Shape inferred = inferred_status.ValueOrDie();
   ASSERT_TRUE(ShapeUtil::Equal(ShapeUtil::MakeShape(F32, {32, 64}), inferred));
 }
 
+TEST_F(ShapeInferenceTest, InferSliceShapeRank2WithStrides) {
+  Shape matrix_shape = ShapeUtil::MakeShape(F32, {128, 64});
+  auto inferred_status =
+      ShapeInference::InferSliceShape(matrix_shape, {32, 0}, {64, 64}, {2, 4});
+  ASSERT_IS_OK(inferred_status.status());
+  Shape inferred = inferred_status.ValueOrDie();
+  ASSERT_TRUE(ShapeUtil::Equal(ShapeUtil::MakeShape(F32, {16, 16}), inferred));
+}
+
+TEST_F(ShapeInferenceTest, InferSliceShapeRank2WithStridesNotIntegral) {
+  Shape matrix_shape = ShapeUtil::MakeShape(F32, {128, 64});
+  auto inferred_status =
+      ShapeInference::InferSliceShape(matrix_shape, {15, 0}, {20, 13}, {2, 4});
+  ASSERT_IS_OK(inferred_status.status());
+  Shape inferred = inferred_status.ValueOrDie();
+  ASSERT_TRUE(ShapeUtil::Equal(ShapeUtil::MakeShape(F32, {3, 4}), inferred));
+}
+
+TEST_F(ShapeInferenceTest, InferInvalidStride) {
+  Shape matrix_shape = ShapeUtil::MakeShape(F32, {128, 64});
+  auto inferred_status =
+      ShapeInference::InferSliceShape(matrix_shape, {127, 0}, {129, 2}, {0, 1});
+  ASSERT_FALSE(inferred_status.ok());
+  ASSERT_EQ(tensorflow::error::INVALID_ARGUMENT,
+            inferred_status.status().code());
+}
+
 TEST_F(ShapeInferenceTest, InferOobSliceShapeRank2) {
   Shape matrix_shape = ShapeUtil::MakeShape(F32, {128, 64});
   auto inferred_status =
-      ShapeInference::InferSliceShape(matrix_shape, {127, 0}, {129, 2});
+      ShapeInference::InferSliceShape(matrix_shape, {127, 0}, {129, 2}, {1, 1});
   ASSERT_FALSE(inferred_status.ok());
   ASSERT_EQ(tensorflow::error::INVALID_ARGUMENT,
             inferred_status.status().code());
@@ -701,7 +783,7 @@ TEST_F(ShapeInferenceTest, InferOobSliceShapeRank2) {
 TEST_F(ShapeInferenceTest, InferSliceShapeRank1) {
   Shape vector_shape = ShapeUtil::MakeShape(F32, {17});
   auto inferred_status =
-      ShapeInference::InferSliceShape(vector_shape, {2}, {4});
+      ShapeInference::InferSliceShape(vector_shape, {2}, {4}, {1});
   ASSERT_TRUE(inferred_status.ok());
   Shape inferred = inferred_status.ValueOrDie();
   ASSERT_TRUE(ShapeUtil::Equal(inferred, ShapeUtil::MakeShape(F32, {2})));
@@ -816,68 +898,209 @@ TEST_F(ShapeInferenceTest, BroadcastScalar) {
 
 // scalar <dot> vector: error
 TEST_F(ShapeInferenceTest, ScalarDotVector) {
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(0);
   auto inferred_status =
-      ShapeInference::InferBinaryOpShape(BINOP_DOT, f32_, vector_32_, {});
+      ShapeInference::InferDotOpShape(f32_, vector_32_, dot_dnums);
   ASSERT_FALSE(inferred_status.ok());
-  ASSERT_MATCH(inferred_status.status().error_message(),
-               testing::ContainsRegex("dot only supports rank"));
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("dot only supports rank"));
 }
 
 // 3D <dot> 2D: error
 TEST_F(ShapeInferenceTest, DotWithRankHigherThanTwo) {
-  auto inferred_status = ShapeInference::InferBinaryOpShape(
-      BINOP_DOT, ShapeUtil::MakeShape(F32, {32, 32, 32}), matrix_32_64_, {});
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  auto inferred_status = ShapeInference::InferDotOpShape(
+      ShapeUtil::MakeShape(F32, {32, 32, 32}), matrix_32_64_, dot_dnums);
   ASSERT_FALSE(inferred_status.ok());
-  ASSERT_MATCH(inferred_status.status().error_message(),
-               testing::ContainsRegex("dot only supports rank"));
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("batch and contracting dimension number mismatch"));
 }
 
 // vector <dot> vector -> scalar
 TEST_F(ShapeInferenceTest, VectorDotVector) {
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(0);
+  dot_dnums.add_rhs_contracting_dimensions(0);
   auto inferred_status =
-      ShapeInference::InferBinaryOpShape(BINOP_DOT, vector_64_, vector_64_, {});
+      ShapeInference::InferDotOpShape(vector_64_, vector_64_, dot_dnums);
   ASSERT_IS_OK(inferred_status.status());
   ASSERT_TRUE(ShapeUtil::Equal(f32_, inferred_status.ValueOrDie()));
   auto inferred_status_mismatch =
-      ShapeInference::InferBinaryOpShape(BINOP_DOT, vector_64_, vector_32_, {});
+      ShapeInference::InferDotOpShape(vector_64_, vector_32_, dot_dnums);
   ASSERT_FALSE(inferred_status_mismatch.ok());
 }
 
 // matrix <dot> vector -> vector
 TEST_F(ShapeInferenceTest, MatrixDotVector) {
-  auto inferred_status = ShapeInference::InferBinaryOpShape(
-      BinaryOperation::BINOP_DOT, matrix_32_64_, vector_64_, {});
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  auto inferred_status =
+      ShapeInference::InferDotOpShape(matrix_32_64_, vector_64_, dot_dnums);
   ASSERT_IS_OK(inferred_status.status());
   ASSERT_TRUE(ShapeUtil::Equal(inferred_status.ValueOrDie(), vector_32_));
-  auto inferred_status_mismatch = ShapeInference::InferBinaryOpShape(
-      BinaryOperation::BINOP_DOT, matrix_32_64_, vector_32_, {});
+  auto inferred_status_mismatch =
+      ShapeInference::InferDotOpShape(matrix_32_64_, vector_32_, dot_dnums);
   ASSERT_FALSE(inferred_status_mismatch.ok());
 }
 
 // vector <dot> matrix -> vector
 TEST_F(ShapeInferenceTest, VectorDotMatrix) {
-  auto inferred_status = ShapeInference::InferBinaryOpShape(
-      BinaryOperation::BINOP_DOT, vector_32_, matrix_32_64_, {});
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(0);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  auto inferred_status =
+      ShapeInference::InferDotOpShape(vector_32_, matrix_32_64_, dot_dnums);
   ASSERT_IS_OK(inferred_status.status());
   ASSERT_TRUE(ShapeUtil::Equal(inferred_status.ValueOrDie(), vector_64_));
-  auto inferred_status_mismatch = ShapeInference::InferBinaryOpShape(
-      BinaryOperation::BINOP_DOT, vector_64_, matrix_32_64_, {});
+  auto inferred_status_mismatch =
+      ShapeInference::InferDotOpShape(vector_64_, matrix_32_64_, dot_dnums);
   ASSERT_FALSE(inferred_status_mismatch.ok());
 }
 
 // matrix <dot> matrix -> matrix
 TEST_F(ShapeInferenceTest, MatrixDotMatrix) {
-  auto inferred_status_match = ShapeInference::InferBinaryOpShape(
-      BinaryOperation::BINOP_DOT, matrix_32_64_, matrix_64_48_, {});
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  auto inferred_status_match =
+      ShapeInference::InferDotOpShape(matrix_32_64_, matrix_64_48_, dot_dnums);
   ASSERT_IS_OK(inferred_status_match.status());
   ASSERT_TRUE(
       ShapeUtil::Equal(inferred_status_match.ValueOrDie(), matrix_32_48_))
       << "inferred: "
       << ShapeUtil::HumanString(inferred_status_match.ValueOrDie())
       << " expected: " << ShapeUtil::HumanString(matrix_64_48_);
-  auto inferred_status_mismatch = ShapeInference::InferBinaryOpShape(
-      BinaryOperation::BINOP_DOT, matrix_32_64_, matrix_32_64_, {});
+  auto inferred_status_mismatch =
+      ShapeInference::InferDotOpShape(matrix_32_64_, matrix_32_64_, dot_dnums);
   ASSERT_FALSE(inferred_status_mismatch.ok());
+}
+
+// BatchMatMul with two batch dimensions and one contracting dimension.
+TEST_F(ShapeInferenceTest, DotGeneral) {
+  Shape lhs_shape = ShapeUtil::MakeShape(F32, {5, 2, 11, 3});
+  Shape rhs_shape = ShapeUtil::MakeShape(F32, {5, 2, 3, 14});
+  Shape output_shape = ShapeUtil::MakeShape(F32, {5, 2, 11, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(3);
+  dot_dnums.add_lhs_batch_dimensions(0);
+  dot_dnums.add_lhs_batch_dimensions(1);
+
+  dot_dnums.add_rhs_contracting_dimensions(2);
+  dot_dnums.add_rhs_batch_dimensions(0);
+  dot_dnums.add_rhs_batch_dimensions(1);
+
+  auto inferred_status_match =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums);
+  ASSERT_IS_OK(inferred_status_match.status());
+  ASSERT_TRUE(
+      ShapeUtil::Equal(inferred_status_match.ValueOrDie(), output_shape))
+      << "inferred: "
+      << ShapeUtil::HumanString(inferred_status_match.ValueOrDie())
+      << " expected: " << ShapeUtil::HumanString(output_shape);
+}
+
+// BatchMatMul with two contracting dimensions fails.
+TEST_F(ShapeInferenceTest, DotWithTwoContractingDimsFails) {
+  Shape lhs_shape = ShapeUtil::MakeShape(F32, {2, 11, 3, 2});
+  Shape rhs_shape = ShapeUtil::MakeShape(F32, {2, 3, 14});
+  Shape output_shape = ShapeUtil::MakeShape(F32, {2, 11, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(2);
+  dot_dnums.add_lhs_contracting_dimensions(3);
+  dot_dnums.add_lhs_batch_dimensions(0);
+
+  dot_dnums.add_rhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_batch_dimensions(0);
+
+  auto inferred_status =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums);
+  ASSERT_FALSE(inferred_status.ok());
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("must specify one contracting dimension for both "
+                        "lhs and rhs"));
+}
+
+// BatchMatMul with different batch dimension sizes fails.
+TEST_F(ShapeInferenceTest, DotWithMisatchedBatchDimSizesFails) {
+  Shape lhs_shape = ShapeUtil::MakeShape(F32, {2, 11, 3});
+  Shape rhs_shape = ShapeUtil::MakeShape(F32, {3, 3, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(2);
+  dot_dnums.add_lhs_batch_dimensions(0);
+
+  dot_dnums.add_rhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_batch_dimensions(0);
+
+  auto inferred_status =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums);
+  ASSERT_FALSE(inferred_status.ok());
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("batch dimension numbers and sizes must match"));
+}
+
+// BatchMatMul with different batch dimension numbers fails.
+TEST_F(ShapeInferenceTest, DotWithMisatchedBatchDimNumbersFails) {
+  Shape lhs_shape = ShapeUtil::MakeShape(F32, {2, 11, 3});
+  Shape rhs_shape = ShapeUtil::MakeShape(F32, {3, 2, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(2);
+  dot_dnums.add_lhs_batch_dimensions(0);
+
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  dot_dnums.add_rhs_batch_dimensions(1);
+
+  auto inferred_status =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums);
+  ASSERT_FALSE(inferred_status.ok());
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("batch dimension numbers must precede non-batch"));
+}
+
+// BatchMatMul with out-of-range dimension numbers fails.
+TEST_F(ShapeInferenceTest, DotWithContractingDimNumberOutOfRange) {
+  Shape lhs_shape = ShapeUtil::MakeShape(F32, {2, 11, 3});
+  Shape rhs_shape = ShapeUtil::MakeShape(F32, {2, 3, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(3);
+  dot_dnums.add_lhs_batch_dimensions(0);
+
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  dot_dnums.add_rhs_batch_dimensions(1);
+
+  auto inferred_status =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums);
+  ASSERT_FALSE(inferred_status.ok());
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("A dimension number is out of range"));
+}
+
+// BatchMatMul with non-unique dimension numbers fails.
+TEST_F(ShapeInferenceTest, DotWithContractingNonUniqueDimNumber) {
+  Shape lhs_shape = ShapeUtil::MakeShape(F32, {2, 11, 3});
+  Shape rhs_shape = ShapeUtil::MakeShape(F32, {2, 3, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(0);
+  dot_dnums.add_lhs_batch_dimensions(0);
+
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  dot_dnums.add_rhs_batch_dimensions(1);
+
+  auto inferred_status =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums);
+  ASSERT_FALSE(inferred_status.ok());
+  ASSERT_THAT(inferred_status.status().error_message(),
+              HasSubstr("A dimension number is not unique"));
 }
 
 TEST_F(ShapeInferenceTest, BinOpBroadcastMatrixVector) {
@@ -941,46 +1164,43 @@ TEST_F(ShapeInferenceTest, BinOpBroadcastBadDimension) {
   auto inferred_status_error1 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor, vec8, {});
   ASSERT_FALSE(inferred_status_error1.ok());
-  ASSERT_MATCH(inferred_status_error1.status().error_message(),
-               testing::ContainsRegex("automatic"));
+  ASSERT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("automatic"));
 
   // broadcast_dimension out of bounds for tensor's rank
   auto inferred_status_error2 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor, vec8, {3});
   ASSERT_FALSE(inferred_status_error2.ok());
-  ASSERT_MATCH(
-      inferred_status_error2.status().error_message(),
-      testing::ContainsRegex("broadcast dimension number .* too large"));
+  ASSERT_THAT(inferred_status_error2.status().error_message(),
+              ContainsRegex("broadcast dimension number .* too large"));
 
   // broadcast_dimension doesn't match corresponding dimension
   auto inferred_status_error3 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor, vec8, {0});
   ASSERT_FALSE(inferred_status_error3.ok());
-  ASSERT_MATCH(inferred_status_error3.status().error_message(),
-               testing::ContainsRegex("broadcast dimension 0 mismatch"));
+  ASSERT_THAT(inferred_status_error3.status().error_message(),
+              HasSubstr("broadcast dimension 0 mismatch"));
 
   // broadcast_dimensions list too long
   auto inferred_status_error4 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor, matrix8_4, {0, 1, 2});
   ASSERT_FALSE(inferred_status_error4.ok());
-  ASSERT_MATCH(
-      inferred_status_error4.status().error_message(),
-      testing::ContainsRegex("size of broadcast_dimensions has to match"));
+  ASSERT_THAT(inferred_status_error4.status().error_message(),
+              HasSubstr("size of broadcast_dimensions has to match"));
 
   // there's a dimension above the rank of the tensor
   auto inferred_status_error5 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor, matrix8_4, {3, 0});
   ASSERT_FALSE(inferred_status_error5.ok());
-  ASSERT_MATCH(
-      inferred_status_error5.status().error_message(),
-      testing::ContainsRegex("broadcast dimension number .* too large"));
+  ASSERT_THAT(inferred_status_error5.status().error_message(),
+              ContainsRegex("broadcast dimension number .* too large"));
 
   // broadcasting dimensions don't match in this order
   auto inferred_status_error6 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor, matrix8_4, {2, 1});
   ASSERT_FALSE(inferred_status_error6.ok());
-  ASSERT_MATCH(inferred_status_error6.status().error_message(),
-               testing::ContainsRegex("broadcast dimension 0 mismatch"));
+  ASSERT_THAT(inferred_status_error6.status().error_message(),
+              HasSubstr("broadcast dimension 0 mismatch"));
 
   // The following two tests make sure that broadcasting dimensions are listed
   // in a proper (strictly increasing) order, even if the lower-rank array
@@ -988,14 +1208,14 @@ TEST_F(ShapeInferenceTest, BinOpBroadcastBadDimension) {
   auto inferred_status_error7 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor8_8_8, matrix8_8, {0, 0});
   ASSERT_FALSE(inferred_status_error7.ok());
-  ASSERT_MATCH(inferred_status_error7.status().error_message(),
-               testing::ContainsRegex("broadcast dimensions order is wrong"));
+  ASSERT_THAT(inferred_status_error7.status().error_message(),
+              HasSubstr("broadcast dimensions order is wrong"));
 
   auto inferred_status_error8 = ShapeInference::InferBinaryOpShape(
       BinaryOperation::BINOP_ADD, tensor8_8_8, matrix8_8, {1, 0});
   ASSERT_FALSE(inferred_status_error8.ok());
-  ASSERT_MATCH(inferred_status_error8.status().error_message(),
-               testing::ContainsRegex("broadcast dimensions order is wrong"));
+  ASSERT_THAT(inferred_status_error8.status().error_message(),
+              HasSubstr("broadcast dimensions order is wrong"));
 }
 
 // Tests for the while instruction with proper shapes.
@@ -1020,30 +1240,30 @@ TEST_F(ShapeInferenceTest, WhileWithBadShapes) {
   auto inferred_status_error1 =
       ShapeInference::InferWhileShape(bad_shape_1, body, result_shape);
   ASSERT_FALSE(inferred_status_error1.ok());
-  ASSERT_MATCH(inferred_status_error1.status().error_message(),
-               testing::ContainsRegex("condition must take 1 arguments"));
+  ASSERT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("condition must take 1 arguments"));
 
   auto bad_shape_2 =
       ShapeUtil::MakeProgramShape({s32_, result_shape}, result_shape);
   auto inferred_status_error2 =
       ShapeInference::InferWhileShape(cond, bad_shape_2, result_shape);
   ASSERT_FALSE(inferred_status_error2.ok());
-  ASSERT_MATCH(inferred_status_error2.status().error_message(),
-               testing::ContainsRegex("body must take 1 arguments"));
+  ASSERT_THAT(inferred_status_error2.status().error_message(),
+              HasSubstr("body must take 1 arguments"));
 
   auto bad_shape_3 = ShapeUtil::MakeProgramShape({result_shape}, s32_);
   auto inferred_status_error3 =
       ShapeInference::InferWhileShape(bad_shape_3, body, result_shape);
   ASSERT_FALSE(inferred_status_error3.ok());
-  ASSERT_MATCH(inferred_status_error3.status().error_message(),
-               testing::ContainsRegex("condition must return a boolean"));
+  ASSERT_THAT(inferred_status_error3.status().error_message(),
+              HasSubstr("condition must return a boolean"));
 
   auto bad_shape_4 = ShapeUtil::MakeProgramShape({result_shape}, vector_32_);
   auto inferred_status_error4 =
       ShapeInference::InferWhileShape(cond, bad_shape_4, result_shape);
   ASSERT_FALSE(inferred_status_error4.ok());
-  ASSERT_MATCH(inferred_status_error4.status().error_message(),
-               testing::ContainsRegex("parameter of condition and body"));
+  ASSERT_THAT(inferred_status_error4.status().error_message(),
+              HasSubstr("parameter of condition and body"));
 }
 
 // Tests for the concatenate instruction with proper shapes.
@@ -1073,49 +1293,44 @@ TEST_F(ShapeInferenceTest, ConcatenateWithBadShapes) {
   auto inferred_status_error1 =
       ShapeInference::InferConcatOpShape({}, /*dimension=*/0);
   ASSERT_FALSE(inferred_status_error1.ok());
-  ASSERT_MATCH(
-      inferred_status_error1.status().error_message(),
-      testing::ContainsRegex("Concatenate expects at least one argument"));
+  ASSERT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("Concatenate expects at least one argument"));
 
   auto inferred_status_error2 =
       ShapeInference::InferConcatOpShape({&vector_32_}, /*dimension=*/-1);
   ASSERT_FALSE(inferred_status_error2.ok());
-  ASSERT_MATCH(inferred_status_error2.status().error_message(),
-               testing::ContainsRegex(
-                   "dimension to concatenate along out of bounds: -1"));
+  ASSERT_THAT(inferred_status_error2.status().error_message(),
+              HasSubstr("dimension to concatenate along out of bounds: -1"));
 
   auto inferred_status_error3 =
       ShapeInference::InferConcatOpShape({&vector_32_}, /*dimension=*/1);
   ASSERT_FALSE(inferred_status_error3.ok());
-  ASSERT_MATCH(inferred_status_error3.status().error_message(),
-               testing::ContainsRegex(
-                   "dimension to concatenate along out of bounds: 1"));
+  ASSERT_THAT(inferred_status_error3.status().error_message(),
+              HasSubstr("dimension to concatenate along out of bounds: 1"));
 
   Shape tuple = ShapeUtil::MakeTupleShape({vector_32_});
   auto inferred_status_error4 = ShapeInference::InferConcatOpShape(
       {&vector_32_, &tuple}, /*dimension=*/0);
   ASSERT_FALSE(inferred_status_error4.ok());
-  ASSERT_MATCH(
+  ASSERT_THAT(
       inferred_status_error4.status().error_message(),
-      testing::ContainsRegex(
-          "Expected non-tuple argument for operand of concatenation."));
+      HasSubstr("Expected non-tuple argument for operand of concatenation."));
 
   const Shape vector_s32 = ShapeUtil::MakeShape(S32, {32});
   auto inferred_status_error5 = ShapeInference::InferConcatOpShape(
       {&vector_32_, &vector_s32}, /*dimension=*/0);
   ASSERT_FALSE(inferred_status_error5.ok());
-  ASSERT_MATCH(inferred_status_error5.status().error_message(),
-               testing::ContainsRegex(
-                   "cannot concatenate arrays with different element types"));
+  ASSERT_THAT(
+      inferred_status_error5.status().error_message(),
+      HasSubstr("cannot concatenate arrays with different element types"));
 
   auto inferred_status_error6 = ShapeInference::InferConcatOpShape(
       {&matrix_32_48_, &matrix_32_64_}, /*dimension=*/0);
   ASSERT_FALSE(inferred_status_error6.ok());
-  ASSERT_MATCH(
-      inferred_status_error6.status().error_message(),
-      testing::ContainsRegex("cannot concatenate arrays that differ in "
-                             "dimensions other than the one being "
-                             "concatenated"));
+  ASSERT_THAT(inferred_status_error6.status().error_message(),
+              HasSubstr("cannot concatenate arrays that differ in "
+                        "dimensions other than the one being "
+                        "concatenated"));
 }
 
 TEST_F(ShapeInferenceTest, Pad) {
@@ -1156,27 +1371,27 @@ TEST_F(ShapeInferenceTest, ReverseInvalidDimension) {
   auto inferred_status_error0 =
       ShapeInference::InferReverseShape(input_shape, {0, 2});
   ASSERT_FALSE(inferred_status_error0.ok());
-  ASSERT_MATCH(inferred_status_error0.status().error_message(),
-               testing::ContainsRegex("out-of-bounds"));
+  ASSERT_THAT(inferred_status_error0.status().error_message(),
+              HasSubstr("out-of-bounds"));
 
   auto inferred_status_error1 =
       ShapeInference::InferReverseShape(input_shape, {0, -1});
   ASSERT_FALSE(inferred_status_error1.ok());
-  ASSERT_MATCH(inferred_status_error1.status().error_message(),
-               testing::ContainsRegex("out-of-bounds"));
+  ASSERT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("out-of-bounds"));
 
   auto inferred_status_error2 =
       ShapeInference::InferReverseShape(input_shape, {0, 0});
   ASSERT_FALSE(inferred_status_error2.ok());
-  ASSERT_MATCH(inferred_status_error2.status().error_message(),
-               testing::ContainsRegex("duplicated"));
+  ASSERT_THAT(inferred_status_error2.status().error_message(),
+              HasSubstr("duplicated"));
 
   Shape tuple_shape = ShapeUtil::MakeTupleShape({input_shape, input_shape});
   auto inferred_status_error3 =
       ShapeInference::InferReverseShape(tuple_shape, {0});
   ASSERT_FALSE(inferred_status_error3.ok());
-  ASSERT_MATCH(inferred_status_error3.status().error_message(),
-               testing::ContainsRegex("Expected non-tuple argument"));
+  ASSERT_THAT(inferred_status_error3.status().error_message(),
+              HasSubstr("Expected non-tuple argument"));
 }
 
 TEST_F(ShapeInferenceTest, Call) {
@@ -1196,20 +1411,20 @@ TEST_F(ShapeInferenceTest, Call) {
   auto inferred_status_error0 = ShapeInference::InferCallShape(
       {}, ShapeUtil::MakeProgramShape({f32_}, f32_));
   EXPECT_FALSE(inferred_status_error0.ok());
-  EXPECT_MATCH(inferred_status_error0.status().error_message(),
-               testing::ContainsRegex("arity must match"));
+  EXPECT_THAT(inferred_status_error0.status().error_message(),
+              HasSubstr("arity must match"));
 
   auto inferred_status_error1 = ShapeInference::InferCallShape(
       {&f32_}, ShapeUtil::MakeProgramShape({}, f32_));
   EXPECT_FALSE(inferred_status_error1.ok());
-  EXPECT_MATCH(inferred_status_error1.status().error_message(),
-               testing::ContainsRegex("arity must match"));
+  EXPECT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("arity must match"));
 
   auto inferred_status_error2 = ShapeInference::InferCallShape(
       {&f32_}, ShapeUtil::MakeProgramShape({s32_}, f32_));
   EXPECT_FALSE(inferred_status_error2.ok());
-  EXPECT_MATCH(inferred_status_error2.status().error_message(),
-               testing::ContainsRegex("parameter must match argument"));
+  EXPECT_THAT(inferred_status_error2.status().error_message(),
+              HasSubstr("parameter must match argument"));
 }
 
 TEST_F(ShapeInferenceTest, Transpose) {
@@ -1220,6 +1435,81 @@ TEST_F(ShapeInferenceTest, Transpose) {
   Shape inferred_shape = inferred_shape_and_status.ValueOrDie();
   EXPECT_TRUE(ShapeUtil::Compatible(inferred_shape,
                                     ShapeUtil::MakeShape(F32, {3, 4, 5, 2})));
+}
+
+TEST_F(ShapeInferenceTest, Conditional) {
+  auto inferred_status0 = ShapeInference::InferConditionalShape(
+      pred_, vector_32_, vector_64_,
+      ShapeUtil::MakeProgramShape({vector_32_}, f32_),
+      ShapeUtil::MakeProgramShape({vector_64_}, f32_));
+  EXPECT_IS_OK(inferred_status0.status());
+  EXPECT_TRUE(ShapeUtil::Equal(f32_, inferred_status0.ValueOrDie()));
+
+  auto inferred_status1 = ShapeInference::InferConditionalShape(
+      pred_, matrix_32_48_, vector_32_,
+      ShapeUtil::MakeProgramShape({matrix_32_48_}, vector_64_),
+      ShapeUtil::MakeProgramShape({vector_32_}, vector_64_));
+  EXPECT_IS_OK(inferred_status1.status());
+  EXPECT_TRUE(ShapeUtil::Equal(vector_64_, inferred_status1.ValueOrDie()));
+
+  auto tuple_f32_v32 = ShapeUtil::MakeTupleShape({f32_, vector_32_});
+  auto inferred_status2 = ShapeInference::InferConditionalShape(
+      pred_, matrix_32_48_, tuple_f32_v32,
+      ShapeUtil::MakeProgramShape({matrix_32_48_}, vector_32_),
+      ShapeUtil::MakeProgramShape({tuple_f32_v32}, vector_32_));
+  EXPECT_IS_OK(inferred_status2.status());
+  EXPECT_TRUE(ShapeUtil::Equal(vector_32_, inferred_status2.ValueOrDie()));
+
+  auto inferred_status_error0 = ShapeInference::InferConditionalShape(
+      s32_, vector_32_, vector_64_,
+      ShapeUtil::MakeProgramShape({vector_32_}, f32_),
+      ShapeUtil::MakeProgramShape({vector_64_}, f32_));
+  EXPECT_FALSE(inferred_status_error0.ok());
+  EXPECT_THAT(inferred_status_error0.status().error_message(),
+              HasSubstr("predicate must be a boolean"));
+
+  auto inferred_status_error1 = ShapeInference::InferConditionalShape(
+      pred_, ShapeUtil::MakeTupleShape({f32_, vector_32_}), matrix_32_48_,
+      ShapeUtil::MakeProgramShape({f32_, vector_32_}, vector_32_),
+      ShapeUtil::MakeProgramShape({matrix_32_48_}, vector_32_));
+  EXPECT_FALSE(inferred_status_error1.ok());
+  EXPECT_THAT(inferred_status_error1.status().error_message(),
+              HasSubstr("true_computation must take 1 argument"));
+
+  auto inferred_status_error2 = ShapeInference::InferConditionalShape(
+      pred_, vector_32_, vector_64_,
+      ShapeUtil::MakeProgramShape({vector_64_}, f32_),
+      ShapeUtil::MakeProgramShape({vector_64_}, f32_));
+  EXPECT_FALSE(inferred_status_error2.ok());
+  EXPECT_THAT(inferred_status_error2.status().error_message(),
+              HasSubstr("true_operand must match the shape of the only "
+                        "parameter of true_computation"));
+
+  auto inferred_status_error3 = ShapeInference::InferConditionalShape(
+      pred_, matrix_32_48_, ShapeUtil::MakeTupleShape({f32_, vector_32_}),
+      ShapeUtil::MakeProgramShape({matrix_32_48_}, vector_32_),
+      ShapeUtil::MakeProgramShape({f32_, vector_32_}, vector_32_));
+  EXPECT_FALSE(inferred_status_error3.ok());
+  EXPECT_THAT(inferred_status_error3.status().error_message(),
+              HasSubstr("false_computation must take 1 argument"));
+
+  auto inferred_status_error4 = ShapeInference::InferConditionalShape(
+      pred_, vector_32_, vector_64_,
+      ShapeUtil::MakeProgramShape({vector_32_}, f32_),
+      ShapeUtil::MakeProgramShape({vector_32_}, f32_));
+  EXPECT_FALSE(inferred_status_error4.ok());
+  EXPECT_THAT(inferred_status_error4.status().error_message(),
+              HasSubstr("false_operand must match the shape of the only "
+                        "parameter of false_computation"));
+
+  auto inferred_status_error5 = ShapeInference::InferConditionalShape(
+      pred_, vector_32_, vector_64_,
+      ShapeUtil::MakeProgramShape({vector_32_}, f32_),
+      ShapeUtil::MakeProgramShape({vector_64_}, vector_32_));
+  EXPECT_FALSE(inferred_status_error5.ok());
+  EXPECT_THAT(inferred_status_error5.status().error_message(),
+              HasSubstr("the result of true_computation and false_computation "
+                        "must have the same shape"));
 }
 
 }  // namespace

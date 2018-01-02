@@ -18,6 +18,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/constant_folding.h"
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/graph/algorithm.h"
+#include "tensorflow/core/graph/graph_constructor.h"
 #include "tensorflow/core/graph/node_builder.h"
 #include "tensorflow/core/graph/optimizer_cse.h"
 
@@ -32,8 +33,11 @@ GraphOptimizer::GraphOptimizer(const OptimizerOptions& opts) : opts_(opts) {
 
 GraphOptimizer::~GraphOptimizer() {}
 
-void GraphOptimizer::Optimize(FunctionLibraryRuntime* runtime, Env* env,
-                              Device* device, std::unique_ptr<Graph>* graph) {
+void GraphOptimizer::Optimize(
+    FunctionLibraryRuntime* runtime, Env* env, Device* device,
+    std::unique_ptr<Graph>* graph,
+    const std::unordered_map<string, std::vector<PartialTensorShape>>*
+        shape_map) {
   Graph* g = graph->get();
   DumpGraph("Initial", g);
 
@@ -56,7 +60,15 @@ void GraphOptimizer::Optimize(FunctionLibraryRuntime* runtime, Env* env,
 
     if (opts_.do_constant_folding()) {
       ConstantFoldingOptions cf_opts;
-      if (DoConstantFolding(cf_opts, runtime, env, device, g)) {
+      cf_opts.shape_map = shape_map;
+      if (opts_.max_folded_constant_in_bytes() > 0) {
+        cf_opts.max_constant_size_in_bytes =
+            opts_.max_folded_constant_in_bytes();
+      }
+      bool was_mutated;
+      ConstantFold(cf_opts, runtime, env, device, g, &was_mutated)
+          .IgnoreError();
+      if (was_mutated) {
         RemoveDeadNodes(g);
         DumpGraph("ConstFolding", g);
         changed = true;

@@ -20,14 +20,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import six
-from six.moves import xrange  # pylint: disable=redefined-builtin
-import numpy as np
-
 from tensorflow.python.ops import variables
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_util
+from tensorflow.python.util import nest
 
 
 def convert_data_format(data_format, ndim):
@@ -109,6 +106,78 @@ def normalize_padding(value):
   return padding
 
 
+def conv_output_length(input_length, filter_size, padding, stride, dilation=1):
+  """Determines output length of a convolution given input length.
+
+  Arguments:
+      input_length: integer.
+      filter_size: integer.
+      padding: one of "same", "valid", "full".
+      stride: integer.
+      dilation: dilation rate, integer.
+
+  Returns:
+      The output length (integer).
+  """
+  if input_length is None:
+    return None
+  assert padding in {'same', 'valid', 'full'}
+  dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+  if padding == 'same':
+    output_length = input_length
+  elif padding == 'valid':
+    output_length = input_length - dilated_filter_size + 1
+  elif padding == 'full':
+    output_length = input_length + dilated_filter_size - 1
+  return (output_length + stride - 1) // stride
+
+
+def conv_input_length(output_length, filter_size, padding, stride):
+  """Determines input length of a convolution given output length.
+
+  Arguments:
+      output_length: integer.
+      filter_size: integer.
+      padding: one of "same", "valid", "full".
+      stride: integer.
+
+  Returns:
+      The input length (integer).
+  """
+  if output_length is None:
+    return None
+  assert padding in {'same', 'valid', 'full'}
+  if padding == 'same':
+    pad = filter_size // 2
+  elif padding == 'valid':
+    pad = 0
+  elif padding == 'full':
+    pad = filter_size - 1
+  return (output_length - 1) * stride - 2 * pad + filter_size
+
+
+def deconv_output_length(input_length, filter_size, padding, stride):
+  """Determines output length of a transposed convolution given input length.
+
+  Arguments:
+      input_length: integer.
+      filter_size: integer.
+      padding: one of "same", "valid", "full".
+      stride: integer.
+
+  Returns:
+      The output length (integer).
+  """
+  if input_length is None:
+    return None
+  input_length *= stride
+  if padding == 'valid':
+    input_length += max(filter_size - stride, 0)
+  elif padding == 'full':
+    input_length -= (stride + filter_size - 2)
+  return input_length
+
+
 def smart_cond(pred, fn1, fn2, name=None):
   """Return either `fn1()` or `fn2()` based on the boolean predicate `pred`.
 
@@ -125,7 +194,7 @@ def smart_cond(pred, fn1, fn2, name=None):
     Tensors returned by the call to either `fn1` or `fn2`.
 
   Raises:
-    TypeError is fn1 or fn2 is not callable.
+    TypeError: If `fn1` or `fn2` is not callable.
   """
   if not callable(fn1):
     raise TypeError('`fn1` must be callable.')
@@ -139,7 +208,7 @@ def smart_cond(pred, fn1, fn2, name=None):
     else:
       return fn2()
   else:
-    return control_flow_ops.cond(pred, fn1, fn2, name)
+    return control_flow_ops.cond(pred, true_fn=fn1, false_fn=fn2, name=name)
 
 
 def constant_value(pred):
@@ -153,7 +222,7 @@ def constant_value(pred):
     True or False if `pred` has a constant boolean value, None otherwise.
 
   Raises:
-    TypeError is pred is not a Variable, Tensor or bool.
+    TypeError: If `pred` is not a Variable, Tensor or bool.
   """
   if isinstance(pred, bool):
     pred_value = pred
@@ -164,3 +233,19 @@ def constant_value(pred):
   else:
     raise TypeError('`pred` must be a Tensor, a Variable, or a Python bool.')
   return pred_value
+
+
+def object_list_uid(object_list):
+  """Creates a single string from object ids."""
+  object_list = nest.flatten(object_list)
+  return ', '.join([str(abs(id(x))) for x in object_list])
+
+
+def static_shape(x):
+  """Get the static shape of a Tensor, or None if it is unavailable."""
+  if x is None:
+    return None
+  try:
+    return tuple(x.get_shape().as_list())
+  except ValueError:
+    return None

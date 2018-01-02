@@ -45,24 +45,25 @@ StatusOr<std::unique_ptr<BufferLiveness>> BufferLiveness::Run(
 }
 
 tensorflow::Status BufferLiveness::Analyze() {
-  TF_ASSIGN_OR_RETURN(points_to_analysis_,
-                      TuplePointsToAnalysis::Run(
-                          module_, /*include_loop_fusion_instructions=*/true));
-  for (auto& computation : module_->computations()) {
+  TF_ASSIGN_OR_RETURN(points_to_analysis_, TuplePointsToAnalysis::Run(module_));
+  for (auto* computation : module_->computations()) {
+    if (computation->IsFusionComputation()) {
+      continue;
+    }
     // Gather all instructions whose buffers might alias other instructions into
     // the set aliased_buffers_.  This includes those contained as a tuple
     // element in other instruction's output.
     for (const auto& instruction : computation->instructions()) {
       for (const LogicalBuffer* aliased_buffer :
-           points_to_analysis_->GetPointsToSet(instruction.get())
+           points_to_analysis_->GetPointsToSet(instruction)
                .CreateFlattenedSet()) {
-        if (aliased_buffer->instruction() != instruction.get()) {
+        if (aliased_buffer->instruction() != instruction) {
           aliased_buffers_.insert(aliased_buffer);
         }
       }
     }
 
-    if (computation.get() == module_->entry_computation()) {
+    if (computation == module_->entry_computation()) {
       const HloInstruction* root = computation->root_instruction();
       maybe_live_out_buffers_ =
           points_to_analysis_->GetPointsToSet(root).CreateFlattenedSet();
@@ -117,11 +118,7 @@ bool BufferLiveness::live_range_strictly_before(const LogicalBuffer& a,
 
   // If 'b' is a user of 'a' then the buffers interfere unless 'a.instruction'
   // and 'b.instruction' emit the same shape/layout, and 'b.instruction' meets
-  // one of following qualifications:
-  // *) Is element-wise.
-  // *) Is a loop fusion instruction (with DynamicUpdateSlice fused root) where
-  //    the singleton use of 'a' at 'a.index' is the fused root at operand 0.
-  // *) Use of 'operand' is DynamicUpdateSlice at operand index 0.
+  // the qualifications specified in CanShareOperandBufferWithUser.
   for (const BufferAlias& alias : points_to_analysis_->GetBufferAliases(a)) {
     if (b.instruction()->IsUserOf(alias.instruction()) &&
         !CanShareOperandBufferWithUser(alias.instruction(), alias.index(),
@@ -133,10 +130,30 @@ bool BufferLiveness::live_range_strictly_before(const LogicalBuffer& a,
   return true;
 }
 
+namespace {
+bool IsEntryParameter(const HloInstruction* instruction) {
+  const HloComputation* computation = instruction->parent();
+  return instruction->opcode() == HloOpcode::kParameter &&
+         computation == computation->parent()->entry_computation();
+}
+}  // namespace
+
 bool BufferLiveness::MayInterfere(const LogicalBuffer& a,
                                   const LogicalBuffer& b) const {
-  return (!live_range_strictly_before(a, b) &&
-          !live_range_strictly_before(b, a));
+  // Entry parameters live at the entry of the execution, thus always interfere
+  // with all other instructions executing before them in the ordering.
+  const HloInstruction* a_instruction = a.instruction();
+  const HloInstruction* b_instruction = b.instruction();
+  if (IsEntryParameter(a_instruction) &&
+      hlo_ordering_->ExecutesBefore(b_instruction, a_instruction)) {
+    return true;
+  }
+  if (IsEntryParameter(b_instruction) &&
+      hlo_ordering_->ExecutesBefore(a_instruction, b_instruction)) {
+    return true;
+  }
+  // Buffers without disjoint liveness may interfere.
+  return !live_range_strictly_before(a, b) && !live_range_strictly_before(b, a);
 }
 
 bool BufferLiveness::MaybeLiveOut(const LogicalBuffer& buffer) const {

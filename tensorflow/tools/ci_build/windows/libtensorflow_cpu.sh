@@ -44,13 +44,12 @@ export TF_BAZEL_TARGETS="${TF_BAZEL_TARGETS} //tensorflow/tools/lib_package:clic
 export TF_BAZEL_TARGETS="${TF_BAZEL_TARGETS} //tensorflow/java:libtensorflow_jni.so"
 export TF_BAZEL_TARGETS="${TF_BAZEL_TARGETS} //tensorflow/tools/lib_package:jnilicenses_generate"
 
-clean_output_base
 run_configure_for_cpu_build
 
 # build_libtensorflow_tarball in ../builds/libtensorflow.sh
 # cannot be used on Windows since it relies on pkg_tar rules.
 # So we do something special here
-bazel build -c opt ${BUILD_OPTS} \
+bazel build -c opt \
   tensorflow:libtensorflow.so \
   tensorflow/tools/lib_package:clicenses_generate \
   tensorflow/java:libtensorflow_jni.so \
@@ -81,6 +80,6 @@ cp bazel-genfiles/tensorflow/tools/lib_package/include/tensorflow/c/LICENSE ${DI
 cd ${DIR}
 zip -j libtensorflow-cpu-windows-$(uname -m).zip \
   lib/tensorflow.dll \
-  include/c/c_api.h \
-  include/c/LICENSE
+  include/tensorflow/c/c_api.h \
+  include/tensorflow/c/LICENSE
 rm -rf lib include

@@ -34,7 +34,7 @@ MNIST is a classic problem in machine learning. The problem is to look at
 greyscale 28x28 pixel images of handwritten digits and determine which digit
 the image represents, for all the digits from zero to nine.
 
-![MNIST Digits](../../images/mnist_digits.png "MNIST Digits")
+![MNIST Digits](https://www.tensorflow.org/images/mnist_digits.png "MNIST Digits")
 
 For more information, refer to [Yann LeCun's MNIST page](http://yann.lecun.com/exdb/mnist/)
 or [Chris Olah's visualizations of MNIST](http://colah.github.io/posts/2014-10-Visualizing-MNIST/).
@@ -47,7 +47,7 @@ training folder and then unpack that data to return a dictionary of `DataSet`
 instances.
 
 ```python
-data_sets = input_data.read_data_sets(FLAGS.train_dir, FLAGS.fake_data)
+data_sets = input_data.read_data_sets(FLAGS.input_data_dir, FLAGS.fake_data)
 ```
 
 **NOTE**: The `fake_data` flag is used for unit-testing purposes and may be
@@ -82,7 +82,7 @@ After creating placeholders for the data, the graph is built from the
 `mnist.py` file according to a 3-stage pattern: `inference()`, `loss()`, and
 `training()`.
 
-1.  `inference()` - Builds the graph as far as is required for running
+1.  `inference()` - Builds the graph as far as required for running
 the network forward to make predictions.
 1.  `loss()` - Adds to the inference graph the ops required to generate
 loss.
@@ -90,7 +90,7 @@ loss.
 and apply gradients.
 
 <div style="width:95%; margin:auto; margin-bottom:10px; margin-top:20px;">
-  <img style="width:100%" src="../../images/mnist_subgraph.png">
+  <img style="width:100%" src="https://www.tensorflow.org/images/mnist_subgraph.png">
 </div>
 
 ### Inference
@@ -167,20 +167,15 @@ Finally, the `logits` tensor that will contain the output is returned.
 The `loss()` function further builds the graph by adding the required loss
 ops.
 
-First, the values from the `labels_placeholder` are converted to 64-bit integers. Then, a @{tf.nn.sparse_softmax_cross_entropy_with_logits} op is added to automatically produce 1-hot labels from the `labels_placeholder` and compare the output logits from the `inference()` function with those 1-hot labels.
+First, the values from the `labels_placeholder` are converted to 64-bit
+integers. Then, a @{tf.losses.sparse_softmax_cross_entropy} op is used to
+calculate the batch's average cross entropy, of the `inference()` result,
+compared to the labels.
 
 ```python
 labels = tf.to_int64(labels)
-cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-    labels=labels, logits=logits, name='xentropy')
-```
-
-It then uses @{tf.reduce_mean}
-to average the cross entropy values across the batch dimension (the first
-dimension) as the total loss.
-
-```python
-loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
+cross_entropy = tf.losses.sparse_softmax_cross_entropy(
+    labels=labels, logits=logits)
 ```
 
 And the tensor that will then contain the loss value is returned.
@@ -369,7 +364,7 @@ may be instantiated to write the events files, which
 contain both the graph itself and the values of the summaries.
 
 ```python
-summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
+summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 ```
 
 Lastly, the events file will be updated with new summary values every time the
@@ -384,7 +379,7 @@ summary_writer.add_summary(summary_str, step)
 When the events files are written, TensorBoard may be run against the training
 folder to display the values from the summaries.
 
-![MNIST TensorBoard](../../images/mnist_tensorboard.png "MNIST TensorBoard")
+![MNIST TensorBoard](https://www.tensorflow.org/images/mnist_tensorboard.png "MNIST TensorBoard")
 
 **NOTE**: For more info about how to build and run Tensorboard, please see the accompanying tutorial @{$summaries_and_tensorboard$Tensorboard: Visualizing Learning}.
 
@@ -403,7 +398,7 @@ method will periodically be called to write a checkpoint file to the training
 directory with the current values of all the trainable variables.
 
 ```python
-saver.save(sess, FLAGS.train_dir, global_step=step)
+saver.save(sess, checkpoint_file, global_step=step)
 ```
 
 At some later point in the future, training might be resumed by using the
@@ -411,7 +406,7 @@ At some later point in the future, training might be resumed by using the
 method to reload the model parameters.
 
 ```python
-saver.restore(sess, FLAGS.train_dir)
+saver.restore(sess, checkpoint_file)
 ```
 
 ## Evaluate the Model

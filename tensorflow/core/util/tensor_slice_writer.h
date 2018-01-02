@@ -15,7 +15,6 @@ limitations under the License.
 
 // The utility to write checkpoints for google brain tensor ops and v3
 // checkpoints for dist_belief.
-//
 
 #ifndef TENSORFLOW_UTIL_TENSOR_SLICE_WRITER_H_
 #define TENSORFLOW_UTIL_TENSOR_SLICE_WRITER_H_
@@ -33,8 +32,8 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/platform/types.h"
-#include "tensorflow/core/util/saved_tensor_slice.pb.h"
 #include "tensorflow/core/util/saved_tensor_slice.pb_text.h"
+#include "tensorflow/core/util/saved_tensor_slice.pb.h"
 #include "tensorflow/core/util/saved_tensor_slice_util.h"
 
 namespace tensorflow {

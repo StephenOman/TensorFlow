@@ -25,8 +25,6 @@ introduced by:
 
 The key difference of the full preactivation 'v2' variant compared to the
 'v1' variant in [1] is the use of batch normalization before every weight layer.
-Another difference is that 'v2' ResNets do not include an activation function in
-the main pathway. Also see [2; Fig. 4e].
 
 Typical use:
 
@@ -36,15 +34,16 @@ Typical use:
 ResNet-101 for image classification into 1000 classes:
 
    # inputs has shape [batch, 224, 224, 3]
-   with slim.arg_scope(resnet_v2.resnet_arg_scope(is_training)):
-      net, end_points = resnet_v2.resnet_v2_101(inputs, 1000)
+   with slim.arg_scope(resnet_v2.resnet_arg_scope()):
+      net, end_points = resnet_v2.resnet_v2_101(inputs, 1000, is_training=False)
 
 ResNet-101 for semantic segmentation into 21 classes:
 
    # inputs has shape [batch, 513, 513, 3]
-   with slim.arg_scope(resnet_v2.resnet_arg_scope(is_training)):
+   with slim.arg_scope(resnet_v2.resnet_arg_scope()):
       net, end_points = resnet_v2.resnet_v2_101(inputs,
                                                 21,
+                                                is_training=False,
                                                 global_pool=False,
                                                 output_stride=16)
 """
@@ -62,6 +61,8 @@ from tensorflow.contrib.slim.python.slim.nets import resnet_utils
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import variable_scope
+
+resnet_arg_scope = resnet_utils.resnet_arg_scope
 
 
 @add_arg_scope
@@ -129,6 +130,7 @@ def bottleneck(inputs,
 def resnet_v2(inputs,
               blocks,
               num_classes=None,
+              is_training=True,
               global_pool=True,
               output_stride=None,
               include_root_block=True,
@@ -163,6 +165,7 @@ def resnet_v2(inputs,
       is a resnet_utils.Block object describing the units in the block.
     num_classes: Number of predicted classes for classification tasks. If None
       we return the features before the logit layer.
+    is_training: whether batch_norm layers are in training mode.
     global_pool: If True, we perform global average pooling before computing the
       logits. Set to True for image classification, False for dense prediction.
     output_stride: If None, then the output will be computed at the nominal
@@ -196,38 +199,41 @@ def resnet_v2(inputs,
     with arg_scope(
         [layers_lib.conv2d, bottleneck, resnet_utils.stack_blocks_dense],
         outputs_collections=end_points_collection):
-      net = inputs
-      if include_root_block:
-        if output_stride is not None:
-          if output_stride % 4 != 0:
-            raise ValueError('The output_stride needs to be a multiple of 4.')
-          output_stride /= 4
-        # We do not include batch normalization or activation functions in conv1
-        # because the first ResNet unit will perform these. Cf. Appendix of [2].
-        with arg_scope(
-            [layers_lib.conv2d], activation_fn=None, normalizer_fn=None):
-          net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
-        net = layers.max_pool2d(net, [3, 3], stride=2, scope='pool1')
-      net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
-      # This is needed because the pre-activation variant does not have batch
-      # normalization or activation functions in the residual unit output. See
-      # Appendix of [2].
-      net = layers.batch_norm(net, activation_fn=nn_ops.relu, scope='postnorm')
-      if global_pool:
-        # Global average pooling.
-        net = math_ops.reduce_mean(net, [1, 2], name='pool5', keep_dims=True)
-      if num_classes is not None:
-        net = layers_lib.conv2d(
-            net,
-            num_classes, [1, 1],
-            activation_fn=None,
-            normalizer_fn=None,
-            scope='logits')
-      # Convert end_points_collection into a dictionary of end_points.
-      end_points = utils.convert_collection_to_dict(end_points_collection)
-      if num_classes is not None:
-        end_points['predictions'] = layers.softmax(net, scope='predictions')
-      return net, end_points
+      with arg_scope([layers.batch_norm], is_training=is_training):
+        net = inputs
+        if include_root_block:
+          if output_stride is not None:
+            if output_stride % 4 != 0:
+              raise ValueError('The output_stride needs to be a multiple of 4.')
+            output_stride /= 4
+          # We do not include batch normalization or activation functions in
+          # conv1 because the first ResNet unit will perform these. Cf.
+          # Appendix of [2].
+          with arg_scope(
+              [layers_lib.conv2d], activation_fn=None, normalizer_fn=None):
+            net = resnet_utils.conv2d_same(net, 64, 7, stride=2, scope='conv1')
+          net = layers.max_pool2d(net, [3, 3], stride=2, scope='pool1')
+        net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
+        # This is needed because the pre-activation variant does not have batch
+        # normalization or activation functions in the residual unit output. See
+        # Appendix of [2].
+        net = layers.batch_norm(
+            net, activation_fn=nn_ops.relu, scope='postnorm')
+        if global_pool:
+          # Global average pooling.
+          net = math_ops.reduce_mean(net, [1, 2], name='pool5', keep_dims=True)
+        if num_classes is not None:
+          net = layers_lib.conv2d(
+              net,
+              num_classes, [1, 1],
+              activation_fn=None,
+              normalizer_fn=None,
+              scope='logits')
+        # Convert end_points_collection into a dictionary of end_points.
+        end_points = utils.convert_collection_to_dict(end_points_collection)
+        if num_classes is not None:
+          end_points['predictions'] = layers.softmax(net, scope='predictions')
+        return net, end_points
 resnet_v2.default_image_size = 224
 
 
@@ -257,6 +263,7 @@ def resnet_v2_block(scope, base_depth, num_units, stride):
 
 def resnet_v2_50(inputs,
                  num_classes=None,
+                 is_training=True,
                  global_pool=True,
                  output_stride=None,
                  reuse=None,
@@ -272,6 +279,7 @@ def resnet_v2_50(inputs,
       inputs,
       blocks,
       num_classes,
+      is_training,
       global_pool,
       output_stride,
       include_root_block=True,
@@ -281,6 +289,7 @@ def resnet_v2_50(inputs,
 
 def resnet_v2_101(inputs,
                   num_classes=None,
+                  is_training=True,
                   global_pool=True,
                   output_stride=None,
                   reuse=None,
@@ -296,6 +305,7 @@ def resnet_v2_101(inputs,
       inputs,
       blocks,
       num_classes,
+      is_training,
       global_pool,
       output_stride,
       include_root_block=True,
@@ -305,6 +315,7 @@ def resnet_v2_101(inputs,
 
 def resnet_v2_152(inputs,
                   num_classes=None,
+                  is_training=True,
                   global_pool=True,
                   output_stride=None,
                   reuse=None,
@@ -320,6 +331,7 @@ def resnet_v2_152(inputs,
       inputs,
       blocks,
       num_classes,
+      is_training,
       global_pool,
       output_stride,
       include_root_block=True,
@@ -329,6 +341,7 @@ def resnet_v2_152(inputs,
 
 def resnet_v2_200(inputs,
                   num_classes=None,
+                  is_training=True,
                   global_pool=True,
                   output_stride=None,
                   reuse=None,
@@ -344,6 +357,7 @@ def resnet_v2_200(inputs,
       inputs,
       blocks,
       num_classes,
+      is_training,
       global_pool,
       output_stride,
       include_root_block=True,

@@ -37,10 +37,18 @@ limitations under the License.
 #include "tensorflow/core/kernels/cudnn_pooling_gpu.h"
 #include "tensorflow/core/kernels/pooling_ops_3d_gpu.h"
 #endif
+
+#ifdef TENSORFLOW_USE_SYCL
+#include "tensorflow/core/kernels/pooling_ops_3d_sycl.h"
+#endif  // TENSORFLOW_USE_SYCL
+
 namespace tensorflow {
 
 typedef Eigen::ThreadPoolDevice CPUDevice;
 typedef Eigen::GpuDevice GPUDevice;
+#ifdef TENSORFLOW_USE_SYCL
+typedef Eigen::SyclDevice SYCLDevice;
+#endif  // TENSORFLOW_USE_SYCL
 
 Pool3dParameters::Pool3dParameters(OpKernelContext* context,
                                    const std::vector<int32>& ksize,
@@ -88,11 +96,6 @@ TensorShape Pool3dParameters::forward_output_shape() {
   return ShapeFromFormat(data_format, tensor_in_batch,
                          {{out_plane, out_height, out_width}}, depth);
 }
-
-enum PoolingType { MAX, AVG };
-
-template <typename Device, typename T, PoolingType Type>
-struct LaunchPoolingOp;
 
 template <typename T>
 struct LaunchPoolingOp<CPUDevice, T, AVG> {
@@ -199,9 +202,6 @@ class Pooling3DOp : public UnaryOp<T> {
   Padding padding_;
   TensorFormat data_format_;
 };
-
-template <typename Device, typename T>
-struct LaunchMaxPooling3dGradOp;
 
 template <typename T>
 struct LaunchMaxPooling3dGradOp<CPUDevice, T> {
@@ -377,9 +377,6 @@ class MaxPooling3dGradOp : public OpKernel {
   TensorFormat data_format_;
 };
 
-template <typename Device, typename T>
-struct LaunchAvgPooling3dGradOp;
-
 template <typename T>
 struct LaunchAvgPooling3dGradOp<CPUDevice, T> {
   static void launch(OpKernelContext* context,
@@ -541,9 +538,6 @@ class AvgPooling3dGradOp : public OpKernel {
   TensorFormat data_format_;
 };
 
-template <typename Device, typename T>
-struct LaunchMaxPooling3dGradGradOp;
-
 template <typename T>
 struct LaunchMaxPooling3dGradGradOp<CPUDevice, T> {
   static void launch(OpKernelContext* context, const Pool3dParameters& params,
@@ -580,8 +574,7 @@ struct LaunchMaxPooling3dGradGradOp<CPUDevice, T> {
         *(context->device()->tensorflow_cpu_worker_threads());
 
     auto shard = [&params, &in_mat, &out_mat, &top_diff_mat, &bottom_diff_mat](
-        int64 start, int64 limit) {
-
+                     int64 start, int64 limit) {
       const int32 depth = params.depth;
       const int32 in_planes = params.tensor_in_planes;
       const int32 in_rows = params.tensor_in_rows;
@@ -682,10 +675,9 @@ class MaxPooling3dGradGradOp : public OpKernel {
                     "Pooling is not yet supported on the batch dimension."));
     const int32 ksize_c = GetTensorDim(ksize_, data_format_, 'C');
     const int32 stride_c = GetTensorDim(stride_, data_format_, 'C');
-    OP_REQUIRES(
-        context, ksize_c == 1 && stride_c == 1,
-        errors::Unimplemented(
-            "MaxPooling3dGradGrad is not yet supported on the depth dimension."));
+    OP_REQUIRES(context, ksize_c == 1 && stride_c == 1,
+                errors::Unimplemented("MaxPooling3dGradGrad is not yet "
+                                      "supported on the depth dimension."));
   }
 
   void Compute(OpKernelContext* context) override {
@@ -703,7 +695,7 @@ class MaxPooling3dGradGradOp : public OpKernel {
         context, out_grad_backprop.dims() == 5,
         errors::InvalidArgument("out_grad_backprop must be 5-dimensional"));
 
-    Pool3dParameters params{context, ksize_, stride_,
+    Pool3dParameters params{context,  ksize_,       stride_,
                             padding_, data_format_, tensor_in.shape()};
 
     Tensor* output = nullptr;
@@ -736,12 +728,11 @@ class MaxPooling3dGradGradOp : public OpKernel {
   REGISTER_KERNEL_BUILDER(                                                 \
       Name("AvgPool3D").Device(DEVICE_##D).TypeConstraint<T>("T"),         \
       Pooling3DOp<D##Device, T, AVG>);                                     \
-  REGISTER_KERNEL_BUILDER(                                                 \
-      Name("AvgPool3DGrad")                                                \
-          .Device(DEVICE_##D)                                              \
-          .TypeConstraint<T>("T")                                          \
-          .HostMemory("orig_input_shape"),                                 \
-      AvgPooling3dGradOp<D##Device, T>);
+  REGISTER_KERNEL_BUILDER(Name("AvgPool3DGrad")                            \
+                              .Device(DEVICE_##D)                          \
+                              .TypeConstraint<T>("T")                      \
+                              .HostMemory("orig_input_shape"),             \
+                          AvgPooling3dGradOp<D##Device, T>);
 
 #define REGISTER_CPU_KERNELS(T) REGISTER_KERNELS(CPU, T)
 TF_CALL_float(REGISTER_CPU_KERNELS);
@@ -835,11 +826,16 @@ struct LaunchMaxPooling3dGradGradOp<GPUDevice, T> {
 };
 
 #define REGISTER_GPU_KERNELS(T) REGISTER_KERNELS(GPU, T)
-TF_CALL_float(REGISTER_GPU_KERNELS)
-TF_CALL_half(REGISTER_GPU_KERNELS)
+TF_CALL_float(REGISTER_GPU_KERNELS) TF_CALL_half(REGISTER_GPU_KERNELS)
 #undef REGISTER_GPU_KERNELS
 
 #endif  // GOOGLE_CUDA
+
+#ifdef TENSORFLOW_USE_SYCL
+#define REGISTER_SYCL_KERNELS(T) REGISTER_KERNELS(SYCL, T)
+TF_CALL_GPU_NUMBER_TYPES_NO_HALF(REGISTER_SYCL_KERNELS)
+#undef REGISTER_SYCL_KERNELS
+#endif  // TENSORFLOW_USE_SYCL
 
 #undef REGISTER_KERNELS
 

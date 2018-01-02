@@ -20,7 +20,6 @@ common machine learning algorithms.
 *   @{tf.contrib.layers.flatten}
 *   @{tf.contrib.layers.fully_connected}
 *   @{tf.contrib.layers.layer_norm}
-*   @{tf.contrib.layers.linear}
 *   @{tf.contrib.layers.max_pool2d}
 *   @{tf.contrib.layers.one_hot_encoding}
 *   @{tf.nn.relu}
@@ -103,6 +102,7 @@ Feature columns provide a mechanism to map data to a model.
 *   @{tf.contrib.layers.sparse_column_with_hash_bucket}
 *   @{tf.contrib.layers.sparse_column_with_integerized_feature}
 *   @{tf.contrib.layers.sparse_column_with_keys}
+*   @{tf.contrib.layers.sparse_column_with_vocabulary_file}
 *   @{tf.contrib.layers.weighted_sparse_column}
 *   @{tf.contrib.layers.weighted_sum_from_feature_columns}
 *   @{tf.contrib.layers.infer_real_valued_columns}

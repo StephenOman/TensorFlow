@@ -84,10 +84,10 @@ class MultivariateNormalDiag(
   #### Examples
 
   ```python
-  ds = tf.contrib.distributions
+  tfd = tf.contrib.distributions
 
   # Initialize a single 2-variate Gaussian.
-  mvn = ds.MultivariateNormalDiag(
+  mvn = tfd.MultivariateNormalDiag(
       loc=[1., -1],
       scale_diag=[1, 2.])
 
@@ -101,7 +101,7 @@ class MultivariateNormalDiag(
   mvn.prob([-1., 0]).eval()  # shape: []
 
   # Initialize a 3-batch, 2-variate scaled-identity Gaussian.
-  mvn = ds.MultivariateNormalDiag(
+  mvn = tfd.MultivariateNormalDiag(
       loc=[1., -1],
       scale_identity_multiplier=[1, 2., 3])
 
@@ -119,7 +119,7 @@ class MultivariateNormalDiag(
   mvn.prob([-1., 0]).eval()  # shape: [3]
 
   # Initialize a 2-batch of 3-variate Gaussians.
-  mvn = ds.MultivariateNormalDiag(
+  mvn = tfd.MultivariateNormalDiag(
       loc=[[1., 2, 3],
            [11, 22, 33]]           # shape: [2, 3]
       scale_diag=[[1., 2, 3],
@@ -146,8 +146,8 @@ class MultivariateNormalDiag(
     The `batch_shape` is the broadcast shape between `loc` and `scale`
     arguments.
 
-    The `event_shape` is given by the last dimension of `loc` or the last
-    dimension of the matrix implied by `scale`.
+    The `event_shape` is given by last dimension of the matrix implied by
+    `scale`. The last dimension of `loc` (if provided) must broadcast with this.
 
     Recall that `covariance = scale @ scale.T`. A (non-batch) `scale` matrix is:
 
@@ -197,11 +197,14 @@ class MultivariateNormalDiag(
     with ops.name_scope(name):
       with ops.name_scope("init", values=[
           loc, scale_diag, scale_identity_multiplier]):
+        # No need to validate_args while making diag_scale.  The returned
+        # LinearOperatorDiag has an assert_non_singular method that is called by
+        # the Bijector.
         scale = distribution_util.make_diag_scale(
             loc=loc,
             scale_diag=scale_diag,
             scale_identity_multiplier=scale_identity_multiplier,
-            validate_args=validate_args,
+            validate_args=False,
             assert_positive=False)
     super(MultivariateNormalDiag, self).__init__(
         loc=loc,

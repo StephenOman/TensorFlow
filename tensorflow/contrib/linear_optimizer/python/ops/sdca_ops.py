@@ -238,10 +238,10 @@ class SdcaModel(object):
     with name_scope('sdca/prediction'):
       sparse_variables = self._convert_n_to_tensor(self._variables[
           'sparse_features_weights'])
-      result = 0.0
+      result_sparse = 0.0
       for sfc, sv in zip(examples['sparse_features'], sparse_variables):
         # TODO(sibyl-Aix6ihai): following does not take care of missing features.
-        result += math_ops.segment_sum(
+        result_sparse += math_ops.segment_sum(
             math_ops.multiply(
                 array_ops.gather(sv, sfc.feature_indices), sfc.feature_values),
             sfc.example_indices)
@@ -249,12 +249,14 @@ class SdcaModel(object):
       dense_variables = self._convert_n_to_tensor(self._variables[
           'dense_features_weights'])
 
+      result_dense = 0.0
       for i in range(len(dense_variables)):
-        result += math_ops.matmul(dense_features[i],
-                                  array_ops.expand_dims(dense_variables[i], -1))
+        result_dense += math_ops.matmul(dense_features[i],
+                                        array_ops.expand_dims(
+                                            dense_variables[i], -1))
 
     # Reshaping to allow shape inference at graph construction time.
-    return array_ops.reshape(result, [-1])
+    return array_ops.reshape(result_dense, [-1]) + result_sparse
 
   def predictions(self, examples):
     """Add operations to compute predictions by the model.
@@ -307,7 +309,7 @@ class SdcaModel(object):
           sparse_features_values.append(sf.feature_values)
 
       # pylint: disable=protected-access
-      example_ids_hashed = gen_sdca_ops._sdca_fprint(
+      example_ids_hashed = gen_sdca_ops.sdca_fprint(
           internal_convert_to_tensor(self._examples['example_ids']))
       # pylint: enable=protected-access
       example_state_data = self._hashtable.lookup(example_ids_hashed)
@@ -328,7 +330,7 @@ class SdcaModel(object):
           sparse_weights.append(array_ops.gather(w, sparse_indices[-1]))
 
       # pylint: disable=protected-access
-      esu, sfw, dfw = gen_sdca_ops._sdca_optimizer(
+      esu, sfw, dfw = gen_sdca_ops.sdca_optimizer(
           sparse_example_indices,
           sparse_feature_indices,
           sparse_features_values,
@@ -390,7 +392,7 @@ class SdcaModel(object):
           with ops.device(var.device):
             # pylint: disable=protected-access
             update_ops.append(
-                gen_sdca_ops._sdca_shrink_l1(
+                gen_sdca_ops.sdca_shrink_l1(
                     self._convert_n_to_tensor(
                         [var], as_ref=True),
                     l1=self._symmetric_l1_regularization(),

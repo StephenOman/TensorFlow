@@ -113,17 +113,22 @@ public final class Session implements AutoCloseable {
    *
    * <p>A Runner runs the necessary graph fragments to execute every {@link Operation} required to
    * evaluate the {@link Tensor}s to fetch. The {@link #feed(String,int,Tensor)} call allows callers
-   * to override the value of {@link Tensor}s in the graph by substituing the provided {@link
+   * to override the value of {@link Tensor}s in the graph by substituting the provided {@link
    * Tensor}s for the outputs of the operations provided to {@link #feed(String,int,Tensor)}.
    */
   public final class Runner {
     /**
      * Avoid evaluating {@code operation} and substitute {@code t} for the value it produces.
      *
-     * <p>This method is a shorthand for {@code feed(operation, 0, t)}.
+     * @param operation Is either the string name of the operation, in which case this method is a
+     *     shorthand for {@code feed(operation, 0)}, or it is a string of the form
+     *     <tt>operation_name:output_index</tt> , in which case this method acts like {@code
+     *     feed(operation_name, output_index)}. These colon-separated names are commonly used in the
+     *     {@code SignatureDef} protocol buffer messages that are included in {@link
+     *     SavedModelBundle#metaGraphDef()}.
      */
-    public Runner feed(String operation, Tensor t) {
-      return feed(operation, 0, t);
+    public Runner feed(String operation, Tensor<?> t) {
+      return feed(parseOutput(operation), t);
     }
 
     /**
@@ -133,7 +138,7 @@ public final class Session implements AutoCloseable {
      * <p>Operations in a {@link Graph} can have multiple outputs, {@code index} identifies which
      * one {@code t} is being provided for.
      */
-    public Runner feed(String operation, int index, Tensor t) {
+    public Runner feed(String operation, int index, Tensor<?> t) {
       Operation op = operationByName(operation);
       if (op != null) {
         inputs.add(op.output(index));
@@ -146,7 +151,7 @@ public final class Session implements AutoCloseable {
      * Use {@code t} instead of the Tensor referred to by executing the operation referred to by
      * {@code output}.
      */
-    public Runner feed(Output o, Tensor t) {
+    public Runner feed(Output<?> o, Tensor<?> t) {
       inputs.add(o);
       inputTensors.add(t);
       return this;
@@ -155,10 +160,15 @@ public final class Session implements AutoCloseable {
     /**
      * Make {@link #run()} return the output of {@code operation}.
      *
-     * <p>This method is a shorthand for {@code fetch(operation, 0)}
+     * @param operation Is either the string name of the operation, in which case this method is a
+     *     shorthand for {@code fetch(operation, 0)}, or it is a string of the form
+     *     <tt>operation_name:output_index</tt> , in which case this method acts like {@code
+     *     fetch(operation_name, output_index)}. These colon-separated names are commonly used in
+     *     the {@code SignatureDef} protocol buffer messages that are included in {@link
+     *     SavedModelBundle#metaGraphDef()}.
      */
     public Runner fetch(String operation) {
-      return fetch(operation, 0);
+      return fetch(parseOutput(operation));
     }
 
     /**
@@ -176,7 +186,7 @@ public final class Session implements AutoCloseable {
     }
 
     /** Makes {@link #run()} return the Tensor referred to by {@code output}. */
-    public Runner fetch(Output output) {
+    public Runner fetch(Output<?> output) {
       outputs.add(output);
       return this;
     }
@@ -230,8 +240,11 @@ public final class Session implements AutoCloseable {
      * easier for the caller to cleanup (perhaps returning something like AutoCloseableList in
      * SessionTest.java), and (b) Evaluate whether the return value should be a list, or maybe a
      * {@code Map<Output, Tensor>}?
+     *
+     * <p>TODO(andrewmyers): It would also be good if whatever is returned here made it easier to
+     * extract output tensors in a type-safe way.
      */
-    public List<Tensor> run() {
+    public List<Tensor<?>> run() {
       return runHelper(false).outputs;
     }
 
@@ -259,17 +272,17 @@ public final class Session implements AutoCloseable {
       // It's okay to use Operation.getUnsafeNativeHandle() here since the safety depends on the
       // validity of the Graph and graphRef ensures that.
       int idx = 0;
-      for (Tensor t : inputTensors) {
+      for (Tensor<?> t : inputTensors) {
         inputTensorHandles[idx++] = t.getNativeHandle();
       }
       idx = 0;
-      for (Output o : inputs) {
+      for (Output<?> o : inputs) {
         inputOpHandles[idx] = o.op().getUnsafeNativeHandle();
         inputOpIndices[idx] = o.index();
         idx++;
       }
       idx = 0;
-      for (Output o : outputs) {
+      for (Output<?> o : outputs) {
         outputOpHandles[idx] = o.op().getUnsafeNativeHandle();
         outputOpIndices[idx] = o.index();
         idx++;
@@ -296,12 +309,12 @@ public final class Session implements AutoCloseable {
       } finally {
         runRef.close();
       }
-      List<Tensor> outputs = new ArrayList<Tensor>();
+      List<Tensor<?>> outputs = new ArrayList<Tensor<?>>();
       for (long h : outputTensorHandles) {
         try {
           outputs.add(Tensor.fromHandle(h));
         } catch (Exception e) {
-          for (Tensor t : outputs) {
+          for (Tensor<?> t : outputs) {
             t.close();
           }
           outputs.clear();
@@ -345,9 +358,24 @@ public final class Session implements AutoCloseable {
       return op;
     }
 
-    private ArrayList<Output> inputs = new ArrayList<Output>();
-    private ArrayList<Tensor> inputTensors = new ArrayList<Tensor>();
-    private ArrayList<Output> outputs = new ArrayList<Output>();
+    @SuppressWarnings("rawtypes")
+    private Output<?> parseOutput(String opName) {
+      int colon = opName.lastIndexOf(':');
+      if (colon == -1 || colon == opName.length() - 1) {
+        return new Output(operationByName(opName), 0);
+      }
+      try {
+        String op = opName.substring(0, colon);
+        int index = Integer.parseInt(opName.substring(colon + 1));
+        return new Output(operationByName(op), index);
+      } catch (NumberFormatException e) {
+        return new Output(operationByName(opName), 0);
+      }
+    }
+
+    private ArrayList<Output<?>> inputs = new ArrayList<Output<?>>();
+    private ArrayList<Tensor<?>> inputTensors = new ArrayList<Tensor<?>>();
+    private ArrayList<Output<?>> outputs = new ArrayList<Output<?>>();
     private ArrayList<Operation> targets = new ArrayList<Operation>();
     private byte[] runOptions = null;
   }
@@ -364,7 +392,7 @@ public final class Session implements AutoCloseable {
    */
   public static final class Run {
     /** Tensors from requested fetches. */
-    public List<Tensor> outputs;
+    public List<Tensor<?>> outputs;
 
     /**
      * (Experimental): Metadata about the run.

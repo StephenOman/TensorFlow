@@ -18,10 +18,11 @@ limitations under the License.
 #include <vector>
 
 #include "tensorflow/compiler/xla/service/dfs_hlo_visitor_with_default.h"
-#include "tensorflow/compiler/xla/service/gpu/ir_emission_utils.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
+#include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/status_macros.h"
+#include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/platform/logging.h"
@@ -30,43 +31,56 @@ namespace xla {
 
 namespace {
 
-bool IsOperandFoldableToDot(const HloInstruction& hlo) {
-  return hlo.IsRank2Transpose() &&
-         hlo.user_count() == 1;  // The dot is its only user.
-}
-
-bool CanFoldOperandsIntoDot(
+TransposeFolding::OperandIndices CanFoldOperandsIntoDot(
     const HloInstruction& dot,
-    const TransposeFolding::IsTransposableGemmFn& is_transposable_gemm) {
+    const TransposeFolding::TransposableGemmOperandsFn&
+        transposable_gemm_operands) {
   if (HloOpcode::kDot != dot.opcode()) {
-    return false;
+    return {};
   }
 
-  if (!is_transposable_gemm(dot)) {
-    return false;
+  TransposeFolding::OperandIndices operand_set;
+  for (int64 i = 0; i < dot.operand_count(); ++i) {
+    auto& operand = *dot.operand(i);
+    if (operand.IsRank2Transpose()) {
+      operand_set.push_back(i);
+    }
   }
 
-  const HloInstruction* lhs = dot.operand(0);
-  const HloInstruction* rhs = dot.operand(1);
-  bool lhs_foldable = IsOperandFoldableToDot(*lhs);
-  bool rhs_foldable = IsOperandFoldableToDot(*rhs);
-  if (!lhs_foldable && !rhs_foldable) {
-    return false;
-  }
-  return true;
+  return transposable_gemm_operands(dot, operand_set);
 }
+
+TransposeFolding::OperandIndices CanFoldOperandsIntoConvolution(
+    const HloInstruction& convolution,
+    const TransposeFolding::TransposableConvOperandsFn&
+        transposable_conv_operands) {
+  if (HloOpcode::kConvolution != convolution.opcode()) {
+    return {};
+  }
+
+  TransposeFolding::OperandIndices operand_set;
+  for (int64 i = 0; i < convolution.operand_count(); ++i) {
+    auto& operand = *convolution.operand(i);
+    if (operand.opcode() == HloOpcode::kTranspose) {
+      operand_set.push_back(i);
+    }
+  }
+
+  return transposable_conv_operands(convolution, operand_set);
+}
+
+using InstructionOperandsPair =
+    std::pair<HloInstruction*, TransposeFolding::OperandIndices>;
 
 // Folds the operands of `dot` that are foldable transposes. `computation` is
-// the parent HLO computation of `dot`. `module` is the parent HloModule of
-// `computation`.
+// the parent HLO computation of `dot`.
 //
 // Returns whether the module is changed.
-bool FoldTransposeIntoDot(HloInstruction* dot, HloComputation* computation) {
+bool FoldTransposeIntoDot(InstructionOperandsPair pair) {
+  auto* dot = pair.first;
   std::vector<HloInstruction*> instructions_to_fuse(1, dot);
-  for (HloInstruction* operand : dot->operands()) {
-    if (IsOperandFoldableToDot(*operand)) {
-      instructions_to_fuse.push_back(operand);
-    }
+  for (const int64 operand_index : pair.second) {
+    instructions_to_fuse.push_back(dot->mutable_operand(operand_index));
   }
 
   // Early-exit if no operands are foldable.
@@ -74,33 +88,126 @@ bool FoldTransposeIntoDot(HloInstruction* dot, HloComputation* computation) {
     return false;
   }
 
-  computation->CreateFusionInstruction(
+  dot->parent()->CreateFusionInstruction(
       instructions_to_fuse, HloInstruction::FusionKind::kTransposeDot);
+  return true;
+}
+
+// Folds the operands of `convolution` that are foldable transposes.
+// `computation` is the parent HLO computation of `convolution`.
+//
+// Returns whether the module is changed.
+bool FoldTransposeIntoConvolution(InstructionOperandsPair pair) {
+  auto& convolution = *pair.first;
+  auto& operand_indices = pair.second;
+
+  if (operand_indices.empty()) {
+    return false;
+  }
+
+  const ConvolutionDimensionNumbers& dnums =
+      convolution.convolution_dimension_numbers();
+  ConvolutionDimensionNumbers new_dnums = dnums;
+
+  HloInstruction* new_lhs;
+  const int64 kLhsIdx = 0;
+  if (std::find(operand_indices.begin(), operand_indices.end(), kLhsIdx) !=
+      operand_indices.end()) {
+    HloInstruction& transpose = *convolution.mutable_operand(kLhsIdx);
+    const auto& transpose_dimensions = transpose.dimensions();
+    HloInstruction& transpose_operand = *transpose.mutable_operand(0);
+
+    // Everything remains the same except for the input/output dimension
+    // numbers. We need to apply the transpose permutation to the original shape
+    // to figure out what the new logical dimensions are.
+    new_dnums.set_input_batch_dimension(
+        transpose_dimensions[dnums.input_batch_dimension()]);
+    new_dnums.set_input_feature_dimension(
+        transpose_dimensions[dnums.input_feature_dimension()]);
+    for (auto& input_spatial_dimension :
+         *new_dnums.mutable_input_spatial_dimensions()) {
+      input_spatial_dimension = transpose_dimensions[input_spatial_dimension];
+    }
+    new_lhs = &transpose_operand;
+  } else {
+    new_lhs = convolution.mutable_operand(kLhsIdx);
+  }
+
+  HloInstruction* new_rhs;
+  const int64 kRhsIdx = 1;
+  if (std::find(operand_indices.begin(), operand_indices.end(), kRhsIdx) !=
+      operand_indices.end()) {
+    HloInstruction& transpose = *convolution.mutable_operand(kRhsIdx);
+    const auto& transpose_dimensions = transpose.dimensions();
+    HloInstruction& transpose_operand = *transpose.mutable_operand(0);
+
+    // Everything remains the same except for the kernel dimension numbers. We
+    // need to apply the transpose permutation to the original shape to figure
+    // out what the new logical dimensions are.
+    new_dnums.set_kernel_input_feature_dimension(
+        transpose_dimensions[dnums.kernel_input_feature_dimension()]);
+    new_dnums.set_kernel_output_feature_dimension(
+        transpose_dimensions[dnums.kernel_output_feature_dimension()]);
+    for (auto& kernel_spatial_dimension :
+         *new_dnums.mutable_kernel_spatial_dimensions()) {
+      kernel_spatial_dimension = transpose_dimensions[kernel_spatial_dimension];
+    }
+    new_rhs = &transpose_operand;
+  } else {
+    new_rhs = convolution.mutable_operand(kRhsIdx);
+  }
+
+  auto new_conv = HloInstruction::CreateConvolve(
+      convolution.shape(), new_lhs, new_rhs, convolution.window(), new_dnums);
+  TF_CHECK_OK(convolution.parent()->ReplaceWithNewInstruction(
+      &convolution, std::move(new_conv)));
+
   return true;
 }
 
 }  // namespace
 
-TransposeFolding::TransposeFolding(IsTransposableGemmFn is_transposable_gemm)
-    : is_transposable_gemm_(std::move(is_transposable_gemm)) {}
+TransposeFolding::TransposeFolding(
+    TransposableGemmOperandsFn transposable_gemm_operands,
+    TransposableConvOperandsFn transposable_conv_operands)
+    : transposable_gemm_operands_(std::move(transposable_gemm_operands)),
+      transposable_conv_operands_(std::move(transposable_conv_operands)) {}
 
 StatusOr<bool> TransposeFolding::Run(HloModule* module) {
   // Modifying the graph while traversing is dangerous, so we find all folding
   // opportunities before actually folding them.
-  HloComputation* entry_computation = module->entry_computation();
-
-  std::vector<HloInstruction*> foldable_dots;
-  auto visit_fn = [this, &foldable_dots](HloInstruction* instruction) {
-    if (CanFoldOperandsIntoDot(*instruction, is_transposable_gemm_)) {
-      foldable_dots.emplace_back(instruction);
+  std::vector<std::pair<HloInstruction*, OperandIndices>> foldable_dots;
+  std::vector<std::pair<HloInstruction*, OperandIndices>> foldable_convolutions;
+  auto visit_fn = [this, &foldable_dots,
+                   &foldable_convolutions](HloInstruction* instruction) {
+    {
+      OperandIndices operand_indices =
+          CanFoldOperandsIntoDot(*instruction, transposable_gemm_operands_);
+      if (!operand_indices.empty()) {
+        foldable_dots.emplace_back(instruction, operand_indices);
+      }
+    }
+    {
+      OperandIndices operand_indices = CanFoldOperandsIntoConvolution(
+          *instruction, transposable_conv_operands_);
+      if (!operand_indices.empty()) {
+        foldable_convolutions.emplace_back(
+            std::make_pair(instruction, operand_indices));
+      }
     }
     return tensorflow::Status::OK();
   };
-  TF_RETURN_IF_ERROR(entry_computation->root_instruction()->Accept(visit_fn));
+
+  for (auto* comp : module->MakeNonfusionComputations()) {
+    TF_RETURN_IF_ERROR(comp->Accept(visit_fn));
+  }
 
   bool changed = false;
-  for (HloInstruction* dot : foldable_dots) {
-    changed |= FoldTransposeIntoDot(dot, entry_computation);
+  for (InstructionOperandsPair& pair : foldable_dots) {
+    changed |= FoldTransposeIntoDot(pair);
+  }
+  for (InstructionOperandsPair& pair : foldable_convolutions) {
+    changed |= FoldTransposeIntoConvolution(pair);
   }
   return changed;
 }
