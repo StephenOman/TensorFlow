@@ -105,15 +105,13 @@ class NetworkTest(test.TestCase):
     result = net(constant_op.constant([[2.0]]))
     self.assertEqual(34.0, self.evaluate(result))
 
-  # TODO(akshayka): This test should be changed once an API for compiling
-  # `call` into a defun is implemented.
   def testReplacingNetworkCallWithDefun(self):
     net = MyNetwork(name="abcd")
+    net.call = function.defun(net.call)
     x = constant_op.constant([[2.0]])
     net(x)  # Force variables to be created.
     self.evaluate(net.trainable_variables[0].assign([[17.0]]))
 
-    net.call = function.defun(net.call)
     result = net(x)  # Build and execute the TensorFlow function
     self.assertEqual(34.0, self.evaluate(result))
 
@@ -690,7 +688,7 @@ class NetworkTest(test.TestCase):
     net2(one)
     # Layer names typically are globally unique rather than being unique within
     # the scope of their first use. However, within a Network they must be named
-    # locally so that previous Layer consutrciton does not interfere with
+    # locally so that previous Layer construction does not interfere with
     # variable naming (e.g. add a Layer construction before the Network,
     # suddenly your previously saved checkpoint is incompatible).
     self.assertEqual("dense", net1.l1.name)

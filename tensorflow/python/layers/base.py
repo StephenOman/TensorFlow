@@ -99,8 +99,16 @@ class Layer(object):
         raise TypeError('Keyword argument not understood:', kwarg)
 
     # Mutable properties
+    # Indicates whether the layer's weights are updated during training
+    # and whether the layer's updates are run during training
     self.trainable = trainable
+    # A stateful layer is a layer whose updates are run during inference too,
+    # for instance stateful RNNs.
+    self.stateful = False
+    # Indicates whether `build` needs to be called upon layer call, to create
+    # the layer's weights.
     self.built = False
+    # Provides information about which inputs are compatible with the layer.
     self.input_spec = None
 
     if activity_regularizer and context.in_eager_mode():
@@ -220,6 +228,8 @@ class Layer(object):
   def updates(self):
     if context.in_eager_mode():
       raise RuntimeError('Layer.updates not supported in Eager mode.')
+    if not self.trainable and not self.stateful:
+      return []
     return self._updates
 
   def add_update(self, updates, inputs=None):
@@ -281,6 +291,8 @@ class Layer(object):
     """
     if context.in_eager_mode():
       raise RuntimeError('Layer.get_updates_for not supported in Eager mode.')
+    if not self.trainable and not self.stateful:
+      return []
     if inputs is not None:
       inputs = nest.flatten(inputs)
     if not inputs:
@@ -407,13 +419,8 @@ class Layer(object):
     """Determines op naming for the Layer."""
     return current_variable_scope.original_name_scope
 
-  def _compute_output_shape(self, input_shape):
+  def compute_output_shape(self, input_shape):
     """Computes the output shape of the layer given the input shape.
-
-    Assumes that the layer will be built to match that input shape.
-    If this method is not implemented by child classes, the default
-    assumption will be that the layer does not alter the shape of the tensors
-    passing through it.
 
     Args:
       input_shape: A (possibly nested tuple of) `TensorShape`.  It need not
@@ -428,7 +435,7 @@ class Layer(object):
       ValueError: if `input_shape` is incomplete or is incompatible with the
         the layer.
     """
-    return input_shape
+    raise NotImplementedError
 
   def _make_unique_name(self, name_uid_map=None, avoid_names=None,
                         namespace='', zero_based=False):
@@ -484,17 +491,37 @@ class Layer(object):
       instance is returned.
 
     Raises:
-      RuntimeError: If called in Eager mode with regularizers.
+      RuntimeError: If called with partioned variable regularization and
+        eager execution is enabled.
     """
+
+    # `init_graph` should point to the graph in which variable initialization
+    # will occur; it should be None if and only if initialization will take
+    # place in the eager context.
+    init_graph = None
     if context.in_graph_mode():
-      existing_variables = set(tf_variables.global_variables())
+      default_graph = ops.get_default_graph()
+      if default_graph.building_function:
+        with ops.init_scope():
+          # Retrieve the variables from the graph into which variables
+          # will be lifted; if initialization ops will be lifted into
+          # the eager context, then there is nothing to retrieve, since variable
+          # collections are not supported when eager execution is enabled.
+          if context.in_graph_mode():
+            init_graph = ops.get_default_graph()
+            existing_variables = set(tf_variables.global_variables())
+      else:
+        # Initialization ops will not be lifted out of the default graph.
+        init_graph = default_graph
+        existing_variables = set(tf_variables.global_variables())
+
     if dtype is None:
       dtype = self.dtype or dtypes.float32
 
     self._set_scope(None)
+    reuse = self.built or self._reuse
     with vs.variable_scope(
-        self._scope, reuse=(self.built or self._reuse),
-        auxiliary_name_scope=False) as scope:
+        self._scope, reuse=reuse, auxiliary_name_scope=False) as scope:
       with ops.name_scope(self._name_scope_name(scope)):
         variable = vs.get_variable(name,
                                    shape=shape,
@@ -503,16 +530,23 @@ class Layer(object):
                                    constraint=constraint,
                                    trainable=trainable and self.trainable,
                                    partitioner=partitioner)
-        if context.in_graph_mode():
-          if (trainable and self.trainable
-              and variable not in tf_variables.trainable_variables()):
+
+        if init_graph is not None:  # pylint: disable=protected-access
+          # The variable was created and initialized in a graph.
+
+          if variable in existing_variables:
+            # To match the behavior of tf.get_variable(), we only apply
+            # regularization if the variable is newly created.
+            return variable
+
+          with init_graph.as_default():
+            trainable_variables = tf_variables.trainable_variables()
+          if (trainable and self.trainable and
+              variable not in trainable_variables):
             # A custom getter / variable scope overrode the trainable flag.
             trainable = False
-          if variable in existing_variables:
-            return variable
+
           if regularizer:
-            # To match the behavior of tf.get_variable(), we only
-            # apply regularization if the variable is newly created.
             if isinstance(variable, tf_variables.PartitionedVariable):
               for v in variable:
                 with ops.colocate_with(v.op):
@@ -526,16 +560,23 @@ class Layer(object):
                   regularization = regularizer(variable)
               if regularization is not None:
                 self.add_loss(regularization)
-        elif regularizer:
+        elif regularizer:  # and initialization took place in an eager context
           if isinstance(variable, tf_variables.PartitionedVariable):
             raise RuntimeError(
-                'Partitioned variable regularization is not yet supported when '
-                'executing eagerly. File a feature request is this is '
-                'important to you.')
+                'Partitioned variable regularization is not yet '
+                'supported when executing eagerly. File a feature request'
+                'if this is important to you.')
           # Save a zero-argument lambda which runs the regularizer on the
-          # variable, to be executed when `Layer.losses` is requested. This
-          # makes losses responsive to variable updates when executing eagerly.
+          # variable, to be executed when `Layer.losses` is requested.
+          # This makes losses responsive to variable updates when executing
+          # eagerly.
+          #
+          # TODO(akshayka): Do the same for graphs as well, so that losses
+          # collected in a while_loop can be run outside its control flow
+          # context and so that losses won't be swallowed up by graph functions
+          # (i.e., `.losses()` should always create regularizers).
           self._losses.append(lambda: regularizer(variable))
+
     if trainable:
       self._trainable_weights.append(variable)
     else:
@@ -655,9 +696,9 @@ class Layer(object):
             raise ValueError('A layer\'s `call` method should return a Tensor '
                              'or a list of Tensors, not None.')
         else:
-          # Deferred mode behavior: use `_compute_output_shape` to
+          # Deferred mode behavior: use `compute_output_shape` to
           # infer the number of outputs of the layer and their shapes.
-          output_shapes = self._compute_output_shape(input_shapes)
+          output_shapes = self.compute_output_shape(input_shapes)
           output_shapes = nest.flatten(output_shapes)
           outputs = [
               # TODO(fchollet): name the deferred tensors?
@@ -1218,6 +1259,15 @@ class InputSpec(object):
     self.max_ndim = max_ndim
     self.min_ndim = min_ndim
     self.axes = axes or {}
+
+  def __repr__(self):
+    spec = [('dtype=' + str(self.dtype)) if self.dtype else '',
+            ('shape=' + str(self.shape)) if self.shape else '',
+            ('ndim=' + str(self.ndim)) if self.ndim else '',
+            ('max_ndim=' + str(self.max_ndim)) if self.max_ndim else '',
+            ('min_ndim=' + str(self.min_ndim)) if self.min_ndim else '',
+            ('axes=' + str(self.axes)) if self.axes else '']
+    return 'InputSpec(%s)' % ', '.join(x for x in spec if x)
 
 
 class Node(object):

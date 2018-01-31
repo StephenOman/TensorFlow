@@ -49,6 +49,7 @@ cc_library(
     srcs = ["dataset.cc"],
     hdrs = ["dataset.h"],
     deps = [
+        "//tensorflow/core:core_cpu",
         "//tensorflow/core:framework",
         "//tensorflow/core:graph",
         "//tensorflow/core:lib",
@@ -64,6 +65,7 @@ cc_library(
     deps = [
         ":captured_function",
         ":dataset",
+        "//tensorflow/core:core_cpu_internal",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
@@ -80,9 +82,7 @@ cc_library(
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
-        "//tensorflow/core:proto_text",
         "//tensorflow/core:protos_all_cc",
-        "//tensorflow/core:session_options",
         "//tensorflow/core/kernels:variable_ops",
     ],
 )
@@ -203,6 +203,7 @@ tf_kernel_library(
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
+        "//tensorflow/core:protos_all_cc",
     ],
 )
 
@@ -476,6 +477,7 @@ tf_kernel_library(
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
         "//tensorflow/core:protos_all_cc",
+        "//tensorflow/core:session_options",
         "//tensorflow/core/kernels:ops_util",
     ],
 )

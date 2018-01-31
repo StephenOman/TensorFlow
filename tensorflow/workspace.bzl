@@ -1,43 +1,63 @@
 # TensorFlow external dependencies that can be loaded in WORKSPACE files.
 
 load("//third_party/gpus:cuda_configure.bzl", "cuda_configure")
+load("//third_party/tensorrt:tensorrt_configure.bzl", "tensorrt_configure")
 load("//third_party/mkl:build_defs.bzl", "mkl_repository")
 load("//third_party/git:git_configure.bzl", "git_configure")
 load("//third_party/py:python_configure.bzl", "python_configure")
 load("//third_party/sycl:sycl_configure.bzl", "sycl_configure")
+load("//third_party/toolchains/clang6:repo.bzl", "clang6_configure")
 load("//third_party/toolchains/cpus/arm:arm_compiler_configure.bzl", "arm_compiler_configure")
 load("//third_party:repo.bzl", "tf_http_archive")
 load("@io_bazel_rules_closure//closure/private:java_import_external.bzl", "java_import_external")
 load("@io_bazel_rules_closure//closure:defs.bzl", "filegroup_external")
 
-# Parse the bazel version string from `native.bazel_version`.
-def _parse_bazel_version(bazel_version):
-  # Remove commit from version.
-  version = bazel_version.split(" ", 1)[0]
-  # Split into (release, date) parts and only return the release
-  # as a tuple of integers.
-  parts = version.split("-", 1)
-  # Turn "release" into a tuple of strings
-  version_tuple = ()
-  for number in parts[0].split("."):
-    version_tuple += (str(number),)
-  return version_tuple
+def _extract_version_number(bazel_version):
+  """Extracts the semantic version number from a version string
 
-# Check that a specific bazel version is being used.
-def check_version(bazel_version):
+  Args:
+    bazel_version: the version string that begins with the semantic version
+      e.g. "1.2.3rc1 abc1234" where "abc1234" is a commit hash.
+
+  Returns:
+    The semantic version string, like "1.2.3".
+  """
+  for i in range(len(bazel_version)):
+    c = bazel_version[i]
+    if not (c.isdigit() or c == "."):
+      return bazel_version[:i]
+  return bazel_version
+
+# Parse the bazel version string from `native.bazel_version`.
+# e.g.
+# "0.10.0rc1 abc123d" => (0, 10, 0)
+# "0.3.0" => (0, 3, 0)
+def _parse_bazel_version(bazel_version):
+  """Parses a version string into a 3-tuple of ints
+
+  int tuples can be compared directly using binary operators (<, >).
+
+  Args:
+    bazel_version: the Bazel version string
+
+  Returns:
+    An int 3-tuple of a (major, minor, patch) version.
+  """
+
+  version = _extract_version_number(bazel_version)
+  return tuple([int(n) for n in version.split(".")])
+
+def check_bazel_version_at_least(minimum_bazel_version):
   if "bazel_version" not in dir(native):
-    fail("\nCurrent Bazel version is lower than 0.2.1, expected at least %s\n" %
-         bazel_version)
+    fail("\nCurrent Bazel version is lower than 0.2.1, expected at least %s\n" % minimum_bazel_version)
   elif not native.bazel_version:
-    print("\nCurrent Bazel is not a release version, cannot check for " +
-          "compatibility.")
-    print("Make sure that you are running at least Bazel %s.\n" % bazel_version)
-  else:
-    current_bazel_version = _parse_bazel_version(native.bazel_version)
-    minimum_bazel_version = _parse_bazel_version(bazel_version)
-    if minimum_bazel_version > current_bazel_version:
-      fail("\nCurrent Bazel version is {}, expected at least {}\n".format(
-          native.bazel_version, bazel_version))
+    print("\nCurrent Bazel is not a release version, cannot check for compatibility.")
+    print("Make sure that you are running at least Bazel %s.\n" % minimum_bazel_version)
+    return
+
+  if _parse_bazel_version(native.bazel_version) < _parse_bazel_version(minimum_bazel_version):
+    fail("\nCurrent Bazel version is {}, expected at least {}\n".format(
+        native.bazel_version, minimum_bazel_version))
 
 # If TensorFlow is linked as a submodule.
 # path_prefix is no longer used.
@@ -46,8 +66,10 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   # We must check the bazel version before trying to parse any other BUILD
   # files, in case the parsing of those build files depends on the bazel
   # version we require here.
-  check_version("0.5.4")
+  check_bazel_version_at_least("0.5.4")
+  clang6_configure(name="local_config_clang6")
   cuda_configure(name="local_config_cuda")
+  tensorrt_configure(name="local_config_tensorrt")
   git_configure(name="local_config_git")
   sycl_configure(name="local_config_sycl")
   python_configure(name="local_config_python")
@@ -97,11 +119,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "eigen_archive",
       urls = [
-          "https://mirror.bazel.build/bitbucket.org/eigen/eigen/get/c2947c341c68.tar.gz",
-          "https://bitbucket.org/eigen/eigen/get/c2947c341c68.tar.gz",
+          "https://mirror.bazel.build/bitbucket.org/eigen/eigen/get/14e1418fcf12.tar.gz",
+          "https://bitbucket.org/eigen/eigen/get/14e1418fcf12.tar.gz",
       ],
-      sha256 = "f21f8ab8a8dbcb91cd0deeade19a043f47708d0da7a4000164cdf203b4a71e34",
-      strip_prefix = "eigen-eigen-c2947c341c68",
+      sha256 = "2b526c6888639025323fd4f2600533c0f982d304ea48e4f1663e8066bd9f6368",
+      strip_prefix = "eigen-eigen-14e1418fcf12",
       build_file = str(Label("//third_party:eigen.BUILD")),
   )
 
@@ -219,7 +241,7 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   )
 
   tf_http_archive(
-      name = "sqlite_archive",
+      name = "org_sqlite",
       urls = [
           "https://mirror.bazel.build/www.sqlite.org/2017/sqlite-amalgamation-3200000.zip",
           "http://www.sqlite.org/2017/sqlite-amalgamation-3200000.zip",
@@ -249,6 +271,39 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
       sha256 = "105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a",
       strip_prefix = "six-1.10.0",
       build_file = str(Label("//third_party:six.BUILD")),
+  )
+
+  tf_http_archive(
+      name = "astor_archive",
+      urls = [
+          "https://mirror.bazel.build/pypi.python.org/packages/d8/be/c4276b3199ec3feee2a88bc64810fbea8f26d961e0a4cd9c68387a9f35de/astor-0.6.2.tar.gz",
+          "https://pypi.python.org/packages/d8/be/c4276b3199ec3feee2a88bc64810fbea8f26d961e0a4cd9c68387a9f35de/astor-0.6.2.tar.gz",
+      ],
+      sha256 = "ff6d2e2962d834acb125cc4dcc80c54a8c17c253f4cc9d9c43b5102a560bb75d",
+      strip_prefix = "astor-0.6.2",
+      build_file = str(Label("//third_party:astor.BUILD")),
+  )
+
+  tf_http_archive(
+      name = "gast_archive",
+      urls = [
+          "https://mirror.bazel.build/pypi.python.org/packages/5c/78/ff794fcae2ce8aa6323e789d1f8b3b7765f601e7702726f430e814822b96/gast-0.2.0.tar.gz",
+          "https://pypi.python.org/packages/5c/78/ff794fcae2ce8aa6323e789d1f8b3b7765f601e7702726f430e814822b96/gast-0.2.0.tar.gz",
+      ],
+      sha256 = "7068908321ecd2774f145193c4b34a11305bd104b4551b09273dfd1d6a374930",
+      strip_prefix = "gast-0.2.0",
+      build_file = str(Label("//third_party:gast.BUILD")),
+  )
+
+  tf_http_archive(
+      name = "termcolor_archive",
+      urls = [
+          "https://mirror.bazel.build/pypi.python.org/packages/8a/48/a76be51647d0eb9f10e2a4511bf3ffb8cc1e6b14e9e4fab46173aa79f981/termcolor-1.1.0.tar.gz",
+          "https://pypi.python.org/packages/8a/48/a76be51647d0eb9f10e2a4511bf3ffb8cc1e6b14e9e4fab46173aa79f981/termcolor-1.1.0.tar.gz",
+      ],
+      sha256 = "1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b",
+      strip_prefix = "termcolor-1.1.0",
+      build_file = str(Label("//third_party:termcolor.BUILD")),
   )
 
   tf_http_archive(
@@ -302,11 +357,6 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
       ],
       sha256 = "e178a25c52efcb6b05988bdbeace4c0d3f2d2fe5b46696d1d9898875c3803d6a",
       strip_prefix = "protobuf-b04e5cba356212e4e8c66c61bbe0c3a20537c5b9",
-      # TODO: remove patching when tensorflow stops linking same protos into
-      #       multiple shared libraries loaded in runtime by python.
-      #       This patch fixes a runtime crash when tensorflow is compiled
-      #       with clang -O2 on Linux (see https://github.com/tensorflow/tensorflow/issues/8394)
-      patch_file = str(Label("//third_party/protobuf:add_noinlines.patch")),
   )
 
   # We need to import the protobuf library under the names com_google_protobuf
@@ -399,11 +449,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "grpc",
       urls = [
-          "https://mirror.bazel.build/github.com/grpc/grpc/archive/f836c7e941beb003289dc6e9a58a6e47f5caa5f0.tar.gz",
-          "https://github.com/grpc/grpc/archive/f836c7e941beb003289dc6e9a58a6e47f5caa5f0.tar.gz",
+          "https://mirror.bazel.build/github.com/grpc/grpc/archive/730b778632e79cc3c96ad237f282d687ee325ce7.tar.gz",
+          "https://github.com/grpc/grpc/archive/730b778632e79cc3c96ad237f282d687ee325ce7.tar.gz",
       ],
-      sha256 = "676425fc19e0290443b21f1804e5d1096456b6512b349606e3eae8e63299e6ee",
-      strip_prefix = "grpc-f836c7e941beb003289dc6e9a58a6e47f5caa5f0",
+      sha256 = "8c91a8d12e1e868cf51f7340b75507a8aa017a7e1b56f46ed6816aeb803dc9bd",
+      strip_prefix = "grpc-730b778632e79cc3c96ad237f282d687ee325ce7",
   )
 
   tf_http_archive(
@@ -422,11 +472,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "llvm",
       urls = [
-          "https://mirror.bazel.build/github.com/llvm-mirror/llvm/archive/7e6fcc775f56cdeeae061f6f8071f5c103087330.tar.gz",
-          "https://github.com/llvm-mirror/llvm/archive/7e6fcc775f56cdeeae061f6f8071f5c103087330.tar.gz",
+          "https://mirror.bazel.build/github.com/llvm-mirror/llvm/archive/36a30fc7c9ee6fdfe5157190ad15c1801b1ab2de.tar.gz",
+          "https://github.com/llvm-mirror/llvm/archive/36a30fc7c9ee6fdfe5157190ad15c1801b1ab2de.tar.gz",
       ],
-      sha256 = "9478274a10d7f487e7ad878c8eec30398a54e07eb148867711cd9c6fe7ff5f59",
-      strip_prefix = "llvm-7e6fcc775f56cdeeae061f6f8071f5c103087330",
+      sha256 = "3b74ecd8f59c712b4daf715a4da15c43ebdd40edcd4c30737bffef62f6a2bc9d",
+      strip_prefix = "llvm-36a30fc7c9ee6fdfe5157190ad15c1801b1ab2de",
       build_file = str(Label("//third_party/llvm:llvm.BUILD")),
   )
 
@@ -503,6 +553,18 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
       sha256 = "2ca86fb6179ecbff789cc67c836139c1bbc0324ed8c04643405a30bf26325176",
       strip_prefix = "nccl-03d856977ecbaac87e598c0c4bafca96761b9ac7",
       build_file = str(Label("//third_party:nccl.BUILD")),
+  )
+
+  tf_http_archive(
+      name = "kafka",
+      urls = [
+          "https://mirror.bazel.build/github.com/edenhill/librdkafka/archive/v0.11.1.tar.gz",
+          "https://github.com/edenhill/librdkafka/archive/v0.11.1.tar.gz",
+      ],
+      sha256 = "dd035d57c8f19b0b612dd6eefe6e5eebad76f506e302cccb7c2066f25a83585e",
+      strip_prefix = "librdkafka-0.11.1",
+      build_file = str(Label("//third_party:kafka/BUILD")),
+      patch_file = str(Label("//third_party/kafka:config.patch")),
   )
 
   tf_http_archive(
@@ -624,11 +686,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "bazel_toolchains",
       urls = [
-          "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/b49ba3689f46ac50e9277dafd8ff32b26951f82e.tar.gz",
-          "https://github.com/bazelbuild/bazel-toolchains/archive/b49ba3689f46ac50e9277dafd8ff32b26951f82e.tar.gz",
+          "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/f3b09700fae5d7b6e659d7cefe0dcc6e8498504c.tar.gz",
+          "https://github.com/bazelbuild/bazel-toolchains/archive/f3b09700fae5d7b6e659d7cefe0dcc6e8498504c.tar.gz",
       ],
-      sha256 = "1266f1e27b4363c83222f1a776397c7a069fbfd6aacc9559afa61cdd73e1b429",
-      strip_prefix = "bazel-toolchains-b49ba3689f46ac50e9277dafd8ff32b26951f82e",
+      sha256 = "ed829b5eea8af1f405f4cc3d6ecfc3b1365bb7843171036030a31b5127002311",
+      strip_prefix = "bazel-toolchains-f3b09700fae5d7b6e659d7cefe0dcc6e8498504c",
   )
 
   tf_http_archive(

@@ -26,6 +26,7 @@ import numpy as np
 
 from tensorflow.core.framework import function_pb2
 from tensorflow.core.protobuf import config_pb2
+from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.client import session
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -451,13 +452,17 @@ class FunctionTest(test.TestCase):
                                          lambda y: AssertFail(y), [x])
       # pylint: enable=unnecessary-lambda
 
+    rewriter_config = rewriter_config_pb2.RewriterConfig(
+        dependency_optimization=rewriter_config_pb2.RewriterConfig.OFF)
     # Enables inlining.
-    config = config_pb2.ConfigProto(graph_options=config_pb2.GraphOptions(
-        optimizer_options=config_pb2.OptimizerOptions(
-            opt_level=config_pb2.OptimizerOptions.L0,
-            do_common_subexpression_elimination=True,
-            do_function_inlining=True,
-            do_constant_folding=True)))
+    config = config_pb2.ConfigProto(
+        graph_options=config_pb2.GraphOptions(
+            optimizer_options=config_pb2.OptimizerOptions(
+                opt_level=config_pb2.OptimizerOptions.L0,
+                do_common_subexpression_elimination=True,
+                do_function_inlining=True,
+                do_constant_folding=True),
+            rewrite_options=rewriter_config))
 
     with session.Session(config=config) as sess:
       # Since the 'False' branch is not taken, the assertion should not fire.
@@ -987,6 +992,25 @@ class FunctionTest(test.TestCase):
         val3, val4 = sess.run((result1, result2))
         self.assertFalse(all(val3 == val1))
         self.assertFalse(all(val4 == val2))
+
+  def testSameFunctionOnTwoDevices(self):
+
+    @function.Defun(dtypes.float32)
+    def AddOne(x):
+      return x + 1.0
+
+    with ops.device("/cpu:0"):
+      f_0 = AddOne(41.0)
+
+    with ops.device("/cpu:1"):
+      f_1 = AddOne(43.0)
+
+    for config in _OptimizerOptions():
+      config.device_count["CPU"] = 2
+      with session.Session(config=config) as sess:
+        self.assertEqual(42.0, sess.run(f_0))
+        self.assertEqual(44.0, sess.run(f_1))
+        self.assertEqual((42.0, 44.0), sess.run((f_0, f_1)))
 
 
 @test_util.with_c_api

@@ -85,20 +85,15 @@ TFE_Context* TFE_NewContext(const TFE_ContextOptions* opts, TF_Status* status) {
     return nullptr;
   }
 
-  TFE_Context* ret = new TFE_Context(session);
-  ret->policy = opts->policy;
-  ret->pflr.reset(new tensorflow::ProcessFunctionLibraryRuntime(
-      ret->session->device_mgr, opts->session_options.options.env,
-      TF_GRAPH_DEF_VERSION, &ret->func_lib_def, {}));
-  ret->rendezvous =
-      new tensorflow::IntraProcessRendezvous(ret->session->device_mgr);
-
-  return ret;
+  return new TFE_Context(*opts, session);
 }
 
 void TFE_DeleteContext(TFE_Context* ctx, TF_Status* status) {
   status->status = tensorflow::Status::OK();
-  tensorflow::gtl::STLDeleteValues(&ctx->kernel_cache);
+  {
+    tensorflow::mutex_lock ml(ctx->cache_mu);
+    tensorflow::gtl::STLDeleteValues(&ctx->kernel_cache);
+  }
   TF_Graph* graph = ctx->session->graph;
   TF_DeleteSession(ctx->session, status);
   TF_DeleteGraph(graph);
@@ -108,6 +103,28 @@ void TFE_DeleteContext(TFE_Context* ctx, TF_Status* status) {
 
 TF_DeviceList* TFE_ContextListDevices(TFE_Context* ctx, TF_Status* status) {
   return TF_SessionListDevices(ctx->session, status);
+}
+
+void TFE_ContextClearCaches(TFE_Context* ctx) {
+  tensorflow::mutex_lock ml(ctx->cache_mu);
+  tensorflow::gtl::STLDeleteValues(&ctx->kernel_cache);
+}
+
+void TFE_ContextSetThreadLocalDevicePlacementPolicy(
+    TFE_Context* ctx, TFE_ContextDevicePlacementPolicy policy) {
+  tensorflow::mutex_lock ml(ctx->policy_map_mu);
+  ctx->thread_local_policies[std::this_thread::get_id()] = policy;
+}
+
+extern TFE_ContextDevicePlacementPolicy TFE_ContextGetDevicePlacementPolicy(
+    TFE_Context* ctx) {
+  tensorflow::mutex_lock ml(ctx->policy_map_mu);
+  auto policy_map_it =
+      ctx->thread_local_policies.find(std::this_thread::get_id());
+  if (policy_map_it != ctx->thread_local_policies.end()) {
+    return policy_map_it->second;
+  }
+  return ctx->policy;
 }
 
 TFE_TensorHandle* TFE_NewTensorHandle(TF_Tensor* t, TF_Status* status) {
@@ -165,11 +182,13 @@ TFE_TensorHandle* TFE_TensorHandleCopyToDevice(TFE_TensorHandle* h,
   bool is_same_device =
       (srcd == dstd) || (DeviceName(srcd) == DeviceName(dstd));
   const bool dst_cpu = IsCPU(dstd);
+  const bool src_cpu = IsCPU(srcd);
   if (is_same_device) {
     return new TFE_TensorHandle(h->t, dst_cpu ? nullptr : dstd);
   }
   tensorflow::Tensor* src = &(h->t);
-  if (!dst_cpu && !tensorflow::DataTypeCanUseMemcpy(src->dtype())) {
+  if (!dst_cpu && (src->dtype() != tensorflow::DT_VARIANT &&
+                   !tensorflow::DataTypeCanUseMemcpy(src->dtype()))) {
     TF_SetStatus(
         status, TF_INVALID_ARGUMENT,
         tensorflow::strings::StrCat("Can't copy Tensor with type ",
@@ -178,13 +197,16 @@ TFE_TensorHandle* TFE_TensorHandleCopyToDevice(TFE_TensorHandle* h,
             .c_str());
     return nullptr;
   }
-  tensorflow::Tensor dst(dstd->GetAllocator(tensorflow::AllocatorAttributes()),
-                         src->dtype(), src->shape());
+  tensorflow::AllocatorAttributes attr;
+  if (src->dtype() == tensorflow::DT_VARIANT) {
+    attr.set_on_host(true);
+  }
+  tensorflow::Tensor dst(dstd->GetAllocator(attr), src->dtype(), src->shape());
   if (src->shape().num_elements() == 0) {
     return new TFE_TensorHandle(dst, dst_cpu ? nullptr : dstd);
   }
   tensorflow::DeviceContext* src_device_context = nullptr;
-  if (!IsCPU(srcd)) {
+  if (!src_cpu) {
     src_device_context = srcd->tensorflow_gpu_device_info()->default_context;
   }
   tensorflow::DeviceContext* dst_device_context = nullptr;
@@ -422,10 +444,17 @@ tensorflow::Status ValidateInputTypeAndPlacement(
     const tensorflow::Device* actual_device =
         op->input_devices[i] == nullptr ? host_device : op->input_devices[i];
     if (expected_device != actual_device) {
-      switch (ctx->policy) {
-        case TFE_DEVICE_PLACEMENT_EXPLICIT:
+      switch (TFE_ContextGetDevicePlacementPolicy(ctx)) {
+        case TFE_DEVICE_PLACEMENT_SILENT_FOR_INT32:
           // TODO(xpan): See if we could bubble python related error up
           // to python level.
+          if (op->inputs[i].dtype() == tensorflow::DT_INT32) {
+            // Note: enabling silent copies of int32 tensors to match behavior
+            // of graph mode.
+            break;
+          }
+          TF_FALLTHROUGH_INTENDED;
+        case TFE_DEVICE_PLACEMENT_EXPLICIT:
           return tensorflow::errors::InvalidArgument(
               "Tensors on conflicting devices:"
               " cannot compute ",
@@ -489,8 +518,11 @@ void TFE_Execute(TFE_Op* op, TFE_TensorHandle** retvals, int* num_retvals,
   std::vector<tensorflow::Tensor> outputs(1);
   const tensorflow::MemoryTypeVector* output_memory_types = nullptr;
   tensorflow::Fprint128 cache_key = op->attrs.CacheKey(device->name());
-  tensorflow::KernelAndDevice* kernel =
-      tensorflow::gtl::FindPtrOrNull(ctx->kernel_cache, cache_key);
+  tensorflow::KernelAndDevice* kernel;
+  {
+    tensorflow::tf_shared_lock l(ctx->cache_mu);
+    kernel = tensorflow::gtl::FindPtrOrNull(ctx->kernel_cache, cache_key);
+  }
   if (kernel == nullptr) {
     const tensorflow::NodeDef& ndef = op->attrs.BuildNodeDef();
     kernel = new tensorflow::KernelAndDevice(ctx->rendezvous);
@@ -506,6 +538,7 @@ void TFE_Execute(TFE_Op* op, TFE_TensorHandle** retvals, int* num_retvals,
       delete kernel;
       return;
     }
+    tensorflow::mutex_lock ml(ctx->cache_mu);
     tensorflow::gtl::InsertOrUpdate(&(ctx->kernel_cache), cache_key, kernel);
   }
   std::vector<TFE_TensorHandle*> copied_tensors;
@@ -530,7 +563,7 @@ void TFE_Execute(TFE_Op* op, TFE_TensorHandle** retvals, int* num_retvals,
   // WARNING: kernel->Run utilizes the FunctionLibraryRuntime
   // (ctx->func_lib(device)), which in turn holds a pointer to func_lib_def,
   // which is GUARDED_BY(ctx->functions_mu). But knowledge of the implementation
-  // of FunctionLibraryRuntime tells use that func_lib_def is not accessed by
+  // of FunctionLibraryRuntime tells us that func_lib_def is not accessed by
   // FunctionLibraryRuntime::Run(), so there is no thread-safety concern here.
   // This is quite subtle. Re-work things to make this better?  (Would it make
   // sense for FunctionLibraryRuntime to ensure thread-safe access to

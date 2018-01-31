@@ -145,6 +145,21 @@ tf_xla_py_test(
 )
 
 tf_xla_py_test(
+    name = "matrix_triangular_solve_op_test",
+    size = "small",
+    srcs = ["matrix_triangular_solve_op_test.py"],
+    tags = ["optonly"],
+    deps = [
+        ":xla_test",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:math_ops",
+        "//tensorflow/python:platform_test",
+        "//tensorflow/python:training",
+    ],
+)
+
+tf_xla_py_test(
     name = "clustering_test",
     size = "small",
     srcs = ["clustering_test.py"],
@@ -237,6 +252,23 @@ tf_xla_py_test(
         "//tensorflow/python:data_flow_ops",
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:platform_test",
+    ],
+)
+
+tf_xla_py_test(
+    name = "fft_test",
+    size = "medium",
+    srcs = ["fft_test.py"],
+    shard_count = 3,
+    tags = ["optonly"],
+    deps = [
+        ":xla_test",
+        "//tensorflow/contrib/signal:signal_py",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:extra_py_tests_deps",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:platform_test",
+        "//tensorflow/python:spectral_ops",
     ],
 )
 
@@ -385,12 +417,6 @@ tf_xla_py_test(
     # TODO(b/31361304): enable RNG ops on GPU when parallelized.
     disabled_backends = [
         "gpu",
-        "cpu",
-    ],
-    tags = [
-        "manual",
-        "no_oss",
-        "notap",
     ],
     deps = [
         ":xla_test",
@@ -423,6 +449,18 @@ tf_xla_py_test(
         ":xla_test",
         "//tensorflow/python:array_ops",
         "//tensorflow/python:framework_for_generated_wrappers",
+    ],
+)
+
+tf_xla_py_test(
+    name = "reverse_sequence_op_test",
+    size = "small",
+    srcs = ["reverse_sequence_op_test.py"],
+    deps = [
+        ":xla_test",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:platform_test",
     ],
 )
 

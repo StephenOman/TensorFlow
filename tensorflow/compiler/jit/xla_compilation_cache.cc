@@ -223,6 +223,7 @@ Status XlaCompilationCache::BuildExecutable(
   xla::ExecutableBuildOptions build_options;
   build_options.set_device_ordinal(client_->default_device_ordinal());
   build_options.set_result_layout(result.xla_output_shape);
+  build_options.set_device_allocator(options.device_allocator);
 
   auto compile_result =
       client_->Compile(*result.computation, argument_layouts, build_options);
@@ -238,7 +239,8 @@ Status XlaCompilationCache::Compile(
     int num_constant_args, const std::vector<OptionalTensor>& variable_args,
     OpKernelContext* ctx,
     const XlaCompiler::CompilationResult** compilation_result,
-    xla::LocalExecutable** executable) {
+    xla::LocalExecutable** executable,
+    const XlaCompiler::CompileOptions* compile_options) {
   VLOG(1) << "XlaCompilationCache::Compile " << DebugString();
 
   if (VLOG_IS_ON(2)) {
@@ -297,9 +299,9 @@ Status XlaCompilationCache::Compile(
 
     XlaCompiler compiler(options);
     entry->compiled = true;
-    entry->compilation_status =
-        compiler.CompileFunction(XlaCompiler::CompileOptions(), function, args,
-                                 &entry->compilation_result);
+    entry->compilation_status = compiler.CompileFunction(
+        compile_options ? *compile_options : XlaCompiler::CompileOptions(),
+        function, args, &entry->compilation_result);
   }
   *compilation_result = &entry->compilation_result;
   if (entry->compilation_status.ok() && executable) {

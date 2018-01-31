@@ -386,7 +386,6 @@ class StridedSliceAssignOp : public OpKernel {
                           StridedSliceAssignOp<CPUDevice, type>)
 
 TF_CALL_ALL_TYPES(REGISTER_STRIDED_SLICE);
-REGISTER_STRIDED_SLICE(bfloat16);
 
 #undef REGISTER_STRIDED_SLICE
 
@@ -542,5 +541,5 @@ REGISTER_KERNEL_BUILDER(Name("ResourceStridedSliceAssign")
                             .HostMemory("strides"),
                         StridedSliceAssignOp<CPUDevice, int32>)
 #undef REGISTER_SYCL
-#endif // TENSORFLOW_USE_SYCL
+#endif  // TENSORFLOW_USE_SYCL
 }  // namespace tensorflow

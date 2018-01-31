@@ -17,6 +17,8 @@ limitations under the License.
 #define TENSORFLOW_C_EAGER_C_API_H_
 
 // C API extensions to experiment with eager execution of kernels.
+// WARNING: Unlike tensorflow/c/c_api.h, the API here is not guaranteed to be
+// stable and can change without notice.
 
 #include "tensorflow/c/c_api.h"
 
@@ -59,14 +61,16 @@ TF_CAPI_EXPORT extern void TFE_ContextOptionsSetConfig(
 // Controls how to act when we try to run an operation on a given device but
 // some input tensors are not on that device.
 typedef enum TFE_ContextDevicePlacementPolicy {
-  // The default: running operations with input tensors on the wrong device will
-  // fail.
+  // Running operations with input tensors on the wrong device will fail.
   TFE_DEVICE_PLACEMENT_EXPLICIT = 0,
   // Copy the tensor to the right device but log a warning.
   TFE_DEVICE_PLACEMENT_WARN = 1,
   // Silently copy the tensor, which has a performance cost since the
   // operation will be blocked till the copy completes.
   TFE_DEVICE_PLACEMENT_SILENT = 2,
+  // Default placement policy which silently copies int32 tensors but not other
+  // dtypes.
+  TFE_DEVICE_PLACEMENT_SILENT_FOR_INT32 = 3,
 } TFE_ContextDevicePlacementPolicy;
 
 TF_CAPI_EXPORT extern void TFE_ContextOptionsSetDevicePlacementPolicy(
@@ -86,6 +90,22 @@ TF_CAPI_EXPORT extern TFE_Context* TFE_NewContext(
 TF_CAPI_EXPORT extern void TFE_DeleteContext(TFE_Context* ctx, TF_Status* status);
 TF_CAPI_EXPORT extern TF_DeviceList* TFE_ContextListDevices(TFE_Context* ctx,
                                                             TF_Status* status);
+
+// Clears the internal caches in the TFE context. Useful when reseeding random
+// ops.
+TF_CAPI_EXPORT extern void TFE_ContextClearCaches(TFE_Context* ctx);
+
+// Sets a thread-local device placement policy. After this call, other calls to
+// TFE_Execute in the same thread will use the device policy specified here
+// instead of the device policy used to construct the context. This has no
+// effect on the device policy used by other program threads.
+TF_CAPI_EXPORT extern void TFE_ContextSetThreadLocalDevicePlacementPolicy(
+    TFE_Context*, TFE_ContextDevicePlacementPolicy);
+
+// Returns the device placement policy to be used by this context in the current
+// thread.
+TF_CAPI_EXPORT extern TFE_ContextDevicePlacementPolicy
+TFE_ContextGetDevicePlacementPolicy(TFE_Context*);
 
 // A handle to a tensor on a device.
 //
