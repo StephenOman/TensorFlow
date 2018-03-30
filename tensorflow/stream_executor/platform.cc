@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -84,6 +84,17 @@ StreamExecutorConfig::StreamExecutorConfig(int ordinal_in)
     : ordinal(ordinal_in), device_options(DeviceOptions::Default()) {}
 
 Platform::~Platform() {}
+
+bool Platform::Initialized() const { return true; }
+
+port::Status Platform::Initialize(
+    const std::map<string, string> &platform_options) {
+  if (!platform_options.empty()) {
+    return port::Status(port::error::UNIMPLEMENTED,
+                        "this platform does not support custom initialization");
+  }
+  return port::Status::OK();
+}
 
 port::Status Platform::ForceExecutorShutdown() {
   return port::Status(port::error::UNIMPLEMENTED,

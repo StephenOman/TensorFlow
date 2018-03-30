@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,8 @@ namespace tensorflow {
 // during the common subexpression elimination.
 //
 // Returns true if and only if 'g' is mutated.
-extern bool OptimizeCSE(Graph* g, std::function<bool(const Node*)> consider_fn);
+extern bool OptimizeCSE(Graph* g,
+                        const std::function<bool(const Node*)>& consider_fn);
 
 }  // namespace tensorflow
 

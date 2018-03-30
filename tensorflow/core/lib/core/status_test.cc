@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/platform/test.h"
+#include "tensorflow/core/platform/test_benchmark.h"
 
 namespace tensorflow {
 
@@ -95,5 +96,14 @@ TEST(Status, EqualsDifferentMessage) {
   const Status b(errors::InvalidArgument("another"));
   ASSERT_NE(a, b);
 }
+
+static void BM_TF_CHECK_OK(int iters) {
+  tensorflow::Status s =
+      (iters < 0) ? errors::InvalidArgument("Invalid") : Status::OK();
+  for (int i = 0; i < iters; i++) {
+    TF_CHECK_OK(s);
+  }
+}
+BENCHMARK(BM_TF_CHECK_OK);
 
 }  // namespace tensorflow

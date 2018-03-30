@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,36 +15,99 @@ limitations under the License.
 #ifndef TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_STEP_STATS_COLLECTOR_H_
 #define TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_STEP_STATS_COLLECTOR_H_
 
+#include <memory>
 #include <unordered_map>
-#include "tensorflow/core/common_runtime/costmodel_manager.h"
+#include <vector>
+#include "tensorflow/core/framework/step_stats.pb.h"
+#include "tensorflow/core/lib/gtl/inlined_vector.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/thread_annotations.h"
 #include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
 
-class CostModel;
+class Allocator;
+class AllocatorMemoryUsed;
+class CostModelManager;
 class Graph;
-class Node;
 class NodeExecStats;
 class StepStats;
+class TrackingAllocator;
 
-class StepStatsCollector {
+// Wraps NodeExecStats and adds allocation to it.
+class NodeExecStatsWrapper {
  public:
-  explicit StepStatsCollector(StepStats* ss,
-                              CostModelManager* cost_model_manager = nullptr);
+  NodeExecStatsWrapper();
+  // Owns 'stats'.
+  NodeExecStatsWrapper(NodeExecStats* stats);
 
-  void UpdateCostModel(const NodeExecStats* nt, const Graph* graph,
-                       const Node* node);
-  void Save(const string& device, NodeExecStats* nt);
+  // Destructor calls Finalize() to release the TrackingAllocators.
+  ~NodeExecStatsWrapper() { Finalize(); }
 
-  void Swap(StepStats* ss);
+  NodeExecStats* stats() { return stats_.get(); }
+
+  // "Does not take ownership of the 'allocator'.
+  // Transfers ownership of the 'tracking_allocator' to *this."
+  void AddAllocation(Allocator* allocator,
+                     TrackingAllocator* tracking_allocator);
 
  private:
-  friend class StepStatsMgr;
+  friend class StepStatsCollector;
+
+  // Populates stats_ and releases TrackingAllocator.
+  void Finalize();
+
+  gtl::InlinedVector<std::pair<AllocatorMemoryUsed*, TrackingAllocator*>, 2>
+      allocations_;
+  std::unique_ptr<NodeExecStats> stats_;
+};
+
+// StepStatsCollector manages the collection of a StepStats object.
+// The StepStats object holds multiple DeviceStats.
+// Each DeviceStats object holds multiple NodeExecStats.
+class StepStatsCollector {
+ public:
+  // Does not take ownership of `ss`.
+  explicit StepStatsCollector(StepStats* ss);
+
+  // BuildCostModel builds or updates a CostModel managed by cost_model_manager,
+  // using the currently collected DeviceStats associated with the devices in
+  // device_map.
+  void BuildCostModel(
+      CostModelManager* cost_model_manager,
+      const std::unordered_map<string, const Graph*>& device_map);
+
+  // Save saves nt to the DeviceStats object associated with device.
+  // Should be called before Finalize.
+  void Save(const string& device, NodeExecStats* nt);
+  void Save(const string& device, NodeExecStatsWrapper* stats);
+
+  // Generates a string reporting the currently used memory based
+  // on ResourceExhausted OOM `err` message.
+  // `err` message needs to contain device name and allocator name, E.g.:
+  // "ResourceExhaustedError: OOM when allocating tensor ...
+  // on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc"
+  string ReportAllocsOnResourceExhausted(const string& err);
+
+  // The following 2 Finalize methods populate the StepStats passed
+  // from the constructor. Calling it more than once won't have any effect.
+  // User shouldn't call Save() methods after Finalize.
+  void Finalize();
+  // swaps the content of StepStats* from constructor with 'ss'.
+  void FinalizeAndSwap(StepStats* ss);
+
+ private:
+  void FinalizeInternal() EXCLUSIVE_LOCKS_REQUIRED(mu_);
+
+  typedef std::vector<std::unique_ptr<NodeExecStatsWrapper>> NodeExecStatsVec;
+  // TODO(suharshs): Make this configurable if its not possible to find a value
+  //                 that works for all cases.
+  const uint64 kMaxCollectedNodes = 1 << 20;
   mutex mu_;
+  bool finalized_ GUARDED_BY(mu_);
+  std::unordered_map<string, NodeExecStatsVec> dev_stats_ GUARDED_BY(mu_);
   StepStats* step_stats_ GUARDED_BY(mu_);
-  CostModelManager* cost_model_manager_ GUARDED_BY(mu_);
+  uint64 collectedNodes GUARDED_BY(mu_) = 0;
 };
 
 }  // namespace tensorflow

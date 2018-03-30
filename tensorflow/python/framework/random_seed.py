@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,12 +20,20 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
+from tensorflow.python.util.tf_export import tf_export
 
 
-_DEFAULT_GRAPH_SEED = 87654321
+DEFAULT_GRAPH_SEED = 87654321
+_MAXINT32 = 2**31 - 1
 
 
+def _truncate_seed(seed):
+  return seed % _MAXINT32  # Truncate to fit into 32-bit integer
+
+
+@tf_export('get_seed')
 def get_seed(op_seed):
   """Returns the local seeds an operation should use given an op-specific seed.
 
@@ -35,7 +43,7 @@ def get_seed(op_seed):
   graph, or for only specific operations.
 
   For details on how the graph-level seed interacts with op seeds, see
-  [`set_random_seed`](../../api_docs/python/constant_op.md#set_random_seed).
+  @{tf.set_random_seed}.
 
   Args:
     op_seed: integer.
@@ -44,19 +52,35 @@ def get_seed(op_seed):
     A tuple of two integers that should be used for the local seed of this
     operation.
   """
-  graph_seed = ops.get_default_graph().seed
-  if graph_seed is not None:
-    if op_seed is not None:
-      return graph_seed, op_seed
-    else:
-      return graph_seed, ops.get_default_graph()._last_id
+  eager = context.executing_eagerly()
+
+  if eager:
+    global_seed = context.global_seed()
+  else:
+    global_seed = ops.get_default_graph().seed
+
+  if global_seed is not None:
+    if op_seed is None:
+      # pylint: disable=protected-access
+      if eager:
+        op_seed = context.internal_operation_seed()
+      else:
+        op_seed = ops.get_default_graph()._last_id
+
+    seeds = _truncate_seed(global_seed), _truncate_seed(op_seed)
   else:
     if op_seed is not None:
-      return _DEFAULT_GRAPH_SEED, op_seed
+      seeds = DEFAULT_GRAPH_SEED, _truncate_seed(op_seed)
     else:
-      return None, None
+      seeds = None, None
+  # Avoid (0, 0) as the C++ ops interpret it as nondeterminism, which would
+  # be unexpected since Python docs say nondeterminism is (None, None).
+  if seeds == (0, 0):
+    return (0, _MAXINT32)
+  return seeds
 
 
+@tf_export('set_random_seed')
 def set_random_seed(seed):
   """Sets the graph-level random seed.
 
@@ -132,7 +156,7 @@ def set_random_seed(seed):
   a = tf.random_uniform([1])
   b = tf.random_normal([1])
 
-  # Repeatedly running this block with the same graph will generate different
+  # Repeatedly running this block with the same graph will generate the same
   # sequences of 'a' and 'b'.
   print("Session 1")
   with tf.Session() as sess1:
@@ -152,4 +176,7 @@ def set_random_seed(seed):
   Args:
     seed: integer.
   """
-  ops.get_default_graph().seed = seed
+  if context.executing_eagerly():
+    context.set_global_seed(seed)
+  else:
+    ops.get_default_graph().seed = seed

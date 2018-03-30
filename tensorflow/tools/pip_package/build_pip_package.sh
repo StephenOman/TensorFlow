@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,14 +17,64 @@
 
 set -e
 
+function real_path() {
+  [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+}
+
+function cp_external() {
+  local src_dir=$1
+  local dest_dir=$2
+  for f in `find "$src_dir" -maxdepth 1 -mindepth 1 ! -name '*local_config_cuda*' ! -name '*org_tensorflow*'`; do
+    cp -R "$f" "$dest_dir"
+  done
+  mkdir -p "${dest_dir}/local_config_cuda/cuda/cuda/"
+  cp "${src_dir}/local_config_cuda/cuda/cuda/cuda_config.h" "${dest_dir}/local_config_cuda/cuda/cuda/"
+}
+
+PLATFORM="$(uname -s | tr 'A-Z' 'a-z')"
+function is_windows() {
+  # On windows, the shell script is actually running in msys
+  if [[ "${PLATFORM}" =~ msys_nt* ]]; then
+    true
+  else
+    false
+  fi
+}
+
 function main() {
   if [ $# -lt 1 ] ; then
     echo "No destination dir provided"
     exit 1
   fi
 
-  DEST=$1
+  DEST=$(real_path $1)
   TMPDIR=$(mktemp -d -t tmp.XXXXXXXXXX)
+
+  PKG_NAME_FLAG=""
+  GPU_BUILD=0
+  NIGHTLY_BUILD=0
+  while true; do
+    if [[ "$1" == "--nightly_flag" ]]; then
+      NIGHTLY_BUILD=1
+    elif [[ "$1" == "--gpu" ]]; then
+      GPU_BUILD=1
+    elif [[ "$1" == "--gpudirect" ]]; then
+      PKG_NAME_FLAG="--project_name tensorflow_gpudirect"
+    fi
+    shift
+
+    if [[ -z "$1" ]]; then
+      break
+    fi
+  done
+
+  if [[ ${NIGHTLY_BUILD} == "1" && ${GPU_BUILD} == "1" ]]; then
+    PKG_NAME_FLAG="--project_name tf_nightly_gpu"
+  elif [[ ${NIGHTLY_BUILD} == "1" ]]; then
+    PKG_NAME_FLAG="--project_name tf_nightly"
+  elif [[ ${GPU_BUILD} == "1" ]]; then
+    PKG_NAME_FLAG="--project_name tensorflow_gpu"
+  fi
 
   echo $(date) : "=== Using tmpdir: ${TMPDIR}"
 
@@ -32,17 +82,79 @@ function main() {
     echo "Could not find bazel-bin.  Did you run from the root of the build tree?"
     exit 1
   fi
-  cp -R \
-    bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/{tensorflow,external} \
-    ${TMPDIR}
+
+  if is_windows; then
+    rm -rf ./bazel-bin/tensorflow/tools/pip_package/simple_console_for_window_unzip
+    mkdir -p ./bazel-bin/tensorflow/tools/pip_package/simple_console_for_window_unzip
+    echo "Unzipping simple_console_for_windows.zip to create runfiles tree..."
+    unzip -o -q ./bazel-bin/tensorflow/tools/pip_package/simple_console_for_windows.zip -d ./bazel-bin/tensorflow/tools/pip_package/simple_console_for_window_unzip
+    echo "Unzip finished."
+    # runfiles structure after unzip the python binary
+    cp -R \
+      bazel-bin/tensorflow/tools/pip_package/simple_console_for_window_unzip/runfiles/org_tensorflow/tensorflow \
+      "${TMPDIR}"
+    mkdir "${TMPDIR}/external"
+    cp_external \
+      bazel-bin/tensorflow/tools/pip_package/simple_console_for_window_unzip/runfiles \
+      "${TMPDIR}/external"
+    RUNFILES=bazel-bin/tensorflow/tools/pip_package/simple_console_for_window_unzip/runfiles/org_tensorflow
+  else
+    RUNFILES=bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/org_tensorflow
+    if [ -d bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/org_tensorflow/external ]; then
+      # Old-style runfiles structure (--legacy_external_runfiles).
+      cp -R \
+        bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/org_tensorflow/tensorflow \
+        "${TMPDIR}"
+      mkdir "${TMPDIR}/external"
+      cp_external \
+        bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/org_tensorflow/external \
+        "${TMPDIR}/external"
+      # Copy MKL libs over so they can be loaded at runtime
+      so_lib_dir=$(ls $RUNFILES | grep solib) || true
+      if [ -n "${so_lib_dir}" ]; then
+        mkl_so_dir=$(ls ${RUNFILES}/${so_lib_dir} | grep mkl) || true
+        if [ -n "${mkl_so_dir}" ]; then
+          mkdir "${TMPDIR}/${so_lib_dir}"
+          cp -R ${RUNFILES}/${so_lib_dir}/${mkl_so_dir} "${TMPDIR}/${so_lib_dir}"
+        fi
+      fi
+    else
+      # New-style runfiles structure (--nolegacy_external_runfiles).
+      cp -R \
+        bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/org_tensorflow/tensorflow \
+        "${TMPDIR}"
+      mkdir "${TMPDIR}/external"
+      cp_external \
+        bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles \
+        "${TMPDIR}/external"
+      # Copy MKL libs over so they can be loaded at runtime
+      so_lib_dir=$(ls $RUNFILES | grep solib) || true
+      if [ -n "${so_lib_dir}" ]; then
+        mkl_so_dir=$(ls ${RUNFILES}/${so_lib_dir} | grep mkl) || true
+        if [ -n "${mkl_so_dir}" ]; then
+          mkdir "${TMPDIR}/${so_lib_dir}"
+          cp -R ${RUNFILES}/${so_lib_dir}/${mkl_so_dir} "${TMPDIR}/${so_lib_dir}"
+        fi
+      fi
+    fi
+    mkdir "${TMPDIR}/tensorflow/aux-bin"
+    # Install toco as a binary in aux-bin.
+    # TODO(aselle): Re-enable this when we find a way to do it without doubling
+    # the whl size (over the limit).
+    # cp bazel-bin/tensorflow/contrib/lite/toco/toco ${TMPDIR}/tensorflow/aux-bin/
+  fi
+
   # protobuf pip package doesn't ship with header files. Copy the headers
   # over so user defined ops can be compiled.
-  rsync --include "*/" --include "*.h" --exclude "*" --prune-empty-dirs -a \
-    bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/google \
-    ${TMPDIR}
-  rsync -a \
-    bazel-bin/tensorflow/tools/pip_package/build_pip_package.runfiles/third_party/eigen3 \
-    ${TMPDIR}/third_party
+  mkdir -p ${TMPDIR}/google
+  mkdir -p ${TMPDIR}/third_party
+  pushd ${RUNFILES%org_tensorflow}
+  for header in $(find protobuf_archive -name \*.h); do
+    mkdir -p "${TMPDIR}/google/$(dirname ${header})"
+    cp "$header" "${TMPDIR}/google/$(dirname ${header})/"
+  done
+  popd
+  cp -R $RUNFILES/third_party/eigen3 ${TMPDIR}/third_party
 
   cp tensorflow/tools/pip_package/MANIFEST.in ${TMPDIR}
   cp tensorflow/tools/pip_package/README ${TMPDIR}
@@ -55,7 +167,7 @@ function main() {
   pushd ${TMPDIR}
   rm -f MANIFEST
   echo $(date) : "=== Building wheel"
-  ${PYTHON_BIN_PATH:-python} setup.py bdist_wheel >/dev/null
+  "${PYTHON_BIN_PATH:-python}" setup.py bdist_wheel ${PKG_NAME_FLAG} >/dev/null
   mkdir -p ${DEST}
   cp dist/* ${DEST}
   popd

@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,74 +13,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <unordered_map>
-
-#include <vector>
 #include "tensorflow/core/kernels/save_restore_tensor.h"
+#include <numeric>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/kernels/bounds_check.h"
 #include "tensorflow/core/lib/gtl/array_slice.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/lib/strings/stringprintf.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow/core/util/tensor_bundle/tensor_bundle.h"
 #include "tensorflow/core/util/tensor_slice_reader.h"
 #include "tensorflow/core/util/tensor_slice_reader_cache.h"
 #include "tensorflow/core/util/tensor_slice_writer.h"
 
 namespace tensorflow {
-
-namespace {
-bool ParseShapeAndSlice(const string& shape_and_slice, TensorShape* shape,
-                        TensorSlice* slice, TensorShape* shape_slice,
-                        string* error) {
-  CHECK(!shape_and_slice.empty());
-  // Syntax: dim0 dim1 dim2 ... <slice string>
-  // Where slice string is defined in core/framework/tensor_slice.h
-  std::vector<string> splits = str_util::Split(shape_and_slice, ' ');
-
-  // Must have at least 2 strings.
-  if (splits.size() < 2) {
-    *error = strings::StrCat(
-        "Need least two elements in shape_and_slice specification: ",
-        shape_and_slice);
-    return false;
-  }
-
-  // The last split is the slice specification.
-  slice->Clear();
-  auto status = slice->Parse(splits.back(), slice);
-  if (!status.ok()) {
-    *error = status.error_message();
-    return false;
-  }
-
-  // The first n-1 are the shape specification.
-  splits.pop_back();
-  shape->Clear();
-  for (const auto& s : splits) {
-    int dim;
-    if (!strings::safe_strto32(s, &dim)) {
-      *error = strings::StrCat("Non numerical dimension in shape_and_slice: ",
-                               shape_and_slice);
-      return false;
-    }
-    shape->AddDim(dim);
-  }
-
-  // The specified slice must be compatible with the specified shape.
-  status = slice->SliceTensorShape(*shape, shape_slice);
-  if (!status.ok()) {
-    *error = status.error_message();
-    return false;
-  }
-  return true;
-}
-}  // namespace
 
 void SaveTensors(
     OpKernelContext* context,
@@ -127,13 +80,22 @@ void SaveTensors(
   VLOG(1) << "About to save tensors to file " << filename_t.flat<string>()(0)
           << "...";
   checkpoint::TensorSliceWriter writer(filename_t.flat<string>()(0),
-                                       builder_func);
+                                       std::move(builder_func));
 
   Status s;
   auto tensor_names_flat = tensor_names_t.flat<string>();
 
-  string error;
-  for (int i = 0; i < N; ++i) {
+  // Process tensors in sorted name order.  This allows us to avoid seeking
+  // during restoration in the common case where we are restoring a full
+  // checkpoint.
+  std::vector<size_t> sorted_name_idx(tensor_names_flat.size());
+  std::iota(sorted_name_idx.begin(), sorted_name_idx.end(), 0);
+  std::sort(sorted_name_idx.begin(), sorted_name_idx.end(),
+            [&tensor_names_flat](size_t a, size_t b) {
+              return tensor_names_flat(a) < tensor_names_flat(b);
+            });
+
+  for (size_t i : sorted_name_idx) {
     const string& name = tensor_names_flat(i);
     const Tensor& input = context->input(i + kFixedInputs);
     TensorShape shape(input.shape());
@@ -141,15 +103,14 @@ void SaveTensors(
     if (save_slices && !tensor_shapes_and_slices_ptr[i].empty()) {
       const string& shape_spec = tensor_shapes_and_slices_ptr[i];
       TensorShape slice_shape;
-      OP_REQUIRES(context, ParseShapeAndSlice(shape_spec, &shape, &slice,
-                                              &slice_shape, &error),
-                  errors::InvalidArgument(error));
+      OP_REQUIRES_OK(context, checkpoint::ParseShapeAndSlice(
+                                  shape_spec, &shape, &slice, &slice_shape));
       OP_REQUIRES(context, slice_shape.IsSameSize(input.shape()),
-                  errors::InvalidArgument("Slice in shape_and_slice "
-                                          "specification does not match the "
-                                          "shape of the tensor to  save: ",
-                                          shape_spec, ", tensor: ",
-                                          input.shape().DebugString()));
+                  errors::InvalidArgument(
+                      "Slice in shape_and_slice "
+                      "specification does not match the "
+                      "shape of the tensor to  save: ",
+                      shape_spec, ", tensor: ", input.shape().DebugString()));
     }
 
 #define WRITER_ADD(T)                                           \
@@ -158,8 +119,7 @@ void SaveTensors(
     break;
 
     switch (input.dtype()) {
-      TF_CALL_ALL_TYPES(WRITER_ADD)
-      TF_CALL_QUANTIZED_TYPES(WRITER_ADD)
+      TF_CALL_SAVE_RESTORE_TYPES(WRITER_ADD)
       default:
         context->SetStatus(errors::Unimplemented("Saving data type ",
                                                  DataTypeString(input.dtype()),
@@ -181,7 +141,7 @@ void SaveTensors(
 
 void RestoreTensor(OpKernelContext* context,
                    checkpoint::TensorSliceReader::OpenTableFunction open_func,
-                   int preferred_shard, bool restore_slice) {
+                   int preferred_shard, bool restore_slice, int restore_index) {
   const Tensor& file_pattern_t = context->input(0);
   {
     const int64 size = file_pattern_t.NumElements();
@@ -194,26 +154,7 @@ void RestoreTensor(OpKernelContext* context,
   const string& file_pattern = file_pattern_t.flat<string>()(0);
 
   const Tensor& tensor_name_t = context->input(1);
-  {
-    const int64 size = tensor_name_t.NumElements();
-    OP_REQUIRES(
-        context, size == 1,
-        errors::InvalidArgument(
-            "Input 1 (tensor_name) must be a string scalar; got a tensor of ",
-            size, "elements"));
-  }
-  const string& tensor_name = tensor_name_t.flat<string>()(0);
-
-  const string* tensor_shape_and_slice_ptr = nullptr;
-  if (restore_slice) {
-    const Tensor& tensor_shape_and_slice_t = context->input(2);
-    OP_REQUIRES(
-        context, tensor_shape_and_slice_t.NumElements() == 1,
-        errors::InvalidArgument("Expected 1 element for the tensor "
-                                "shape and slice but got ",
-                                tensor_shape_and_slice_t.NumElements()));
-    tensor_shape_and_slice_ptr = tensor_shape_and_slice_t.flat<string>().data();
-  }
+  const string& tensor_name = tensor_name_t.flat<string>()(restore_index);
 
   // If we cannot find a cached reader we will allocate our own.
   std::unique_ptr<checkpoint::TensorSliceReader> allocated_reader;
@@ -236,7 +177,7 @@ void RestoreTensor(OpKernelContext* context,
       errors::NotFound("Tensor name \"", tensor_name,
                        "\" not found in checkpoint files ", file_pattern));
   OP_REQUIRES(
-      context, type == context->expected_output_dtype(0),
+      context, type == context->expected_output_dtype(restore_index),
       errors::InvalidArgument("Expected to restore a tensor of type ",
                               DataTypeString(context->expected_output_dtype(0)),
                               ", got a tensor of type ", DataTypeString(type),
@@ -245,39 +186,113 @@ void RestoreTensor(OpKernelContext* context,
   // Shape of the output and slice to load.
   TensorShape output_shape(saved_shape);
   TensorSlice slice_to_load(saved_shape.dims());
-  if (restore_slice && !tensor_shape_and_slice_ptr[0].empty()) {
-    const string& shape_spec = tensor_shape_and_slice_ptr[0];
-    TensorShape parsed_shape;
-    string error;
-    OP_REQUIRES(context,
-                ParseShapeAndSlice(shape_spec, &parsed_shape, &slice_to_load,
-                                   &output_shape, &error),
-                errors::InvalidArgument(error));
-    OP_REQUIRES(
-        context, parsed_shape.IsSameSize(saved_shape),
-        errors::InvalidArgument(
-            "Shape in shape_and_slice spec does not match the shape in the "
-            "save file: ",
-            parsed_shape.DebugString(), ", save file shape: ",
-            saved_shape.DebugString()));
+  if (restore_slice) {
+    const string& shape_spec = context->input(2).flat<string>()(restore_index);
+    if (!shape_spec.empty()) {
+      TensorShape parsed_shape;
+      OP_REQUIRES_OK(context, checkpoint::ParseShapeAndSlice(
+                                  shape_spec, &parsed_shape, &slice_to_load,
+                                  &output_shape));
+      OP_REQUIRES(
+          context, parsed_shape.IsSameSize(saved_shape),
+          errors::InvalidArgument(
+              "Shape in shape_and_slice spec does not match the shape in the "
+              "save file: ",
+              parsed_shape.DebugString(),
+              ", save file shape: ", saved_shape.DebugString()));
+    }
   }
 
   Tensor* t = nullptr;
-  OP_REQUIRES_OK(context, context->allocate_output(0, output_shape, &t));
+  OP_REQUIRES_OK(context,
+                 context->allocate_output(restore_index, output_shape, &t));
 
-#define READER_COPY(T)                                                      \
-  case DataTypeToEnum<T>::value:                                            \
-    reader->CopySliceData(tensor_name, slice_to_load, t->flat<T>().data()); \
+  if (output_shape.num_elements() == 0) return;
+
+#define READER_COPY(T)                                                \
+  case DataTypeToEnum<T>::value:                                      \
+    OP_REQUIRES(context,                                              \
+                reader->CopySliceData(tensor_name, slice_to_load,     \
+                                      t->flat<T>().data()),           \
+                errors::InvalidArgument("Error copying slice data")); \
     break;
 
   switch (type) {
-    TF_CALL_ALL_TYPES(READER_COPY)
-    TF_CALL_QUANTIZED_TYPES(READER_COPY)
+    TF_CALL_SAVE_RESTORE_TYPES(READER_COPY)
     default:
       context->SetStatus(errors::Unimplemented(
           "Restoring data type ", DataTypeString(type), " not yet supported"));
   }
 #undef READER_COPY
+}
+
+Status RestoreTensorsV2(OpKernelContext* context, const Tensor& prefix,
+                        const Tensor& tensor_names,
+                        const Tensor& shape_and_slices,
+                        gtl::ArraySlice<DataType> dtypes) {
+  const string& prefix_string = prefix.scalar<string>()();
+
+  const auto& tensor_names_flat = tensor_names.flat<string>();
+  const auto& shape_and_slices_flat = shape_and_slices.flat<string>();
+
+  // Sort lookup keys to improve locality when reading multiple tensors.
+  std::vector<size_t> sorted_name_idx(tensor_names_flat.size());
+  std::iota(sorted_name_idx.begin(), sorted_name_idx.end(), 0);
+  std::sort(sorted_name_idx.begin(), sorted_name_idx.end(),
+            [&tensor_names_flat](size_t a, size_t b) {
+              return tensor_names_flat(a) < tensor_names_flat(b);
+            });
+
+  BundleReader reader(Env::Default(), prefix_string);
+  TF_RETURN_IF_ERROR(reader.status());
+
+  // TODO(zongheng): potential optimization: one Seek() in first lookup.
+  // TODO(zongheng): consider measuring speed and issuing concurrent lookups
+  // within a fixed memory budget.
+  TensorShape restored_full_shape;
+  Tensor* restored_tensor = nullptr;
+  for (auto i : sorted_name_idx) {
+    const string& tensor_name = tensor_names_flat(i);
+    const string& shape_and_slice = shape_and_slices_flat(i);
+
+    TF_RETURN_IF_ERROR(
+        reader.LookupTensorShape(tensor_name, &restored_full_shape));
+
+    if (shape_and_slice.empty()) {
+      // Lookup the full tensor.
+      TF_RETURN_IF_ERROR(
+          context->allocate_output(i, restored_full_shape, &restored_tensor));
+      TF_RETURN_IF_ERROR(reader.Lookup(tensor_name, restored_tensor));
+    } else {
+      // Lookup the slice.
+      TensorShape parsed_full_shape;
+      TensorSlice parsed_slice;
+      TensorShape parsed_slice_shape;
+
+      TF_RETURN_IF_ERROR(
+          checkpoint::ParseShapeAndSlice(shape_and_slice, &parsed_full_shape,
+                                         &parsed_slice, &parsed_slice_shape));
+      if (!restored_full_shape.IsSameSize(parsed_full_shape)) {
+        return errors::InvalidArgument(
+            "tensor_name = ", tensor_name, "; shape in shape_and_slice spec ",
+            parsed_full_shape.DebugString(),
+            " does not match the shape stored in checkpoint: ",
+            restored_full_shape.DebugString());
+      }
+
+      TF_RETURN_IF_ERROR(
+          context->allocate_output(i, parsed_slice_shape, &restored_tensor));
+      TF_RETURN_IF_ERROR(
+          reader.LookupSlice(tensor_name, parsed_slice, restored_tensor));
+    }
+    if (dtypes[i] != restored_tensor->dtype()) {
+      return errors::InvalidArgument(
+          "tensor_name = ", tensor_name, "; expected dtype ",
+          DataTypeString(dtypes[i]), " does not equal restored dtype ",
+          DataTypeString(restored_tensor->dtype()));
+    }
+  }
+  return Status::OK();
 }
 
 }  // namespace tensorflow

@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ class DnnPoolingOp {
                       const std::vector<int32>& size,
                       const std::vector<int32>& stride, Padding padding,
                       TensorFormat data_format, const Tensor& tensor_in,
-                      const TensorShape& tensor_out_shape);
+                      const TensorShape& tensor_out_shape, bool propagate_nans);
 };
 
 // A helper class that launch the cudnn pooling backward operations.
@@ -60,7 +60,7 @@ class DnnPoolingGradOp {
                       const std::vector<int32>& stride, Padding padding,
                       TensorFormat data_format, const Tensor* tensor_in,
                       const Tensor* tensor_out, const Tensor& out_backprop,
-                      const TensorShape& tensor_in_shape);
+                      const TensorShape& tensor_in_shape, bool propagate_nans);
 };
 
 }  // namespace tensorflow

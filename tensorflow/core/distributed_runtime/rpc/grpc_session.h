@@ -1,4 +1,4 @@
-/* Copyright 2016 Google Inc. All Rights Reserved.
+/* Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,14 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef THIRD_PARTY_TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_SESSION_H_
-#define THIRD_PARTY_TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_SESSION_H_
+#ifndef TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_SESSION_H_
+#define TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_SESSION_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "tensorflow/core/distributed_runtime/call_options.h"
+#include "tensorflow/core/distributed_runtime/message_wrappers.h"
 #include "tensorflow/core/distributed_runtime/rpc/grpc_channel.h"
 #include "tensorflow/core/framework/graph.pb.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -52,6 +53,9 @@ class GrpcSession : public Session {
  public:
   static Status Create(const SessionOptions& options,
                        std::unique_ptr<GrpcSession>* out_session);
+  // Resets the resource containers.
+  static Status Reset(const SessionOptions& options,
+                      const std::vector<string>& containers);
 
   ~GrpcSession() override;
 
@@ -70,7 +74,7 @@ class GrpcSession : public Session {
              const std::vector<std::pair<string, Tensor> >& inputs,
              const std::vector<string>& output_tensor_names,
              const std::vector<string>& target_node_names,
-             std::vector<Tensor>* outputs, RunMetadata* run_metadata);
+             std::vector<Tensor>* outputs, RunMetadata* run_metadata) override;
 
   Status Extend(const GraphDef& graph) override;
   Status Extend(const RunOptions& run_options, const GraphDef& graph) override;
@@ -90,11 +94,11 @@ class GrpcSession : public Session {
       const std::vector<string>& output_names,
       std::vector<Tensor>* outputs) override;
 
-  std::vector<DeviceAttributes> ListDevices();
+  Status ListDevices(std::vector<DeviceAttributes>* response) override;
 
  protected:
   // Takes ownership of `*master`.
-  void SetRemoteMaster(MasterInterface* master);
+  void SetRemoteMaster(std::unique_ptr<MasterInterface> master);
 
  private:
   SessionOptions options_;
@@ -102,13 +106,20 @@ class GrpcSession : public Session {
   mutex mu_;
 
   // handle_ returned by the master to identify this session.
-  string handle_;
+  string handle_ GUARDED_BY(mu_);
 
   // The current version of the graph.
   int64 current_graph_version_ GUARDED_BY(mu_);
 
-  Status RunProto(CallOptions* call_options, RunStepRequest* req,
-                  RunStepResponse* resp);
+  Status RunHelper(const RunOptions& run_options,
+                   const std::vector<std::pair<string, Tensor> >& inputs,
+                   const std::vector<string>& output_tensor_names,
+                   const std::vector<string>& target_node_names,
+                   std::vector<Tensor>* outputs, RunMetadata* run_metadata,
+                   const string& prun_handle);
+
+  Status RunProto(CallOptions* call_options, MutableRunStepRequestWrapper* req,
+                  MutableRunStepResponseWrapper* resp);
 
   // Implementations for all the public interfaces.
   Status CreateImpl(CallOptions* call_options, const GraphDef& graph);
@@ -119,4 +130,4 @@ class GrpcSession : public Session {
 
 }  // namespace tensorflow
 
-#endif  // THIRD_PARTY_TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_SESSION_H_
+#endif  // TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_SESSION_H_

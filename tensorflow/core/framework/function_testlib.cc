@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@ limitations under the License.
 #include "tensorflow/core/framework/function_testlib.h"
 
 #include "tensorflow/core/framework/function.h"
+#include "tensorflow/core/framework/node_def.pb.h"
 #include "tensorflow/core/framework/tensor_testutil.h"
+#include "tensorflow/core/framework/versions.pb.h"
+#include "tensorflow/core/lib/core/threadpool.h"
 #include "tensorflow/core/public/version.h"
 
 namespace tensorflow {
@@ -31,11 +34,11 @@ GraphDef GDef(gtl::ArraySlice<NodeDef> nodes,
   VersionDef* versions = g.mutable_versions();
   versions->set_producer(TF_GRAPH_DEF_VERSION);
   versions->set_min_consumer(TF_GRAPH_DEF_VERSION_MIN_CONSUMER);
-  for (auto n : nodes) {
+  for (const auto& n : nodes) {
     *(g.add_node()) = n;
   }
   auto lib = g.mutable_library();
-  for (auto f : funcs) {
+  for (const auto& f : funcs) {
     *(lib->add_function()) = f;
   }
   return g;
@@ -49,7 +52,7 @@ NodeDef NDef(const string& name, const string& op,
   NodeDef n;
   n.set_name(name);
   n.set_op(op);
-  for (auto in : inputs) n.add_input(in);
+  for (const auto& in : inputs) n.add_input(in);
   n.set_device(device);
   for (auto na : attrs) n.mutable_attr()->insert({na.first, na.second.proto});
   return n;
@@ -90,8 +93,28 @@ FunctionDef XTimesTwo() {
       });
 }
 
-FunctionDef XTimesFour() {
+FunctionDef XTimesTwoInt32() {
+  const Tensor kTwo = test::AsScalar<int64>(2);
   return FDH::Define(
+      // Name
+      "XTimesTwoInt32",
+      // Args
+      {"x: int32"},
+      // Return values
+      {"y: int32"}, {},
+      // Nodes
+      {
+          {{"two"}, "Const", {}, {{"value", kTwo}, {"dtype", DT_INT64}}},
+          {{"scale"},
+           "Cast",
+           {"two"},
+           {{"SrcT", DT_INT64}, {"DstT", DT_INT32}}},
+          {{"y"}, "Mul", {"x", "scale"}, {{"T", DT_INT32}}},
+      });
+}
+
+FunctionDef XTimesFour() {
+  return FDH::Create(
       // Name
       "XTimesFour",
       // Args
@@ -103,12 +126,13 @@ FunctionDef XTimesFour() {
       // Nodes
       {
           {{"x2"}, "XTimesTwo", {"x"}, {{"T", "$T"}}},
-          {{"y"}, "XTimesTwo", {"x2"}, {{"T", "$T"}}},
-      });
+          {{"y"}, "XTimesTwo", {"x2:y:0"}, {{"T", "$T"}}},
+      },
+      {{"y", "y:y:0"}});
 }
 
 FunctionDef XTimes16() {
-  return FDH::Define(
+  return FDH::Create(
       // Name
       "XTimes16",
       // Args
@@ -120,8 +144,9 @@ FunctionDef XTimes16() {
       // Nodes
       {
           {{"x4"}, "XTimesFour", {"x"}, {{"T", "$T"}}},
-          {{"y"}, "XTimesFour", {"x4"}, {{"T", "$T"}}},
-      });
+          {{"y"}, "XTimesFour", {"x4:y:0"}, {{"T", "$T"}}},
+      },
+      {{"y", "y:y:0"}});
 }
 
 FunctionDef WXPlusB() {
@@ -158,6 +183,29 @@ FunctionDef Swap() {
       // Nodes
       {{{"o0"}, "Identity", {"i1"}, {{"T", "$T"}}},
        {{"o1"}, "Identity", {"i0"}, {{"T", "$T"}}}});
+}
+
+FunctionDef InvalidControlFlow() {
+  return FDH::Create(
+      // Name
+      "InvalidControlFlow",
+      // Args
+      {"i: int32"},
+      // Return values
+      {"o: int32"},
+      // Attr def
+      {},
+      // Nodes
+      {{{"enter"}, "Enter", {"i"}, {{"T", DT_INT32}, {"frame_name", "while"}}},
+       {{"add"}, "Add", {"enter:output", "i"}, {{"T", DT_INT32}}}},
+      // Output mapping
+      {{"o", "add:z"}});
+}
+
+void FunctionTestSchedClosure(std::function<void()> fn) {
+  static thread::ThreadPool* w =
+      new thread::ThreadPool(Env::Default(), "Test", 8);
+  w->Schedule(std::move(fn));
 }
 
 }  // end namespace function

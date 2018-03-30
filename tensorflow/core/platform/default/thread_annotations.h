@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ limitations under the License.
 // a shared variable is guarded by some unspecified mutex, for use in rare
 // cases where a valid mutex expression cannot be specified.
 #define GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
-#define GUARDED_VAR THREAD_ANNOTATION_ATTRIBUTE__(guarded)
+#define GUARDED_VAR  // no-op
 
 // Document if the memory location pointed to by a pointer should be guarded
 // by a mutex when dereferencing the pointer.  PT_GUARDED_VAR is analogous to
@@ -60,7 +60,7 @@ limitations under the License.
 // guarded by mu2, q should be annotated as follows:
 //     int *q GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
 #define PT_GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
-#define PT_GUARDED_VAR THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded)
+#define PT_GUARDED_VAR  // no-op
 
 // Document the acquisition order between locks that can be held
 // simultaneously by a thread. For any two locks that need to be annotated

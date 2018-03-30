@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 
 #include "tensorflow/core/common_runtime/allocator_retry.h"
 #include "tensorflow/core/common_runtime/bfc_allocator.h"
+#include "tensorflow/core/common_runtime/gpu/gpu_id.h"
 #include "tensorflow/core/platform/stream_executor.h"
 #include "tensorflow/core/platform/thread_annotations.h"
 #include "tensorflow/core/platform/types.h"
@@ -36,11 +37,12 @@ namespace tensorflow {
 // algorithm.
 class GPUBFCAllocator : public BFCAllocator {
  public:
-  // 'device_id' refers to the StreamExecutor ID of the device within
+  // 'cuda_gpu_id' refers to the ID of the GPU device within
   // the process and must reference a valid ID in the process.
-  GPUBFCAllocator(int device_id, size_t total_memory);
-  GPUBFCAllocator(int device_id, size_t total_memory,
-                  const GPUOptions& gpu_options);
+  GPUBFCAllocator(CudaGpuId cuda_gpu_id, size_t total_memory,
+                  const string& name);
+  GPUBFCAllocator(CudaGpuId cuda_gpu_id, size_t total_memory,
+                  const GPUOptions& gpu_options, const string& name);
   virtual ~GPUBFCAllocator() {}
 
   TF_DISALLOW_COPY_AND_ASSIGN(GPUBFCAllocator);

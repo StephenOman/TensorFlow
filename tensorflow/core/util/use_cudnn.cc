@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,21 +15,47 @@ limitations under the License.
 
 #include "tensorflow/core/util/use_cudnn.h"
 
-#include <stdlib.h>
-
+#include "tensorflow/core/lib/core/stringpiece.h"
+#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow/core/util/env_var.h"
 
 namespace tensorflow {
 
-bool CanUseCudnn() {
-  const char* tf_use_cudnn = getenv("TF_USE_CUDNN");
-  if (tf_use_cudnn != nullptr) {
-    string tf_use_cudnn_str = tf_use_cudnn;
-    if (tf_use_cudnn_str == "0") {
-      return false;
-    }
+#define ADD_CUDNN_FLAG(func_name, flag_name, default_value)                \
+  bool func_name() {                                                       \
+    bool value;                                                            \
+    Status status = ReadBoolFromEnvVar(#flag_name, default_value, &value); \
+    if (!status.ok()) {                                                    \
+      LOG(ERROR) << status;                                                \
+    }                                                                      \
+    return value;                                                          \
   }
-  return true;
+
+ADD_CUDNN_FLAG(CanUseCudnn, TF_USE_CUDNN, true);
+ADD_CUDNN_FLAG(CudnnUseAutotune, TF_CUDNN_USE_AUTOTUNE, true);
+ADD_CUDNN_FLAG(CudnnDisableConv1x1Optimization,
+               TF_CUDNN_DISABLE_CONV_1X1_OPTIMIZATION, false);
+
+#undef ADD_CUDNN_FLAG
+
+FP16ConvMode CudnnConvComputeMode() {
+  string value;
+  Status status = ReadStringFromEnvVar("TF_FP16_CONV_MODE", "accurate", &value);
+  if (!status.ok()) {
+    LOG(ERROR) << status;
+  }
+  string lowercase_value = str_util::Lowercase(value);
+  if (lowercase_value == "accurate") {
+    return FP16ConvMode::kAccurate;
+  } else if (lowercase_value == "fast") {
+    return FP16ConvMode::kFast;
+  } else {
+    LOG(ERROR) << "FP16ConvMode only supports two modes, ACCURATE and FAST. "
+                  "Got unknown mode: "
+               << value;
+  }
+  return FP16ConvMode::kAccurate;
 }
 
 }  // namespace tensorflow

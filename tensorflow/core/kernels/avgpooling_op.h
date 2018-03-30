@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,9 +48,8 @@ struct SpatialAvgPooling {
 
 typedef Eigen::GpuDevice GPUDevice;
 
-// Launch a custom GPU kernels from Yanqing for the avgpooling backward operation
-// that works NHWC data formats.
-// Arguments:
+// Launch a custom GPU kernels from Yanqing for the avgpooling backward
+// operation that works NHWC data formats. Arguments:
 //   top_diff: backprop to the output of the pooling layer
 //   num: number of input batches
 //   height: input height

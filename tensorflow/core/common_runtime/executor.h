@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ class StepStatsCollector;
 //   Rendezvous* rendezvous = NewNaiveRendezvous();
 //   TF_CHECK_OK(rendezvous->Send("input", some_input_tensor));
 //   TF_CHECK_OK(executor->Run({ExecutorOpts, rendezvous, nullptr}));
-//   TF_CHECK_OK(rendezvous->Recv("input", &output_tensor));
+//   TF_CHECK_OK(rendezvous->Recv("output", &output_tensor));
 //   ... ...
 //
 // Multiple threads can call Executor::Run concurrently.
@@ -74,8 +74,8 @@ class Executor {
   //
   // RunAsync() uses "cancellation_manager", if not nullptr, to
   // register callbacks that should be called if the graph computation
-  // is cancelled. Note that the callbacks merely unblock any
-  // long-running computation, and a cancelled step will terminate by
+  // is canceled. Note that the callbacks merely unblock any
+  // long-running computation, and a canceled step will terminate by
   // returning/calling the DoneCallback as usual.
   //
   // RunAsync() dispatches closures to "runner". Typically, "runner"
@@ -84,14 +84,25 @@ class Executor {
     int64 step_id = 0;
     Rendezvous* rendezvous = nullptr;
     StepStatsCollector* stats_collector = nullptr;
-    FunctionCallFrame* call_frame = nullptr;
+    CallFrameInterface* call_frame = nullptr;
     CancellationManager* cancellation_manager = nullptr;
     SessionState* session_state = nullptr;
     TensorStore* tensor_store = nullptr;
+    ScopedStepContainer* step_container = nullptr;
+
+    // If true, calls Sync() on the device.
+    bool sync_on_finish = false;
 
     typedef std::function<void()> Closure;
     typedef std::function<void(Closure)> Runner;
     Runner runner = nullptr;
+
+    // A callback that is invoked each time a node has finished executing.
+    typedef std::function<Status(const string& node_name, const int output_slot,
+                                 const Tensor* tensor, const bool is_ref,
+                                 OpKernelContext* ctx)>
+        NodeOutputsCallback;
+    NodeOutputsCallback node_outputs_cb = nullptr;
   };
   typedef std::function<void(const Status&)> DoneCallback;
   virtual void RunAsync(const Args& args, DoneCallback done) = 0;
@@ -111,9 +122,8 @@ class Executor {
 
 // Creates an Executor that computes the given "graph".
 //
-// If successful, returns the constructed executor in "*executor". The
-// caller keeps the ownership of "device". The returned executor takes
-// the ownership of "graph". Otherwise, returns an error status.
+// If successful, returns the constructed executor in "*executor". Otherwise,
+// returns an error status.
 //
 // "params" provides a set of context for the executor. We expect that
 // different context would provide different implementations.
@@ -121,16 +131,19 @@ struct LocalExecutorParams {
   Device* device;
 
   // The library runtime support.
-  FunctionLibraryRuntime* function_library;
+  FunctionLibraryRuntime* function_library = nullptr;
 
   // create_kernel returns an instance of op kernel based on NodeDef.
   // delete_kernel is called for every kernel used by the executor
   // when the executor is deleted.
   std::function<Status(const NodeDef&, OpKernel**)> create_kernel;
   std::function<void(OpKernel*)> delete_kernel;
+
+  Executor::Args::NodeOutputsCallback node_outputs_cb;
 };
 ::tensorflow::Status NewLocalExecutor(const LocalExecutorParams& params,
-                                      const Graph* graph, Executor** executor);
+                                      std::unique_ptr<const Graph> graph,
+                                      Executor** executor);
 
 // A class to help run multiple executors in parallel and wait until
 // all of them are complete.
@@ -149,7 +162,7 @@ class ExecutorBarrier {
   //
   // 'done' is called after the last executor completes, and
   // ExecutorBarrier is deleted.
-  ExecutorBarrier(int num, Rendezvous* r, StatusCallback done)
+  ExecutorBarrier(size_t num, Rendezvous* r, StatusCallback done)
       : rendez_(r), done_cb_(done), pending_(num) {}
 
   ~ExecutorBarrier() {}
@@ -189,11 +202,12 @@ class ExecutorBarrier {
       // below.
       if (--pending_ == 0) {
         CHECK(done_cb_ != nullptr);
-        done = done_cb_;
-        done_cb_ = nullptr;
+        std::swap(done, done_cb_);
       }
 
-      status = status_;
+      if (!status_.ok()) {
+        status = status_;
+      }
     }
 
     if (error) {

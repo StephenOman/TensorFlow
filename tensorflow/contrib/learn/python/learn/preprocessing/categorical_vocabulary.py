@@ -1,21 +1,27 @@
-"""Categorical vocabulary classes to map categories to indexes.
+# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+"""Categorical vocabulary classes to map categories to indexes (deprecated).
+
+This module and all its submodules are deprecated. See
+[contrib/learn/README.md](https://www.tensorflow.org/code/tensorflow/contrib/learn/README.md)
+for migration instructions.
 
 Can be used for categorical variables, sparse variables and words.
 """
 
-#  Copyright 2015-present The Scikit Flow Authors. All Rights Reserved.
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -23,14 +29,21 @@ from __future__ import print_function
 import collections
 import six
 
+from tensorflow.python.util.deprecation import deprecated
+
 
 class CategoricalVocabulary(object):
   """Categorical variables vocabulary class.
+
+  THIS CLASS IS DEPRECATED. See
+  [contrib/learn/README.md](https://www.tensorflow.org/code/tensorflow/contrib/learn/README.md)
+  for general migration instructions.
 
   Accumulates and provides mapping from classes to indexes.
   Can be easily used for words.
   """
 
+  @deprecated(None, 'Please use tensorflow/transform or tf.data.')
   def __init__(self, unknown_token="<UNK>", support_reverse=True):
     self._unknown_token = unknown_token
     self._mapping = {unknown_token: 0}
@@ -126,10 +139,9 @@ class CategoricalVocabulary(object):
       Class name.
 
     Raises:
-      ValueError if this vocabulary wasn't initalized with
-      support_reverse.
+      ValueError: if this vocabulary wasn't initialized with support_reverse.
     """
     if not self._support_reverse:
-      raise ValueError("This vocabulary wasn't initalized with "
+      raise ValueError("This vocabulary wasn't initialized with "
                        "support_reverse to support reverse() function.")
     return self._reverse_mapping[class_id]

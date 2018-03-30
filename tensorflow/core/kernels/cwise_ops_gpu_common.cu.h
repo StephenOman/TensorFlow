@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ namespace functor {
 
 typedef Eigen::GpuDevice GPUDevice;
 typedef std::complex<float> complex64;
+typedef std::complex<double> complex128;
 
 // Partial specialization of UnaryFunctor<Device=GPUDevice, Functor>.
 template <typename Functor>
@@ -103,6 +104,17 @@ struct BinaryFunctor<GPUDevice, Functor, NDIMS, has_errors> {
   }
 };
 
+// Partial specialization of ApproximateEqual<Device=GPUDevice, T>.
+template <typename T>
+struct ApproximateEqual<GPUDevice, T> {
+  void operator()(const GPUDevice& d, typename TTypes<T>::ConstFlat x,
+                  typename TTypes<T>::ConstFlat y, T tolerance,
+                  typename TTypes<bool>::Flat z) {
+    auto diff = x - y;
+    z.device(d) = diff.abs() <= tolerance;
+  }
+};
+
 // Macros to explicitly instantiate kernels on GPU for multiple types
 // (T0, T1, etc.) for UnaryFunctor (e.g., functor::sqrt).
 #define DEFINE_UNARY1(F, T) template struct UnaryFunctor<GPUDevice, F<T> >
@@ -118,13 +130,24 @@ struct BinaryFunctor<GPUDevice, Functor, NDIMS, has_errors> {
 #define DEFINE_UNARY5(F, T0, T1, T2, T3, T4) \
   DEFINE_UNARY2(F, T0, T1);                  \
   DEFINE_UNARY3(F, T2, T3, T4)
+#define DEFINE_UNARY6(F, T0, T1, T2, T3, T4, T5) \
+  DEFINE_UNARY2(F, T0, T1);                      \
+  DEFINE_UNARY4(F, T2, T3, T4, T5)
+#define DEFINE_UNARY7(F, T0, T1, T2, T3, T4, T5, T6) \
+  DEFINE_UNARY2(F, T0, T1);                          \
+  DEFINE_UNARY5(F, T2, T3, T4, T5, T6)
+#define DEFINE_UNARY8(F, T0, T1, T2, T3, T4, T5, T6, T7) \
+  DEFINE_UNARY4(F, T0, T1, T2, T3);                      \
+  DEFINE_UNARY4(F, T4, T5, T6, T7)
 
 // Macros to explicitly instantiate kernels on GPU for multiple types
 // (T0, T1, etc.) for BinaryFunctor.
 #define DEFINE_BINARY1(F, T)                         \
   template struct BinaryFunctor<GPUDevice, F<T>, 1>; \
   template struct BinaryFunctor<GPUDevice, F<T>, 2>; \
-  template struct BinaryFunctor<GPUDevice, F<T>, 3>
+  template struct BinaryFunctor<GPUDevice, F<T>, 3>; \
+  template struct BinaryFunctor<GPUDevice, F<T>, 4>; \
+  template struct BinaryFunctor<GPUDevice, F<T>, 5>
 #define DEFINE_BINARY2(F, T0, T1) \
   DEFINE_BINARY1(F, T0);          \
   DEFINE_BINARY1(F, T1)
@@ -149,6 +172,18 @@ struct BinaryFunctor<GPUDevice, Functor, NDIMS, has_errors> {
 #define DEFINE_BINARY9(F, T0, T1, T2, T3, T4, T5, T6, T7, T8) \
   DEFINE_BINARY4(F, T0, T1, T2, T3);                          \
   DEFINE_BINARY5(F, T4, T5, T6, T7, T8)
+#define DEFINE_BINARY10(F, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9) \
+  DEFINE_BINARY5(F, T0, T1, T2, T3, T4);                           \
+  DEFINE_BINARY5(F, T5, T6, T7, T8, T9)
+#define DEFINE_BINARY11(F, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) \
+  DEFINE_BINARY5(F, T0, T1, T2, T3, T4);                                \
+  DEFINE_BINARY6(F, T5, T6, T7, T8, T9, T10)
+
+#define DEFINE_APPROXIMATE_EQUAL1(T) \
+  template struct ApproximateEqual<GPUDevice, T>;
+#define DEFINE_APPROXIMATE_EQUAL2(T0, T1) \
+  DEFINE_APPROXIMATE_EQUAL1(T0);          \
+  DEFINE_APPROXIMATE_EQUAL1(T1);
 
 }  // end namespace functor
 }  // end namespace tensorflow

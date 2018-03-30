@@ -1,4 +1,4 @@
-/* Copyright 2016 Google Inc. All Rights Reserved.
+/* Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,9 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/device.h"
 #include "tensorflow/core/common_runtime/device_mgr.h"
 #include "tensorflow/core/common_runtime/dma_helper.h"
+#if GOOGLE_CUDA
 #include "tensorflow/core/common_runtime/gpu/gpu_util.h"
+#endif  // GOOGLE_CUDA
 #include "tensorflow/core/common_runtime/local_device.h"
 #include "tensorflow/core/common_runtime/process_util.h"
 #include "tensorflow/core/common_runtime/step_stats_collector.h"
@@ -31,44 +33,41 @@ limitations under the License.
 #include "tensorflow/core/distributed_runtime/rendezvous_mgr_interface.h"
 #include "tensorflow/core/distributed_runtime/rpc/async_service_interface.h"
 #include "tensorflow/core/distributed_runtime/rpc/grpc_call.h"
+#include "tensorflow/core/distributed_runtime/rpc/grpc_tensor_coding.h"
 #include "tensorflow/core/distributed_runtime/rpc/grpc_util.h"
+#include "tensorflow/core/distributed_runtime/rpc/grpc_worker_service_impl.h"
+#include "tensorflow/core/distributed_runtime/worker.h"
 #include "tensorflow/core/distributed_runtime/worker_cache.h"
-#include "tensorflow/core/distributed_runtime/worker_env.h"
+#include "tensorflow/core/distributed_runtime/worker_session.h"
 #include "tensorflow/core/framework/cancellation.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/tracing.h"
 #include "tensorflow/core/protobuf/worker.pb.h"
-#include "tensorflow/core/protobuf/worker_service.grpc.pb.h"
-#include "tensorflow/core/protobuf/worker_service.pb.h"
 
 namespace tensorflow {
 
 namespace {
 
-static Tensor empty_tensor(DT_FLOAT);
-
 class GrpcWorkerService : public AsyncServiceInterface {
- public:
-  GrpcWorkerService(WorkerEnv* env, ::grpc::ServerBuilder* builder)
-      : env_(env),
-        cancellation_manager_(new CancellationManager),
-        is_shutdown_(false) {
-    builder->RegisterService(&worker_service_);
-    cq_ = builder->AddCompletionQueue().release();
-  }
+  // TODO(ncteisen): consider adding a config var or flag for this
+  static constexpr const size_t kGrpcWorkerServiceThreadCount = 8;
 
-  ~GrpcWorkerService() {
-    delete shutdown_alarm_;
-    delete cq_;
-    delete cancellation_manager_;
+ public:
+  GrpcWorkerService(GrpcWorker* worker, ::grpc::ServerBuilder* builder)
+      : is_shutdown_(false) {
+    builder->RegisterService(&worker_service_);
+    for (int i = 0; i < kGrpcWorkerServiceThreadCount; i++) {
+      threads_.emplace_back(
+          new GrpcWorkerServiceThread(worker, builder, &worker_service_));
+    }
   }
 
   void Shutdown() override {
     bool did_shutdown = false;
     {
-      mutex_lock l(shutdown_mu_);
+      mutex_lock l(service_shutdown_mu_);
       if (!is_shutdown_) {
         LOG(INFO) << "Shutting down GrpcWorkerService.";
         is_shutdown_ = true;
@@ -76,16 +75,14 @@ class GrpcWorkerService : public AsyncServiceInterface {
       }
     }
     if (did_shutdown) {
-      // NOTE(mrry): This enqueues a special event (with a null tag)
-      // that causes the completion queue to be shut down on the
-      // polling thread.
-      shutdown_alarm_ =
-          new ::grpc::Alarm(cq_, gpr_now(GPR_CLOCK_MONOTONIC), nullptr);
+      for (auto& worker_thread : threads_) {
+        worker_thread->Shutdown();
+      }
     }
   }
 
 // This macro creates a new request for the given RPC method name
-// (e.g., `ENQUEUE_REQUEST(GetStatus);`), and enqueues it on
+// (e.g., `ENQUEUE_REQUEST(GetStatus, false);`), and enqueues it on
 // `this->cq_`.
 //
 // This macro is invoked one or more times for each RPC method to
@@ -95,365 +92,386 @@ class GrpcWorkerService : public AsyncServiceInterface {
 // The implementation of the request handler for each RPC method
 // must ensure that it calls ENQUEUE_REQUEST() for that RPC method,
 // to keep accepting new requests.
-#define ENQUEUE_REQUEST(method, supports_cancel)                              \
-  do {                                                                        \
-    mutex_lock l(shutdown_mu_);                                               \
-    if (!is_shutdown_) {                                                      \
-      Call<GrpcWorkerService, grpc::WorkerService::AsyncService,              \
-           method##Request, method##Response>::                               \
-          EnqueueRequest(&worker_service_, cq_,                               \
-                         &grpc::WorkerService::AsyncService::Request##method, \
-                         &GrpcWorkerService::method##Handler,                 \
-                         (supports_cancel));                                  \
-    }                                                                         \
+#define ENQUEUE_REQUEST(method, supports_cancel)                             \
+  do {                                                                       \
+    mutex_lock l(shutdown_mu_);                                              \
+    if (!is_shutdown_) {                                                     \
+      Call<GrpcWorkerServiceThread, grpc::WorkerService::AsyncService,       \
+           method##Request, method##Response>::                              \
+          EnqueueRequestForMethod(                                           \
+              worker_service_, cq_.get(),                                    \
+              static_cast<int>(GrpcWorkerMethod::k##method),                 \
+              &GrpcWorkerServiceThread::method##Handler, (supports_cancel)); \
+    }                                                                        \
   } while (0)
 
   // This method blocks forever handling requests from the completion queue.
-  void HandleRPCsLoop() {
-    // TODO(mrry): This may require performance engineering. We can
-    // add more threads to service the completion queue, and add more
-    // of various request types if they are short and frequent.
-    // Currently we allow unbounded numbers of pending calls for each
-    // method, by re-enqueuing a request before the previous one
-    // completes, and we may decide to bound some of the request
-    // types.
-    ENQUEUE_REQUEST(GetStatus, false);
-    ENQUEUE_REQUEST(CleanupAll, false);
-    ENQUEUE_REQUEST(RegisterGraph, false);
-    ENQUEUE_REQUEST(DeregisterGraph, false);
-
-    // TODO(mrry): Determine a better policy for enqueuing the appropriate
-    // number of each request type.
-    for (int i = 0; i < 1000; ++i) {
-      ENQUEUE_REQUEST(RecvTensor, true);
+  void HandleRPCsLoop() override {
+    for (auto& worker_thread : threads_) {
+      worker_thread->Start();
     }
-    for (int i = 0; i < 100; ++i) {
+    for (auto& worker_thread : threads_) {
+      worker_thread->Join();
+    }
+  }
+
+ private:
+  // Thread wrapping class that drives work over a single gRPC
+  // CompletionQueue.
+  class GrpcWorkerServiceThread {
+   public:
+    explicit GrpcWorkerServiceThread(
+        GrpcWorker* worker, ::grpc::ServerBuilder* builder,
+        grpc::WorkerService::AsyncService* worker_service)
+        : worker_(worker),
+          worker_service_(worker_service),
+          is_shutdown_(false) {
+      cq_ = builder->AddCompletionQueue();
+    }
+
+    void Start() {
+      thread_.reset(worker_->env()->env->StartThread(
+          ThreadOptions(), "grpc_worker_service",
+          [this]() { HandleRPCsLoop(); }));
+    }
+
+    void Join() { thread_.reset(); }  // Blocks until thread exits
+
+    void Shutdown() {
+      {
+        mutex_lock lock(shutdown_mu_);
+        is_shutdown_ = true;
+      }
+      cq_->Shutdown();
+    }
+
+   private:
+    void HandleRPCsLoop() {
+      // TODO(ncteisen): This may require performance engineering. We can
+      // change the number of threads, the number of handlers per thread,
+      // or even decide to specialize certain threads to certain methods.
+      ENQUEUE_REQUEST(GetStatus, false);
+      ENQUEUE_REQUEST(CreateWorkerSession, false);
+      ENQUEUE_REQUEST(DeleteWorkerSession, false);
+      ENQUEUE_REQUEST(CleanupAll, false);
+      ENQUEUE_REQUEST(RegisterGraph, false);
+      ENQUEUE_REQUEST(DeregisterGraph, false);
+
+      // TODO(ncteisen): Determine a better policy for enqueuing the
+      // appropriate number of each request type.
+      for (int i = 0; i < 1000; ++i) {
+        EnqueueRecvTensorRequestRaw();
+      }
+      for (int i = 0; i < 100; ++i) {
+        ENQUEUE_REQUEST(RunGraph, true);
+      }
+      for (int i = 0; i < 100; ++i) {
+        ENQUEUE_REQUEST(CleanupGraph, false);
+      }
+
+      ENQUEUE_REQUEST(Logging, false);
+      ENQUEUE_REQUEST(Tracing, false);
+
+      void* tag;
+      bool ok;
+
+      while (cq_->Next(&tag, &ok)) {
+        UntypedCall<GrpcWorkerServiceThread>::Tag* callback_tag =
+            static_cast<UntypedCall<GrpcWorkerServiceThread>::Tag*>(tag);
+        CHECK(callback_tag);
+        callback_tag->OnCompleted(this, ok);
+      }
+    }
+
+   private:
+    void Schedule(std::function<void()> f) {
+      worker_->env()->compute_pool->Schedule(std::move(f));
+    }
+
+    // The following section contains one request handler method per
+    // RPC. The `FooHandler` method is called (indirectly) by
+    // `HandleRPCsLoop()` when the next Foo RPC is received. Each
+    // `FooHandler` call schedules a closure on `worker_->env()->compute_pool`,
+    // and is responsible for requesting the next Foo call by calling
+    // `ENQUEUE_REQUEST(Foo)`.
+
+    template <class RequestMessage, class ResponseMessage>
+    using WorkerCall =
+        Call<GrpcWorkerServiceThread, grpc::WorkerService::AsyncService,
+             RequestMessage, ResponseMessage>;
+
+    void GetStatusHandler(
+        WorkerCall<GetStatusRequest, GetStatusResponse>* call) {
+      Schedule([this, call]() {
+        Status s = worker_->GetStatus(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(GetStatus, false);
+    }
+
+    void CreateWorkerSessionHandler(
+        WorkerCall<CreateWorkerSessionRequest, CreateWorkerSessionResponse>*
+            call) {
+      Schedule([this, call]() {
+        Status s =
+            worker_->CreateWorkerSession(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(CreateWorkerSession, false);
+    }
+
+    void DeleteWorkerSessionHandler(
+        WorkerCall<DeleteWorkerSessionRequest, DeleteWorkerSessionResponse>*
+            call) {
+      Schedule([this, call]() {
+        Status s =
+            worker_->DeleteWorkerSession(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(DeleteWorkerSession, false);
+    }
+
+    void CleanupAllHandler(
+        WorkerCall<CleanupAllRequest, CleanupAllResponse>* call) {
+      Schedule([this, call]() {
+        Status s = worker_->CleanupAll(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(CleanupAll, false);
+    }
+
+    void RegisterGraphHandler(
+        WorkerCall<RegisterGraphRequest, RegisterGraphResponse>* call) {
+      Schedule([this, call]() {
+        Status s = worker_->RegisterGraph(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(RegisterGraph, false);
+    }
+
+    void DeregisterGraphHandler(
+        WorkerCall<DeregisterGraphRequest, DeregisterGraphResponse>* call) {
+      Schedule([this, call]() {
+        Status s = worker_->DeregisterGraph(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(DeregisterGraph, false);
+    }
+
+    void RunGraphHandler(WorkerCall<RunGraphRequest, RunGraphResponse>* call) {
+      Schedule([this, call]() {
+        CallOptions* call_opts = new CallOptions;
+        ProtoRunGraphRequest* wrapped_request =
+            new ProtoRunGraphRequest(&call->request);
+        NonOwnedProtoRunGraphResponse* wrapped_response =
+            new NonOwnedProtoRunGraphResponse(&call->response);
+        call->SetCancelCallback([call_opts]() { call_opts->StartCancel(); });
+        worker_->RunGraphAsync(call_opts, wrapped_request, wrapped_response,
+                               [call, call_opts, wrapped_request,
+                                wrapped_response](const Status& s) {
+                                 call->ClearCancelCallback();
+                                 delete call_opts;
+                                 delete wrapped_request;
+                                 delete wrapped_response;
+                                 call->SendResponse(ToGrpcStatus(s));
+                               });
+      });
       ENQUEUE_REQUEST(RunGraph, true);
     }
 
-    ENQUEUE_REQUEST(CleanupGraph, false);
-    ENQUEUE_REQUEST(Logging, false);
-    ENQUEUE_REQUEST(Tracing, false);
-
-    void* tag;
-    bool ok;
-
-    while (cq_->Next(&tag, &ok)) {
-      UntypedCall<GrpcWorkerService>::Tag* callback_tag =
-          static_cast<UntypedCall<GrpcWorkerService>::Tag*>(tag);
-      if (callback_tag) {
-        callback_tag->OnCompleted(this, ok);
-        delete callback_tag;
-      } else {
-        // NOTE(mrry): A null `callback_tag` indicates that this is
-        // the shutdown alarm.
-        cq_->Shutdown();
-      }
+    void RecvTensorHandlerRaw(
+        WorkerCall<RecvTensorRequest, ::grpc::ByteBuffer>* call) {
+      Schedule([this, call]() {
+        CallOptions* call_opts = new CallOptions;
+        call->SetCancelCallback([call_opts]() { call_opts->StartCancel(); });
+        worker_->GrpcRecvTensorAsync(call_opts, &call->request, &call->response,
+                                     [call, call_opts](const Status& s) {
+                                       call->ClearCancelCallback();
+                                       delete call_opts;
+                                       call->SendResponse(ToGrpcStatus(s));
+                                     });
+      });
+      EnqueueRecvTensorRequestRaw();
     }
-  }
 
- private:
-  WorkerEnv* env_;                     // Not owned.
-  ::grpc::ServerCompletionQueue* cq_;  // Owned.
+    void CleanupGraphHandler(
+        WorkerCall<CleanupGraphRequest, CleanupGraphResponse>* call) {
+      Schedule([this, call]() {
+        Status s = worker_->CleanupGraph(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(CleanupGraph, false);
+    }
 
-  grpc::WorkerService::AsyncService worker_service_;
+    void LoggingHandler(WorkerCall<LoggingRequest, LoggingResponse>* call) {
+      Schedule([this, call]() {
+        Status s = worker_->Logging(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(Logging, false);
+    }
 
-  mutex mu_;
-  CancellationManager* cancellation_manager_ GUARDED_BY(mu_);
-
-  mutex shutdown_mu_;
-  bool is_shutdown_ GUARDED_BY(shutdown_mu_);
-  ::grpc::Alarm* shutdown_alarm_;
-
-  // The following section contains one request handler method per
-  // RPC. The `FooHandler` method is called (indirectly) by
-  // `HandleRPCsLoop()` when the next Foo RPC is received. Each
-  // `FooHandler` call schedules a closure on `env_->compute_pool`,
-  // and is responsible for requesting the next Foo call by calling
-  // `ENQUEUE_REQUEST(Foo)`.
-
-  template <class RequestMessage, class ResponseMessage>
-  using WorkerCall = Call<GrpcWorkerService, grpc::WorkerService::AsyncService,
-                          RequestMessage, ResponseMessage>;
-
-  void GetStatusHandler(WorkerCall<GetStatusRequest, GetStatusResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() {
-      DeviceMgr* dm = env_->device_mgr;
-      std::vector<DeviceAttributes> devices;
-      dm->ListDeviceAttributes(&devices);
-      call->response.mutable_device_attributes()->Reserve(devices.size());
-      for (size_t i = 0; i < devices.size(); i++) {
-        call->response.add_device_attributes()->Swap(&devices[i]);
-      }
-      call->SendResponse(::grpc::Status::OK);
-    });
-    ENQUEUE_REQUEST(GetStatus, false);
-  }
-
-  void CleanupAllHandler(
-      WorkerCall<CleanupAllRequest, CleanupAllResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() {
-      std::vector<string> containers;
-      for (const auto& c : call->request.container()) containers.push_back(c);
-      env_->device_mgr->ClearContainers(containers);
-      call->SendResponse(::grpc::Status::OK);
-    });
-    ENQUEUE_REQUEST(CleanupAll, false);
-  }
-
-  void RegisterGraphHandler(
-      WorkerCall<RegisterGraphRequest, RegisterGraphResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() {
-      Status s = env_->graph_mgr->Register(
-          call->request.session_handle(), call->request.graph_def(),
-          call->request.graph_options(), call->response.mutable_graph_handle());
-      call->SendResponse(ToGrpcStatus(s));
-    });
-    ENQUEUE_REQUEST(RegisterGraph, false);
-  }
-
-  void DeregisterGraphHandler(
-      WorkerCall<DeregisterGraphRequest, DeregisterGraphResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() {
-      Status s = env_->graph_mgr->Deregister(call->request.graph_handle());
-      call->SendResponse(ToGrpcStatus(s));
-    });
-    ENQUEUE_REQUEST(DeregisterGraph, false);
-  }
-
-  void RunGraphHandler(WorkerCall<RunGraphRequest, RunGraphResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() { DoRunGraph(call); });
-    ENQUEUE_REQUEST(RunGraph, true);
-  }
-
-  void RecvTensorHandler(
-      WorkerCall<RecvTensorRequest, RecvTensorResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() { DoRecvTensor(call); });
-    ENQUEUE_REQUEST(RecvTensor, true);
-  }
-
-  void CleanupGraphHandler(
-      WorkerCall<CleanupGraphRequest, CleanupGraphResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() {
-      const int64 step_id = call->request.step_id();
-      env_->rendezvous_mgr->Cleanup(step_id);
-      call->SendResponse(::grpc::Status::OK);
-    });
-    ENQUEUE_REQUEST(CleanupGraph, false);
-  }
-
-  void LoggingHandler(WorkerCall<LoggingRequest, LoggingResponse>* call) {
-    env_->compute_pool->Schedule([this, call]() {
-      Status s = DoLogging(call);
-      call->SendResponse(ToGrpcStatus(s));
-    });
-    ENQUEUE_REQUEST(Logging, false);
-  }
-
-  void TracingHandler(WorkerCall<TracingRequest, TracingResponse>* call) {
-    SchedClosure([this, call]() {
-      Status s = DoTracing(call);
-      call->SendResponse(ToGrpcStatus(s));
-    });
-    ENQUEUE_REQUEST(Tracing, false);
-  }
+    void TracingHandler(WorkerCall<TracingRequest, TracingResponse>* call) {
+      Schedule([this, call]() {
+        Status s = worker_->Tracing(&call->request, &call->response);
+        call->SendResponse(ToGrpcStatus(s));
+      });
+      ENQUEUE_REQUEST(Tracing, false);
+    }
 #undef ENQUEUE_REQUEST
 
- private:
-  // The following section contains the implementation of RunGraph()
-  // RecvTensor(), Logging(), and Tracing(), which are the four
-  // non-trivial and potentially long-running RPCs performed by a
-  // TensorFlow worker.
-
-  void AbortStep(int64 step_id) {
-    Rendezvous* rendez = env_->rendezvous_mgr->Find(step_id);
-    SchedNonBlockingClosureAfter(1000000, [rendez, step_id]() {
-      // Delay a bit before aborting the step. This way, the root
-      // cause may return first back to the client instead of this
-      // cancellation generated abort error.
-      rendez->StartAbort(errors::Aborted("Step ", step_id));
-      rendez->Unref();
-    });
-  }
-
-  Status PrepareRunGraph(const RunGraphRequest& req, GraphMgr::NamedTensors* in,
-                         GraphMgr::NamedTensors* out) {
-    if (req.send_size() > 0) {
-      // TODO(zhifengc): Let the caller decide on which device to
-      // allocate the tensor.
-      Device* cpu_dev = nullptr;
-      TF_RETURN_IF_ERROR(env_->device_mgr->LookupDevice("CPU:0", &cpu_dev));
-      AllocatorAttributes alloc_attrs;
-      Tensor val;
-      for (const NamedTensor& entry : req.send()) {
-        TF_RETURN_IF_ERROR(
-            cpu_dev->MakeTensorFromProto(entry.val(), alloc_attrs, &val));
-        in->insert({entry.key(), val});
+    void EnqueueRecvTensorRequestRaw() {
+      mutex_lock l(shutdown_mu_);
+      if (!is_shutdown_) {
+        Call<GrpcWorkerServiceThread, grpc::WorkerService::AsyncService,
+             RecvTensorRequest, ::grpc::ByteBuffer>::
+            EnqueueRequestForMethod(
+                worker_service_, cq_.get(),
+                static_cast<int>(GrpcWorkerMethod::kRecvTensor),
+                &GrpcWorkerServiceThread::RecvTensorHandlerRaw,
+                true /* supports cancel*/);
       }
     }
-    for (const string& key : req.recv_key()) {
-      out->insert({key, empty_tensor});
-    }
-    return Status::OK();
-  }
 
-  void DoRunGraph(WorkerCall<RunGraphRequest, RunGraphResponse>* call) {
-    const int64 step_id = call->request.step_id();
-    TRACEPRINTF("RunGraph: %lld", step_id);
-    GraphMgr::NamedTensors in;
-    GraphMgr::NamedTensors* out = new GraphMgr::NamedTensors;
-    Status s = PrepareRunGraph(call->request, &in, out);
-    if (!s.ok()) {
-      delete out;
-      call->SendResponse(ToGrpcStatus(s));
-      return;
-    }
-    StepStatsCollector* collector = nullptr;
-    // TODO(mrry): Collect results from a profiler if available.
-    CancellationManager* cm = new CancellationManager;
-    call->SetCancelCallback([this, cm, step_id]() {
-      cm->StartCancel();
-      AbortStep(step_id);
-    });
-    CancellationToken token;
-    {
-      mutex_lock l(mu_);
-      token = cancellation_manager_->get_cancellation_token();
-      cancellation_manager_->RegisterCallback(token,
-                                              [cm]() { cm->StartCancel(); });
-    }
-    env_->graph_mgr->ExecuteAsync(
-        call->request.graph_handle(), step_id, call->request.exec_opts(),
-        collector, cm, in, out, [this, call, cm, out, token](Status s) {
-          call->ClearCancelCallback();
-          {
-            mutex_lock l(mu_);
-            cancellation_manager_->DeregisterCallback(token);
-          }
-          delete cm;
+    GrpcWorker* const worker_ = nullptr;  // Not owned.
+    std::unique_ptr<::grpc::ServerCompletionQueue> cq_;
+    std::unique_ptr<Thread> thread_;
+    grpc::WorkerService::AsyncService* const worker_service_;
 
-          if (s.ok()) {
-            for (const auto& p : *out) {
-              const string& key = p.first;
-              const Tensor& val = p.second;
-              auto* recv = call->response.add_recv();
-              recv->set_key(key);
-              // TODO(zhifengc): Deal with gpu -> cpu copy.
-              TensorProto* proto = recv->mutable_val();
-              val.AsProtoField(proto);
-            }
-          }
-          delete out;
-          call->SendResponse(ToGrpcStatus(s));
-        });
-  }
+    mutex shutdown_mu_;
+    bool is_shutdown_ GUARDED_BY(shutdown_mu_);
+    TF_DISALLOW_COPY_AND_ASSIGN(GrpcWorkerServiceThread);
+  };  // GrpcWorkerServiceThread
 
-  // Helper for RecvTensor. Validates "key" and returns the source
-  // device in "*src_dev".
-  Status PrepareRecvTensor(const string& key, Device** src_dev) {
-    // Validate the key.
-    Rendezvous::ParsedKey parsed;
-    TF_RETURN_IF_ERROR(Rendezvous::ParseKey(key, &parsed));
+  grpc::WorkerService::AsyncService worker_service_;
+  std::vector<std::unique_ptr<GrpcWorkerServiceThread>> threads_;
 
-    // Figures out which device the tensor is hosted on.
-    TF_RETURN_IF_ERROR(
-        env_->device_mgr->LookupDevice(parsed.src_device, src_dev));
-
-    // Does the device have the right incarnation number we expect?
-    if ((*src_dev)->attributes().incarnation() != parsed.src_incarnation) {
-      return errors::Aborted(
-          "RecvTensor expects a different device incarnation: ",
-          parsed.src_incarnation, " vs. ",
-          (*src_dev)->attributes().incarnation(),
-          ". Your worker job was probably restarted. Check your "
-          "worker job for the reason why it was restarted.");
-    }
-
-    return Status::OK();
-  }
-
-  void DoRecvTensor(WorkerCall<RecvTensorRequest, RecvTensorResponse>* call) {
-    const int64 step_id = call->request.step_id();
-    const string& key = call->request.rendezvous_key();
-    TRACEPRINTF("RecvTensor: %lld %s", step_id, key.c_str());
-    Device* src_dev = nullptr;
-    Status s = PrepareRecvTensor(key, &src_dev);
-    if (!s.ok()) {
-      call->SendResponse(ToGrpcStatus(s));
-      return;
-    }
-
-    // Request the tensor associated with the rendezvous key. Any time
-    // while waiting for the tensor to be produced, up until the start
-    // of execution of the callback lambda body below, an RPC
-    // cancellation should abort the rendezvous.
-    call->SetCancelCallback([this, step_id]() { AbortStep(step_id); });
-    env_->rendezvous_mgr->RecvLocalAsync(
-        step_id, key,
-        [this, call, src_dev](const Status& status,
-                              const Rendezvous::Args& send_args,
-                              const Rendezvous::Args& recv_args,
-                              const Tensor& val, const bool is_dead) {
-          call->ClearCancelCallback();
-          Status s = status;
-          if (s.ok()) {
-            // DMA can only be used for Tensors that do not fall into
-            // the following three odd edge cases: 1) a zero-size
-            // buffer, 2) a dead tensor which has an uninit value, and
-            // 3) the tensor has the on_host allocation attribute,
-            // i.e. it's in CPU RAM *independent of its assigned
-            // device type*.
-            // const size_t bytes = is_dead ? 0 : val.TotalBytes();
-            const bool on_host = send_args.alloc_attrs.on_host();
-            const DeviceContext* send_dev_context = send_args.device_context;
-            call->response.set_is_dead(is_dead);
-            StatusCallback response_ready = [call](const Status& s) {
-              // The value is now ready to be returned on the wire.
-              call->response.set_send_start_micros(Env::Default()->NowMicros());
-              call->SendResponse(ToGrpcStatus(s));
-            };
-            {
-              // Non-DMA cases.
-              if (src_dev->tensorflow_gpu_device_info() && (!on_host)) {
-                CHECK(send_dev_context)
-                    << "send dev name: " << src_dev->name()
-                    << " gpu_info: " << src_dev->tensorflow_gpu_device_info();
-                // "val" is on a GPU. Uses GPUUtil to fill the response proto.
-                GPUUtil::SetProtoFromGPU(val, src_dev, send_dev_context,
-                                         call->response.mutable_tensor(),
-                                         is_dead, response_ready);
-              } else {
-                // "val" is in CPU memory.
-                TensorProto* proto = call->response.mutable_tensor();
-                val.AsProtoTensorContent(proto);
-                response_ready(Status::OK());
-              }
-            }
-          } else {
-            //  !s.ok()
-            call->SendResponse(ToGrpcStatus(s));
-          }
-        });
-  }
-
-  Status DoLogging(WorkerCall<LoggingRequest, LoggingResponse>* call) {
-    // TODO(mrry): Platform-specific tracing support.
-    return errors::Unimplemented("Logging");
-  }
-
-  Status DoTracing(WorkerCall<TracingRequest, TracingResponse>* call) {
-    // TODO(mrry): Platform-specific tracing support.
-    return errors::Unimplemented("Tracing");
-  }
+  mutex service_shutdown_mu_;
+  bool is_shutdown_ GUARDED_BY(service_shutdown_mu_);
 
   TF_DISALLOW_COPY_AND_ASSIGN(GrpcWorkerService);
 };
 
 }  // namespace
 
-AsyncServiceInterface* NewGrpcWorkerService(WorkerEnv* env,
-                                            ::grpc::ServerBuilder* builder) {
-  return new GrpcWorkerService(env, builder);
+GrpcWorker::GrpcWorker(WorkerEnv* worker_env)
+    : Worker(worker_env), recv_tensor_recent_request_ids_(100000) {}
+
+// GrpcRecvTensorAsync: unlike the other Worker methods, which use protocol
+// buffers for a response object, to avoid extra protocol buffer serialization
+// overhead we generate our response directly into a ::grpc::ByteBuffer object
+void GrpcWorker::GrpcRecvTensorAsync(CallOptions* opts,
+                                     const RecvTensorRequest* request,
+                                     ::grpc::ByteBuffer* response,
+                                     StatusCallback done) {
+  Status s = recv_tensor_recent_request_ids_.TrackUnique(
+      request->request_id(), "RecvTensor (GrpcWorker)", *request);
+  if (!s.ok()) {
+    done(s);
+    return;
+  }
+
+  const int64 step_id = request->step_id();
+  const string& key = request->rendezvous_key();
+  TRACEPRINTF("RecvTensor: %lld %s", step_id, key.c_str());
+  Rendezvous::ParsedKey parsed;
+  s = Rendezvous::ParseKey(key, &parsed);
+  Device* src_dev = nullptr;
+  if (s.ok()) {
+    s = PrepareRecvTensor(parsed, &src_dev);
+  }
+  if (!s.ok()) {
+    done(s);
+    return;
+  }
+
+  // Request the tensor associated with the rendezvous key. Any time
+  // while waiting for the tensor to be produced, up until the start
+  // of execution of the callback lambda body below, an RPC
+  // cancellation should abort the rendezvous.
+  opts->SetCancelCallback([this, step_id]() { AbortStep(step_id); });
+  env_->rendezvous_mgr->RecvLocalAsync(
+      step_id, parsed,
+      [opts, response, done, src_dev](const Status& status,
+                                      const Rendezvous::Args& send_args,
+                                      const Rendezvous::Args& recv_args,
+                                      const Tensor& val, const bool is_dead) {
+        opts->ClearCancelCallback();
+        if (status.ok()) {
+          // DMA can only be used for Tensors that do not fall into
+          // the following three odd edge cases: 1) a zero-size
+          // buffer, 2) a dead tensor which has an uninit value, and
+          // 3) the tensor has the on_host allocation attribute,
+          // i.e. it's in CPU RAM *independent of its assigned
+          // device type*.
+          const bool on_host = send_args.alloc_attrs.on_host();
+          {
+            // Non-DMA cases.
+            if (src_dev->tensorflow_gpu_device_info() && (!on_host)) {
+#if GOOGLE_CUDA
+              const DeviceContext* send_dev_context = send_args.device_context;
+              AllocatorAttributes alloc_attrs;
+              alloc_attrs.set_gpu_compatible(true);
+              alloc_attrs.set_on_host(true);
+              Allocator* alloc = src_dev->GetAllocator(alloc_attrs);
+              Tensor* copy = new Tensor(alloc, val.dtype(), val.shape());
+              CHECK(send_dev_context)
+                  << "send dev name: " << src_dev->name()
+                  << " gpu_info: " << src_dev->tensorflow_gpu_device_info();
+              // "val" is on a GPU. Uses GPUUtil to fill the copy on host.
+              StatusCallback copy_ready = [response, done, copy,
+                                           is_dead](const Status& s) {
+                // The value is now ready to be returned on the wire.
+                grpc::EncodeTensorToByteBuffer(is_dead, *copy, response);
+                done(s);
+                delete copy;
+              };
+
+              GPUUtil::CopyGPUTensorToCPU(src_dev, send_dev_context, &val, copy,
+                                          copy_ready);
+#else
+              done(errors::Internal("No GPU device in process"));
+#endif  // GOOGLE_CUDA
+            } else {
+              grpc::EncodeTensorToByteBuffer(is_dead, val, response);
+              done(Status::OK());
+            }
+          }
+        } else {
+          //  !s.ok()
+          done(status);
+        }
+      });
+}
+
+void GrpcWorker::LoggingAsync(const LoggingRequest* request,
+                              LoggingResponse* response, StatusCallback done) {
+  auto env = this->env();
+  if (env) {
+    auto session_mgr = (SessionMgr*)env->session_mgr;
+    if (session_mgr) {
+      session_mgr->SetLogging(request->rpc_logging());
+      for (const auto& step_id : request->fetch_step_id()) {
+        session_mgr->RetrieveLogs(step_id, response);
+      }
+      if (request->clear()) {
+        session_mgr->ClearLogs();
+      }
+    }
+  }
+  done(Status::OK());
+}
+
+WorkerEnv* GrpcWorker::env() { return env_; }
+
+std::unique_ptr<GrpcWorker> NewGrpcWorker(WorkerEnv* env) {
+  return std::unique_ptr<GrpcWorker>(new GrpcWorker(env));
+}
+
+std::unique_ptr<AsyncServiceInterface> NewGrpcWorkerService(
+    GrpcWorker* worker, ::grpc::ServerBuilder* builder) {
+  return std::unique_ptr<AsyncServiceInterface>(
+      new GrpcWorkerService(worker, builder));
 }
 
 }  // namespace tensorflow

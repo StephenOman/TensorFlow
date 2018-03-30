@@ -1,24 +1,8 @@
-licenses(["restricted"])
+licenses(["notice"])  # New BSD, Python Software Foundation
 
 package(default_visibility = ["//visibility:public"])
 
-cc_library(
+alias(
     name = "python_headers",
-    hdrs = glob([
-        "python_include/**/*.h",
-    ]),
-    data = [":python_checked"],
-    includes = ["python_include"],
-)
-
-genrule(
-    name = "python_check",
-    srcs = [
-        "python_config.sh",
-    ],
-    outs = [
-        "python_checked",
-    ],
-    cmd = "OUTPUTDIR=\"$(@D)/\"; $(location :python_config.sh) --check && touch $$OUTPUTDIR/python_checked",
-    local = 1,
+    actual = "@local_config_python//:python_headers",
 )

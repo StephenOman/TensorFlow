@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -87,7 +87,7 @@ inline bool RefCounted::Unref() const {
   DCHECK_GT(ref_.load(), 0);
   // If ref_==1, this object is owned only by the caller. Bypass a locked op
   // in that case.
-  if (ref_.load(std::memory_order_acquire) == 1 || ref_.fetch_sub(1) == 1) {
+  if (RefCountIsOne() || ref_.fetch_sub(1) == 1) {
     // Make DCHECK in ~RefCounted happy
     DCHECK((ref_.store(0), true));
     delete this;

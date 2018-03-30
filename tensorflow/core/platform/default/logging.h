@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,13 @@ limitations under the License.
 // IWYU pragma: private, include "third_party/tensorflow/core/platform/logging.h"
 // IWYU pragma: friend third_party/tensorflow/core/platform/logging.h
 
+#include <limits>
 #include <sstream>
 #include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/platform/types.h"
+
+// TODO(mrry): Prevent this Windows.h #define from leaking out of our headers.
+#undef ERROR
 
 namespace tensorflow {
 const int INFO = 0;            // base_logging::INFO;
@@ -37,6 +41,11 @@ class LogMessage : public std::basic_ostringstream<char> {
   LogMessage(const char* fname, int line, int severity);
   ~LogMessage();
 
+  // Returns the minimum log level for VLOG statements.
+  // E.g., if MinVLogLevel() is 2, then VLOG(2) statements will produce output,
+  // but VLOG(3) will not. Defaults to 0.
+  static int64 MinVLogLevel();
+
  protected:
   void GenerateLogMessage();
 
@@ -51,25 +60,34 @@ class LogMessage : public std::basic_ostringstream<char> {
 class LogMessageFatal : public LogMessage {
  public:
   LogMessageFatal(const char* file, int line) TF_ATTRIBUTE_COLD;
-  ~LogMessageFatal() TF_ATTRIBUTE_NORETURN;
+  TF_ATTRIBUTE_NORETURN ~LogMessageFatal();
 };
 
 #define _TF_LOG_INFO \
-  ::tensorflow::internal::LogMessage(__FILE__, __LINE__, tensorflow::INFO)
+  ::tensorflow::internal::LogMessage(__FILE__, __LINE__, ::tensorflow::INFO)
 #define _TF_LOG_WARNING \
-  ::tensorflow::internal::LogMessage(__FILE__, __LINE__, tensorflow::WARNING)
+  ::tensorflow::internal::LogMessage(__FILE__, __LINE__, ::tensorflow::WARNING)
 #define _TF_LOG_ERROR \
-  ::tensorflow::internal::LogMessage(__FILE__, __LINE__, tensorflow::ERROR)
+  ::tensorflow::internal::LogMessage(__FILE__, __LINE__, ::tensorflow::ERROR)
 #define _TF_LOG_FATAL \
   ::tensorflow::internal::LogMessageFatal(__FILE__, __LINE__)
 
+#define _TF_LOG_QFATAL _TF_LOG_FATAL
+
 #define LOG(severity) _TF_LOG_##severity
 
-// TODO(jeff): Define a proper implementation of VLOG_IS_ON
+#ifdef IS_MOBILE_PLATFORM
+// Turn VLOG off when under mobile devices for considerations of binary size.
 #define VLOG_IS_ON(lvl) ((lvl) <= 0)
+#else
+// Otherwise, Set TF_CPP_MIN_VLOG_LEVEL environment to update minimum log level
+// of VLOG
+#define VLOG_IS_ON(lvl) \
+  ((lvl) <= ::tensorflow::internal::LogMessage::MinVLogLevel())
+#endif
 
-#define VLOG(lvl)      \
-  if (VLOG_IS_ON(lvl)) \
+#define VLOG(lvl)                        \
+  if (TF_PREDICT_FALSE(VLOG_IS_ON(lvl))) \
   ::tensorflow::internal::LogMessage(__FILE__, __LINE__, tensorflow::INFO)
 
 // CHECK dies with a fatal error if condition is not true.  It is *not*
@@ -173,6 +191,8 @@ string* MakeCheckOpString(const T1& v1, const T2& v2, const char* exprtext) {
 // The (int, int) specialization works around the issue that the compiler
 // will not instantiate the template version of the function on values of
 // unnamed enum type - see comment below.
+// The (size_t, int) and (int, size_t) specialization are to handle unsigned
+// comparison errors while still being thorough with the comparison.
 #define TF_DEFINE_CHECK_OP_IMPL(name, op)                                 \
   template <typename T1, typename T2>                                     \
   inline string* name##Impl(const T1& v1, const T2& v2,                   \
@@ -184,6 +204,22 @@ string* MakeCheckOpString(const T1& v1, const T2& v2, const char* exprtext) {
   }                                                                       \
   inline string* name##Impl(int v1, int v2, const char* exprtext) {       \
     return name##Impl<int, int>(v1, v2, exprtext);                        \
+  }                                                                       \
+  inline string* name##Impl(const size_t v1, const int v2,                \
+                            const char* exprtext) {                       \
+    if (TF_PREDICT_FALSE(v2 < 0)) {                                       \
+      return ::tensorflow::internal::MakeCheckOpString(v1, v2, exprtext); \
+    }                                                                     \
+    const size_t uval = (size_t)((unsigned)v1);                           \
+    return name##Impl<size_t, size_t>(uval, v2, exprtext);                \
+  }                                                                       \
+  inline string* name##Impl(const int v1, const size_t v2,                \
+                            const char* exprtext) {                       \
+    if (TF_PREDICT_FALSE(v2 >= std::numeric_limits<int>::max())) {        \
+      return ::tensorflow::internal::MakeCheckOpString(v1, v2, exprtext); \
+    }                                                                     \
+    const size_t uval = (size_t)((unsigned)v2);                           \
+    return name##Impl<size_t, size_t>(v1, uval, exprtext);                \
   }
 
 // We use the full name Check_EQ, Check_NE, etc. in case the file including
@@ -191,12 +227,12 @@ string* MakeCheckOpString(const T1& v1, const T2& v2, const char* exprtext) {
 // This happens if, for example, those are used as token names in a
 // yacc grammar.
 TF_DEFINE_CHECK_OP_IMPL(Check_EQ,
-                        == )  // Compilation error with CHECK_EQ(NULL, x)?
-TF_DEFINE_CHECK_OP_IMPL(Check_NE, != )  // Use CHECK(x == NULL) instead.
-TF_DEFINE_CHECK_OP_IMPL(Check_LE, <= )
-TF_DEFINE_CHECK_OP_IMPL(Check_LT, < )
-TF_DEFINE_CHECK_OP_IMPL(Check_GE, >= )
-TF_DEFINE_CHECK_OP_IMPL(Check_GT, > )
+                        ==)  // Compilation error with CHECK_EQ(NULL, x)?
+TF_DEFINE_CHECK_OP_IMPL(Check_NE, !=)  // Use CHECK(x == NULL) instead.
+TF_DEFINE_CHECK_OP_IMPL(Check_LE, <=)
+TF_DEFINE_CHECK_OP_IMPL(Check_LT, <)
+TF_DEFINE_CHECK_OP_IMPL(Check_GE, >=)
+TF_DEFINE_CHECK_OP_IMPL(Check_GT, >)
 #undef TF_DEFINE_CHECK_OP_IMPL
 
 // In optimized mode, use CheckOpString to hint to compiler that
@@ -270,6 +306,10 @@ T&& CheckNotNull(const char* file, int line, const char* exprtext, T&& t) {
   }
   return std::forward<T>(t);
 }
+
+int64 MinLogLevelFromEnv();
+
+int64 MinVLogLevelFromEnv();
 
 }  // namespace internal
 }  // namespace tensorflow

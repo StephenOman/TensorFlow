@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,21 +24,40 @@ namespace tensorflow {
 namespace functor {
 
 template <typename Device, typename T>
-struct Split {
-  void operator()(const Device& d, typename TTypes<T, 3>::Tensor output,
-                  typename TTypes<T, 3>::ConstTensor input,
-                  const Eigen::DSizes<Eigen::DenseIndex, 3>& slice_indices,
-                  const Eigen::DSizes<Eigen::DenseIndex, 3>& slice_sizes);
+struct SplitCustom {
+  void operator()(const Device& d, typename TTypes<T, 2>::Tensor output,
+                  typename TTypes<T, 2>::ConstTensor input,
+                  const Eigen::DSizes<Eigen::DenseIndex, 2>& slice_indices,
+                  const Eigen::DSizes<Eigen::DenseIndex, 2>& slice_sizes);
 };
 
-template <typename T>
-struct Split<Eigen::ThreadPoolDevice, T> {
-  void operator()(const Eigen::ThreadPoolDevice& d,
-                  typename TTypes<T, 3>::Tensor output,
-                  typename TTypes<T, 3>::ConstTensor input,
-                  const Eigen::DSizes<Eigen::DenseIndex, 3>& slice_indices,
-                  const Eigen::DSizes<Eigen::DenseIndex, 3>& slice_sizes);
+template <typename Device, typename T, int NDims>
+struct Split {
+  void operator()(const Device& d, typename TTypes<T, NDims>::Tensor output,
+                  typename TTypes<T, NDims>::ConstTensor input,
+                  const Eigen::DSizes<Eigen::DenseIndex, NDims>& slice_indices,
+                  const Eigen::DSizes<Eigen::DenseIndex, NDims>& slice_sizes);
 };
+
+template <typename T, int NDims>
+struct Split<Eigen::ThreadPoolDevice, T, NDims> {
+  void operator()(const Eigen::ThreadPoolDevice& d,
+                  typename TTypes<T, NDims>::Tensor output,
+                  typename TTypes<T, NDims>::ConstTensor input,
+                  const Eigen::DSizes<Eigen::DenseIndex, NDims>& slice_indices,
+                  const Eigen::DSizes<Eigen::DenseIndex, NDims>& slice_sizes);
+};
+
+#ifdef TENSORFLOW_USE_SYCL
+template <typename T, int NDims>
+struct Split<Eigen::SyclDevice, T> {
+  void operator()(const Eigen::SyclDevice& d,
+                  typename TTypes<T, NDims>::Tensor output,
+                  typename TTypes<T, NDims>::ConstTensor input,
+                  const Eigen::DSizes<Eigen::DenseIndex, NDims>& slice_indices,
+                  const Eigen::DSizes<Eigen::DenseIndex, NDims>& slice_sizes);
+};
+#endif  // TENSORFLOW_USE_SYCL
 
 }  // namespace functor
 }  // namespace tensorflow

@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,24 @@ namespace perftools {
 namespace gputools {
 namespace dnn {
 
+bool DnnSupport::GetConvolveAlgorithms(
+    bool with_winograd_nonfused, int cc_major, int cc_minor,
+    std::vector<AlgorithmDesc>* out_algorithms) {
+  return false;
+}
+
+bool DnnSupport::GetConvolveBackwardDataAlgorithms(
+    bool with_winograd_nonfused, int cc_major, int cc_minor,
+    std::vector<AlgorithmDesc>* out_algorithms) {
+  return false;
+}
+
+bool DnnSupport::GetConvolveBackwardFilterAlgorithms(
+    bool with_winograd_nonfused, int cc_major, int cc_minor,
+    std::vector<AlgorithmDesc>* out_algorithms) {
+  return false;
+}
+
 string QuantizedActivationModeString(QuantizedActivationMode mode) {
   switch (mode) {
     case dnn::QuantizedActivationMode::k8Bit:
@@ -34,6 +52,7 @@ string QuantizedActivationModeString(QuantizedActivationMode mode) {
       LOG(FATAL) << "Unknown quantized_activation_mode "
                  << static_cast<int32>(mode);
   }
+  return "unknown quantized_activation_mode";
 }
 
 string ActivationModeString(ActivationMode mode) {
@@ -48,9 +67,12 @@ string ActivationModeString(ActivationMode mode) {
       return "reluX";
     case ActivationMode::kTanh:
       return "tanh";
+    case ActivationMode::kBandPass:
+      return "bandpass";
     default:
       LOG(FATAL) << "Unknown activation_mode " << static_cast<int32>(mode);
   }
+  return "unknown activation_mode";
 }
 
 string ElementwiseOperationString(ElementwiseOperation op) {
@@ -62,6 +84,7 @@ string ElementwiseOperationString(ElementwiseOperation op) {
     default:
       LOG(FATAL) << "Unknown elementwise op " << static_cast<int32>(op);
   }
+  return "unknown element wise op";
 }
 
 string DataLayoutString(DataLayout layout) {
@@ -74,15 +97,20 @@ string DataLayoutString(DataLayout layout) {
       return "BatchYXDepth";
     case DataLayout::kBatchDepthYX:
       return "BatchDepthYX";
+    case DataLayout::kBatchDepthYX4:
+      return "BatchDepthYX4";
     default:
       LOG(FATAL) << "Unknown data layout " << static_cast<int32>(layout);
   }
+  return "unknown data layout";
 }
 
 string FilterLayoutString(FilterLayout layout) {
   switch (layout) {
     case FilterLayout::kOutputInputYX:
       return "OutputInputYX";
+    case FilterLayout::kOutputInputYX4:
+      return "OutputInputYX4";
     case FilterLayout::kInputYXOutput:
       return "InputYXOutput";
     case FilterLayout::kYXInputOutput:
@@ -90,6 +118,19 @@ string FilterLayoutString(FilterLayout layout) {
     default:
       LOG(FATAL) << "Unknown filter layout " << static_cast<int32>(layout);
   }
+  return "unknown filter layout";
+}
+
+string PadAlignmentString(PadAlignment alignment) {
+  switch (alignment) {
+    case PadAlignment::kDefault:
+      return "default";
+    case PadAlignment::kCudnnPadding:
+      return "cuDNN padding";
+    case PadAlignment::kTensorFlowPadding:
+      return "TensorFlow padding";
+  }
+  return "unknown pad alignment";
 }
 
 string ShortPoolingModeString(PoolingMode mode) {
@@ -101,6 +142,7 @@ string ShortPoolingModeString(PoolingMode mode) {
     default:
       LOG(FATAL) << "Unknown filter layout " << static_cast<int32>(mode);
   }
+  return "unknown filter layout";
 }
 
 std::tuple<int, int, int> GetDimIndices(const DataLayout& layout,
@@ -126,6 +168,7 @@ std::tuple<int, int, int> GetDimIndices(const DataLayout& layout,
       break;
 
     case DataLayout::kBatchDepthYX:
+    case DataLayout::kBatchDepthYX4:
       depth_idx = 1;
       batch_idx = 0;
       spatial_idx = 2;
@@ -151,12 +194,19 @@ std::vector<int64> ReorderDims(const std::vector<int64>& input,
   reordered[b_idx_to] = input[b_idx_from];
   reordered[d_idx_to] = input[d_idx_from];
 
-  for (int i = 0; i < input.size() - 2;
+  for (size_t i = 0; i < input.size() - 2;
        i++, spatial_idx_from++, spatial_idx_to++) {
     reordered[spatial_idx_to] = input[spatial_idx_from];
   }
 
   return reordered;
+}
+
+// -- AlgorithmConfig
+
+string AlgorithmConfig::ToString() const {
+  return port::StrCat(algorithm_.algo_id(), ", ",
+                      algorithm_no_scratch_.algo_id());
 }
 
 // -- BatchDescriptor
@@ -183,6 +233,14 @@ std::vector<int64> BatchDescriptor::full_dims(const DataLayout& layout) const {
 
 std::vector<int64> BatchDescriptor::full_strides(
     const DataLayout& layout) const {
+  if (layout_ == DataLayout::kBatchDepthYX4) {
+    LOG(FATAL)
+        << "Cannot compute full strides for batch descriptor " << ToString()
+        << ", because its layout is kBatchDepthYX4. In fact, "
+           "cudnnSetTensorNdDescriptor doesn't work for kBatchDepthYX4 at all. "
+           "Use cudnnSetTensor4DDescriptor to set cudnnTensorDescriptor_t "
+           "instead.";
+  }
   std::vector<int64> phys_dims = full_dims(layout_);
   std::vector<int64> phys_strides(phys_dims.size());
   phys_strides[ndims_ + 1] = 1;
@@ -244,6 +302,8 @@ string BatchDescriptor::ToShortString() const {
       return port::StrCat(batch, spatial, depth, suffix);
     case DataLayout::kBatchDepthYX:
       return port::StrCat(batch, depth, spatial, suffix);
+    case DataLayout::kBatchDepthYX4:
+      return port::StrCat(batch, depth, spatial, suffix, "(VECT_C)");
     default:
       LOG(FATAL) << "Unknown layout " << static_cast<int32>(layout());
       return "";  // Avoid return warning (unreachable)
@@ -339,6 +399,8 @@ string FilterDescriptor::ToShortString() const {
   switch (layout_) {
     case FilterLayout::kOutputInputYX:
       return port::StrCat(od, id, spatial);
+    case FilterLayout::kOutputInputYX4:
+      return port::StrCat(od, id, spatial, "(VECT_C)");
     case FilterLayout::kInputYXOutput:
       return port::StrCat(id, spatial, od);
     case FilterLayout::kYXInputOutput:
@@ -360,7 +422,11 @@ int64 FilterDescriptor::ComputeWeightCount() const {
 // -- ConvolutionDescriptor
 
 ConvolutionDescriptor::ConvolutionDescriptor(int ndims)
-    : zero_padding_(ndims, 0), filter_strides_(ndims, 1), ndims_(ndims) {}
+    : zero_padding_(ndims, 0),
+      filter_strides_(ndims, 1),
+      dilation_rates_(ndims, 1),
+      pad_alignment_(PadAlignment::kDefault),
+      ndims_(ndims) {}
 
 ConvolutionDescriptor::ConvolutionDescriptor()
     : ConvolutionDescriptor(/*ndims=*/2) {}
@@ -370,13 +436,18 @@ ConvolutionDescriptor::~ConvolutionDescriptor() {}
 string ConvolutionDescriptor::ToString() const {
   string padding;
   string strides;
+  string dilations;
   for (int i = 0; i < ndims_; i++) {
     port::Appendf(&padding, "%lld ", zero_padding_[i]);
     port::Appendf(&strides, "%lld ", filter_strides_[i]);
+    port::Appendf(&dilations, "%lld ", dilation_rates_[i]);
   }
 
-  return port::Printf("{zero_padding: %s filter_strides: %s}", padding.c_str(),
-                      strides.c_str());
+  return port::Printf(
+      "{zero_padding: %s pad_alignment: %s filter_strides: %s dilation_rates: "
+      "%s}",
+      padding.c_str(), PadAlignmentString(pad_alignment_).c_str(),
+      strides.c_str(), dilations.c_str());
 }
 
 string ConvolutionDescriptor::ToShortString() const {
@@ -388,6 +459,9 @@ string ConvolutionDescriptor::ToShortString() const {
   for (int i = 0; i < ndims_; i++) {
     port::Appendf(&desc, "_s%d:%lld", i, filter_strides_[i]);
   }
+  for (int i = 0; i < ndims_; i++) {
+    port::Appendf(&desc, "_d%d:%lld", i, dilation_rates_[i]);
+  }
   return desc;
 }
 
@@ -396,6 +470,7 @@ string ConvolutionDescriptor::ToShortString() const {
 PoolingDescriptor::PoolingDescriptor(int ndims)
     : mode_(dnn::PoolingMode::kMaximum),
       ndims_(ndims),
+      propagate_nans_(false),
       window_(ndims, 0),
       padding_(ndims, 0),
       strides_(ndims, 1) {}
@@ -408,6 +483,7 @@ void PoolingDescriptor::CloneFrom(const PoolingDescriptor& other) {
   window_ = other.window_;
   padding_ = other.padding_;
   strides_ = other.strides_;
+  propagate_nans_ = other.propagate_nans_;
 }
 
 string PoolingDescriptor::ToString() const {
@@ -421,9 +497,12 @@ string PoolingDescriptor::ToString() const {
     port::Appendf(&padding, "%lld", padding_[i]);
   }
 
-  return port::Printf("{mode: %s window: %s strides: %s padding: %s}",
-                      mode_string, window.c_str(), strides.c_str(),
-                      padding.c_str());
+  const char* propagate_string = propagate_nans_ ? "Yes" : "No";
+
+  return port::Printf(
+      "{mode: %s window: %s strides: %s padding: %s propagate NaNs: %s}",
+      mode_string, window.c_str(), strides.c_str(), padding.c_str(),
+      propagate_string);
 }
 
 string PoolingDescriptor::ToShortString() const {
@@ -434,7 +513,8 @@ string PoolingDescriptor::ToShortString() const {
     port::Appendf(&padding, "_p%d:%lld", i, padding_[i]);
   }
   return port::StrCat(mode_ == dnn::PoolingMode::kMaximum ? "max" : "avg",
-                      window, strides, padding);
+                      window, strides, padding,
+                      propagate_nans_ ? "propagate_nans" : "ignore_nans");
 }
 
 // -- NormalizeDescriptor

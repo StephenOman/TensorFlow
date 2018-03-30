@@ -1,4 +1,4 @@
-/* Copyright 2016 Google Inc. All Rights Reserved.
+/* Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,11 +21,8 @@ namespace tensorflow {
 namespace test {
 
 // ErrorOp::Compute returns an error.
-REGISTER_OP("Error")
-    .Input("in: T")
-    .Output("out: T")
-    .Attr("T: type")
-    .Attr("message: string");
+REGISTER_OP("Error").Input("in: T").Output("out: T").Attr("T: type").Attr(
+    "message: string");
 class ErrorOp : public OpKernel {
  public:
   explicit ErrorOp(OpKernelConstruction* ctx) : OpKernel(ctx) {
@@ -66,11 +63,8 @@ REGISTER_KERNEL_BUILDER(Name("InvalidRefType").Device(DEVICE_CPU),
 
 // DelayOp::AsyncCompute sleeps for "micros"-econd and then returns
 // its input.
-REGISTER_OP("Delay")
-    .Input("in: T")
-    .Output("out: T")
-    .Attr("T: type")
-    .Attr("micros: int");
+REGISTER_OP("Delay").Input("in: T").Output("out: T").Attr("T: type").Attr(
+    "micros: int");
 class DelayOp : public AsyncOpKernel {
  public:
   explicit DelayOp(OpKernelConstruction* ctx) : AsyncOpKernel(ctx) {

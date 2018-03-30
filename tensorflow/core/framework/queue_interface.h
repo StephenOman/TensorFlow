@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,6 +77,9 @@ class QueueInterface : public ResourceBase {
   virtual void Close(OpKernelContext* ctx, bool cancel_pending_enqueues,
                      DoneCallback callback) = 0;
 
+  // Returns true if a given queue is closed and false if it is open.
+  virtual bool is_closed() const = 0;
+
   // Assuming *this represents a shared queue, verify that it matches
   // another instantiation indicated by node_def.
   virtual Status MatchesNodeDef(const NodeDef& node_def) = 0;
@@ -86,7 +89,9 @@ class QueueInterface : public ResourceBase {
 
   virtual const DataTypeVector& component_dtypes() const = 0;
 
-  string DebugString() override { return "A queue"; }
+  string DebugString() override {
+    return strings::StrCat("A Queue of size: ", size());
+  }
 
  protected:
   virtual ~QueueInterface() {}

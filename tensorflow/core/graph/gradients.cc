@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/executor.h"
 #include "tensorflow/core/common_runtime/graph_optimizer.h"
 #include "tensorflow/core/framework/function.h"
+#include "tensorflow/core/framework/node_def.pb.h"
 #include "tensorflow/core/framework/node_def_util.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -35,8 +36,6 @@ namespace tensorflow {
 // TODO(andydavis) Remove some of the code duplicated between this module
 // and that in 'common_runtime/function.cc'.
 // A few string constant used throughout this module.
-static const char* const kArgOp = "_Arg";
-static const char* const kRetOp = "_Retval";
 static const char* const kGradientOp = "SymbolicGradient";
 static const char* const kNodeLabel = "Func";
 
@@ -111,7 +110,9 @@ static Node* AddSymGrad(Graph* g, Node* n, gtl::ArraySlice<NodeOut> grads) {
   AddNodeAttr("Tout", n->input_types(), &ndef);
   NameAttrList func;
   func.set_name(n->type_string());
-  *(func.mutable_attr()) = n->def().attr();
+  for (const auto& attr : n->attrs()) {
+    (*func.mutable_attr())[attr.first] = attr.second;
+  }
   AddNodeAttr("f", func, &ndef);
   Status s;
   Node* ret = g->AddNode(ndef, &s);

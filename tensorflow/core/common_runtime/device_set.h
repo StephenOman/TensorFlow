@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,7 +39,10 @@ class DeviceSet {
 
   // Set the device designated as the "client".  This device
   // must also be registered via AddDevice().
-  void set_client_device(Device* device) { client_device_ = device; }
+  void set_client_device(Device* device) {
+    DCHECK(client_device_ == nullptr);
+    client_device_ = device;
+  }
 
   // Returns a pointer to the device designated as the "client".
   Device* client_device() const { return client_device_; }
@@ -60,6 +63,12 @@ class DeviceSet {
   // Return the list of unique device types in this set, ordered
   // with more preferable devices earlier.
   std::vector<DeviceType> PrioritizedDeviceTypeList() const;
+
+  // An order to sort by device types according to system-determined
+  // priority.
+  //
+  // Higher result implies higher priority.
+  static int DeviceTypeOrder(const DeviceType& d);
 
  private:
   // Not owned.

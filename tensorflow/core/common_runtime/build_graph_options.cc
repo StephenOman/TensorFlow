@@ -1,4 +1,4 @@
-/* Copyright 2016 Google Inc. All Rights Reserved.
+/* Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,15 +21,15 @@ namespace tensorflow {
 
 string BuildGraphOptions::DebugString() const {
   string rv = "Feed endpoints: ";
-  for (auto& s : feed_endpoints) {
+  for (auto& s : callable_options.feed()) {
     strings::StrAppend(&rv, s, ", ");
   }
   strings::StrAppend(&rv, "\nFetch endpoints: ");
-  for (auto& s : fetch_endpoints) {
+  for (auto& s : callable_options.fetch()) {
     strings::StrAppend(&rv, s, ", ");
   }
   strings::StrAppend(&rv, "\nTarget nodes: ");
-  for (auto& s : target_nodes) {
+  for (auto& s : callable_options.target()) {
     strings::StrAppend(&rv, s, ", ");
   }
   return rv;

@@ -13,7 +13,7 @@ py_binary(
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow:tensorflow_py",
-        "//tensorflow/examples/tutorials/mnist:input_data",
+        "//tensorflow/contrib/learn/python/learn/datasets",
     ],
 )
 
@@ -53,16 +53,4 @@ py_binary(
         "//tensorflow/examples/tutorials/mnist",
         "//tensorflow/examples/tutorials/mnist:input_data",
     ],
-)
-
-filegroup(
-    name = "all_files",
-    srcs = glob(
-        ["**/*"],
-        exclude = [
-            "**/METADATA",
-            "**/OWNERS",
-        ],
-    ),
-    visibility = ["//tensorflow:__subpackages__"],
 )

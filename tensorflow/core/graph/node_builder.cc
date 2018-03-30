@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,18 +17,19 @@ limitations under the License.
 
 #include <vector>
 #include "tensorflow/core/framework/node_def_util.h"
+#include "tensorflow/core/framework/versions.pb.h"
 #include "tensorflow/core/lib/core/errors.h"
 
 namespace tensorflow {
 
-NodeBuilder::NodeOut::NodeOut(Node* n, int i)  // NOLINT(runtime/explicit)
+NodeBuilder::NodeOut::NodeOut(Node* n, int32 i)  // NOLINT(runtime/explicit)
     : node(n),
       error(false),
       name(node != nullptr ? node->name() : (error = true, "")),
       index(i),
       dt(SafeGetOutput(node, i, &error)) {}
 
-NodeBuilder::NodeOut::NodeOut(StringPiece n, int i, DataType t)
+NodeBuilder::NodeOut::NodeOut(StringPiece n, int32 i, DataType t)
     : node(nullptr), error(false), name(n.ToString()), index(i), dt(t) {}
 
 NodeBuilder::NodeOut::NodeOut()
@@ -74,7 +75,7 @@ NodeBuilder& NodeBuilder::Input(gtl::ArraySlice<NodeOut> src_list) {
       inputs_.emplace_back(node_out.node, node_out.index);
     }
   }
-  def_builder_.Input(srcs);
+  def_builder_.Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>(srcs));
   return *this;
 }
 
@@ -87,7 +88,7 @@ NodeBuilder& NodeBuilder::ControlInput(Node* src_node) {
 NodeBuilder& NodeBuilder::ControlInputs(gtl::ArraySlice<Node*> src_nodes) {
   control_inputs_.insert(control_inputs_.end(), src_nodes.begin(),
                          src_nodes.end());
-  for (Node* src_node : src_nodes) {
+  for (const Node* src_node : src_nodes) {
     def_builder_.ControlInput(src_node->name());
   }
   return *this;
@@ -126,10 +127,10 @@ Status NodeBuilder::Finalize(Graph* graph, Node** created_node) const {
   return Status::OK();
 }
 
-void NodeBuilder::AddIndexError(Node* node, int i) {
+void NodeBuilder::AddIndexError(const Node* node, int i) {
   if (node == nullptr) {
     errors_.emplace_back(
-        strings::StrCat("Attempt to add nullptr Node to node with type",
+        strings::StrCat("Attempt to add nullptr Node to node with type ",
                         def_builder_.op_def().name()));
   } else {
     errors_.emplace_back(
@@ -139,7 +140,7 @@ void NodeBuilder::AddIndexError(Node* node, int i) {
   }
 }
 
-bool NodeBuilder::GetOutputType(Node* node, int i, DataType* dt) {
+bool NodeBuilder::GetOutputType(const Node* node, int i, DataType* dt) {
   bool error;
   *dt = SafeGetOutput(node, i, &error);
   if (error) AddIndexError(node, i);

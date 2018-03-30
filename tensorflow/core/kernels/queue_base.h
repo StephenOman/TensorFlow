@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ class QueueBase : public QueueInterface {
 
   int32 capacity() const { return capacity_; }
 
-  bool closed() {
+  bool is_closed() const override {
     mutex_lock lock(mu_);
     return closed_;
   }
@@ -79,6 +79,9 @@ class QueueBase : public QueueInterface {
                                    int64 index);
 
   // Copies element into the index^th slice (in the first dimension) of parent.
+  // NOTE(mrry): This method is deprecated. Use
+  // `tensorflow::batch_util::CopySliceToElement()` defined in
+  // "./batch_util.h" instead.
   static Status CopyElementToSlice(const Tensor& element, Tensor* parent,
                                    int64 index);
 
@@ -143,7 +146,7 @@ class QueueBase : public QueueInterface {
   const DataTypeVector component_dtypes_;
   const std::vector<TensorShape> component_shapes_;
   const string name_;
-  mutex mu_;
+  mutable mutex mu_;
   bool closed_ GUARDED_BY(mu_);
 
   struct Attempt;

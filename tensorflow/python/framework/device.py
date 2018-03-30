@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,8 +19,10 @@ from __future__ import division
 from __future__ import print_function
 
 import copy
+from tensorflow.python.util.tf_export import tf_export
 
 
+@tf_export("DeviceSpec")
 class DeviceSpec(object):
   """Represents a (possibly partial) specification for a TensorFlow device.
 
@@ -29,6 +31,7 @@ class DeviceSpec(object):
   strings to verify their validity, merge them or compose them programmatically.
 
   Example:
+
   ```python
   # Place the operations on device "GPU:0" in the "ps" job.
   device_spec = DeviceSpec(job="ps", device_type="GPU", device_index=0)
@@ -225,12 +228,6 @@ class DeviceSpec(object):
       A DeviceSpec.
     """
     return DeviceSpec().parse_from_string(spec)
-
-
-# For backwards compatibility.
-# TODO(rjryan): Fix all callers then remove.
-Device = DeviceSpec
-from_string = DeviceSpec.from_string
 
 
 def check_valid(spec):

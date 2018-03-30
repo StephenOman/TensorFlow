@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,19 +24,35 @@ limitations under the License.
 
 namespace tensorflow {
 
-DeviceMgr::DeviceMgr(const std::vector<Device*>& devices) {
+DeviceMgr::DeviceMgr(const std::vector<Device*>& devices)
+    : name_backing_store_(128) {
   for (Device* d : devices) {
     devices_.push_back(d);
 
-    // Register under both the full name and the local name.
-    device_map_[d->name()] = d;
-    device_map_[DeviceNameUtils::LocalName(d->name())] = d;
+    // Register under the (1) full name and (2) canonical name.
+    for (const string& name :
+         DeviceNameUtils::GetNamesForDeviceMappings(d->parsed_name())) {
+      device_map_[CopyToBackingStore(name)] = d;
+    }
+    // Register under the (3) local name and (4) legacy local name.
+    for (const string& name :
+         DeviceNameUtils::GetLocalNamesForDeviceMappings(d->parsed_name())) {
+      device_map_[CopyToBackingStore(name)] = d;
+    }
     device_type_counts_[d->device_type()]++;
   }
 }
 
 DeviceMgr::~DeviceMgr() {
-  for (auto p : devices_) delete p;
+  // TODO(b/37437134): Remove destructor after converting to std::unique_ptr.
+  for (Device* p : devices_) delete p;
+}
+
+StringPiece DeviceMgr::CopyToBackingStore(StringPiece s) {
+  size_t n = s.size();
+  char* space = name_backing_store_.Alloc(n);
+  memcpy(space, s.data(), n);
+  return StringPiece(space, n);
 }
 
 void DeviceMgr::ListDeviceAttributes(
@@ -70,10 +86,16 @@ string DeviceMgr::DeviceMappingString() const {
   return out;
 }
 
-Status DeviceMgr::LookupDevice(const string& name, Device** device) const {
+Status DeviceMgr::LookupDevice(StringPiece name, Device** device) const {
   Status s;
   auto iter = device_map_.find(name);
   if (iter == device_map_.end()) {
+    std::vector<StringPiece> device_names;
+    for (auto&& itr : device_map_) {
+      device_names.push_back(itr.first);
+    }
+    VLOG(1) << "Unknown device: " << name
+            << " all devices: " << str_util::Join(device_names, ", ");
     return errors::InvalidArgument(name, " unknown device.");
   }
   *device = iter->second;

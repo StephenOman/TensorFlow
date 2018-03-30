@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ enum class PluginKind {
 //
 // A PluginConfig may be passed to the StreamExecutor constructor - the plugins
 // described therein will be used to provide BLAS, DNN, FFT, and RNG
-// functionality. Platform-approprate defaults will be used for any un-set
+// functionality. Platform-appropriate defaults will be used for any un-set
 // libraries. If a platform does not support a specified plugin (ex. cuBLAS on
 // an OpenCL executor), then an error will be logged and no plugin operations
 // will succeed.

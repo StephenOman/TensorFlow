@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ class Diagnostician {
 
   // Given the DSO version number and the driver version file contents, extracts
   // the driver version and compares, warning the user in the case of
-  // incompatability.
+  // incompatibility.
   //
   // This is solely used for more informative log messages when the user is
   // running on a machine that happens to have a libcuda/kernel driver mismatch.

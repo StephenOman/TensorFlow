@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,9 @@ EventMgr::EventMgr(gpu::StreamExecutor* se, const GPUOptions& gpu_options)
       deferred_bytes_threshold_(gpu_options.deferred_deletion_bytes()
                                     ? gpu_options.deferred_deletion_bytes()
                                     : 8 * 1048576),
+      polling_active_delay_usecs_(gpu_options.polling_active_delay_usecs()
+                                      ? gpu_options.polling_active_delay_usecs()
+                                      : 10),
       accumulated_stream_(nullptr),
       accumulated_tensors_(new TensorReferenceVector),
       accumulated_tensor_bytes_(0),
@@ -70,17 +73,23 @@ EventMgr::~EventMgr() {
 }
 
 void EventMgr::StartPollingLoop() {
-  CHECK(polling_stopped_.get() == nullptr);
-  stop_polling_.reset(new Notification);
+  CHECK(polling_stopped_ == nullptr);
+  {
+    mutex_lock l(mu_);
+    stop_polling_ = false;
+  }
   polling_stopped_.reset(new Notification);
   threadpool_.Schedule([this]() { PollLoop(); });
 }
 
 void EventMgr::StopPollingLoop() {
-  if (stop_polling_.get()) {
-    stop_polling_->Notify();
+  if (polling_stopped_) {
+    {
+      mutex_lock l(mu_);
+      stop_polling_ = true;
+      events_pending_.notify_all();
+    }
     polling_stopped_->WaitForNotification();
-    stop_polling_.reset(nullptr);
     polling_stopped_.reset(nullptr);
   }
 }
@@ -95,7 +104,7 @@ void EventMgr::ThenDeleteTensors(perftools::gputools::Stream* stream,
     FlushAccumulatedTensors();
   }
   accumulated_stream_ = stream;
-  for (auto t : tensors) {
+  for (const auto& t : tensors) {
     // accumulated_tensors_ takes over ownership of the reference to "t"
     accumulated_tensors_->push_back(t);
     accumulated_tensor_bytes_ += t.TotalBytes();
@@ -114,30 +123,31 @@ void EventMgr::FlushAccumulatedTensors() {
   accumulated_stream_ = nullptr;
 }
 
-// A polling loop to detect completion of GPU events.  There's a
-// tradeoff between achieving low latency detection, which argues for
-// little delay between calls, and minimizing CPU use and lock
-// contention, which argue for longer delay.  The current strategy is
-// to poll frequently when the queue is non-empty, and infrequently
-// otherwise.
+// A polling loop to detect completion of GPU events.
+//
+// While one or more events is outstanding, poll for completed events.  When no
+// events are outstanding, we sleep until one is enqueued.
 void EventMgr::PollLoop() {
-  const int32 kPollingDelayUsecs = 10;
-  const int32 kPollingSuspendMsecs = 1;
-  bool queue_empty = false;
-  while (!stop_polling_->HasBeenNotified()) {
-    if (queue_empty) {
-      mutex_lock l(mu_);
-      WaitForMilliseconds(&l, &events_pending_, kPollingSuspendMsecs);
-    } else {
-      Env::Default()->SleepForMicroseconds(kPollingDelayUsecs);
-    }
-    ToFreeVector to_free;
+  ToFreeVector to_free;
+  while (true) {
+    bool events_still_pending;
     {
       mutex_lock l(mu_);
+      if (stop_polling_) {
+        break;
+      }
+      if (used_events_.empty()) {
+        events_pending_.wait(l);
+      }
       PollEvents(true, &to_free);
-      queue_empty = used_events_.empty();
+      events_still_pending = !used_events_.empty();
     }
     FreeMemory(to_free);
+    to_free.clear();
+
+    if (events_still_pending) {
+      Env::Default()->SleepForMicroseconds(polling_active_delay_usecs_);
+    }
   }
   polling_stopped_->Notify();
 }

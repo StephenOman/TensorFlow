@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,10 +35,11 @@ namespace test {
 
 class Benchmark {
  public:
-  // "device" must be either "cpu" or "gpu".  Takes ownership of "g"
-  // and "init".
+  // "device" must be either "cpu" or "gpu".  Takes ownership of "g",
+  // "init", and one reference on "rendez" (if not null).
   Benchmark(const string& device, Graph* g,
-            const SessionOptions* options = nullptr, Graph* init = nullptr);
+            const SessionOptions* options = nullptr, Graph* init = nullptr,
+            Rendezvous* rendez = nullptr);
   ~Benchmark();
 
   // Executes the graph for "iters" times.
@@ -54,7 +55,6 @@ class Benchmark {
 
  private:
   thread::ThreadPool* pool_ = nullptr;
-  thread::ThreadPool* non_blocking_pool_ = nullptr;
   Device* device_ = nullptr;
   Rendezvous* rendez_ = nullptr;
   Executor* exec_ = nullptr;

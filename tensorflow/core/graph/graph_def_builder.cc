@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@ limitations under the License.
 
 #include "tensorflow/core/graph/graph_def_builder.h"
 
-#include "tensorflow/core/graph/graph_constructor.h"
+#include <utility>
+
 #include "tensorflow/core/graph/tensor_id.h"
 #include "tensorflow/core/lib/core/errors.h"
 
@@ -70,16 +71,6 @@ Status GraphDefBuilder::ToGraphDef(GraphDef* graph_def) const {
   return status_;
 }
 
-Status GraphDefBuilder::ToGraph(Graph* graph) const {
-  if (status_.ok()) {
-    GraphDef graph_def;
-    graph_.ToGraphDef(&graph_def);
-    GraphConstructorOptions opts;
-    TF_RETURN_IF_ERROR(ConvertGraphDefToGraph(opts, graph_def, graph));
-  }
-  return status_;
-}
-
 string GraphDefBuilder::Options::GetNameForOp(StringPiece op) const {
   if (name_.empty()) return graph_->NewName(op);
   return name_;
@@ -119,7 +110,7 @@ Node* UnaryOp(const string& op_name, NodeOut input,
   if (opts.HaveError()) return nullptr;
   NodeBuilder node_builder(opts.GetNameForOp(op_name), op_name,
                            opts.op_registry());
-  node_builder.Input(input);
+  node_builder.Input(std::move(input));
   return opts.FinalizeBuilder(&node_builder);
 }
 
@@ -128,7 +119,7 @@ Node* BinaryOp(const string& op_name, NodeOut a, NodeOut b,
   if (opts.HaveError()) return nullptr;
   NodeBuilder node_builder(opts.GetNameForOp(op_name), op_name,
                            opts.op_registry());
-  node_builder.Input(a).Input(b);
+  node_builder.Input(std::move(a)).Input(std::move(b));
   return opts.FinalizeBuilder(&node_builder);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright 2016 Google Inc. All Rights Reserved.
+/* Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,6 +38,14 @@ import "tensorflow/core/protobuf/worker.proto";
 service WorkerService {
   // See worker.proto for details.
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+
+  // See worker.proto for details.
+  rpc CreateWorkerSession(CreateWorkerSessionRequest)
+      returns (CreateWorkerSessionResponse);
+
+  // See worker.proto for details.
+  rpc DeleteWorkerSession(DeleteWorkerSessionRequest)
+      returns (DeleteWorkerSessionResponse);
 
   // See worker.proto for details.
   rpc RegisterGraph(RegisterGraphRequest) returns (RegisterGraphResponse);

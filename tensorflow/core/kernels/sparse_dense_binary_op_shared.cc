@@ -1,4 +1,4 @@
-/* Copyright 2016 Google Inc. All Rights Reserved.
+/* Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,8 +70,9 @@ class SparseDenseBinaryOpShared : public OpKernel {
                 errors::InvalidArgument(
                     "Input sp_indices should be a matrix but received shape: ",
                     indices_t->shape().DebugString()));
-    OP_REQUIRES(ctx, TensorShapeUtils::IsVector(values_t->shape()) &&
-                         TensorShapeUtils::IsVector(shape_t->shape()),
+    OP_REQUIRES(ctx,
+                TensorShapeUtils::IsVector(values_t->shape()) &&
+                    TensorShapeUtils::IsVector(shape_t->shape()),
                 errors::InvalidArgument(
                     "Inputs sp_values and sp_shape should be vectors "
                     "but received shapes: ",
@@ -91,7 +92,7 @@ class SparseDenseBinaryOpShared : public OpKernel {
     auto VecGreaterEq = [](ArraySlice<int64> lhs, ArraySlice<int64> rhs) {
       if (lhs.size() > rhs.size()) return true;
       if (lhs.size() < rhs.size()) return false;
-      for (int i = 0; i < lhs.size(); ++i) {
+      for (size_t i = 0; i < lhs.size(); ++i) {
         if (lhs[i] < rhs[i]) return false;
       }
       return true;
@@ -150,8 +151,9 @@ class SparseDenseBinaryOpShared : public OpKernel {
       CASE(4);
       CASE(5);
       default:
-        OP_REQUIRES(ctx, false, errors::InvalidArgument(
-                                    "Only tensors with ranks between 1 and 5 "
+        OP_REQUIRES(
+            ctx, false,
+            errors::InvalidArgument("Only tensors with ranks between 1 and 5 "
                                     "are currently supported.  Tensor rank: ",
                                     ndims));
 #undef CASE
@@ -163,6 +165,10 @@ class SparseDenseBinaryOpShared : public OpKernel {
   }
 };
 
+// NOTE(aselle): If Div is extended to non-reals, make sure to use the same
+// separation of operator semantics as done for dense cwise ops. I.e. you
+// should make SparseDenseCwiseRealDiv, SparseDenseCwiseTruncateDiv,
+// SparseDenseCwiseFloorDiv, and then deprecate, SparseDenseCwiseDiv.
 // TODO(zongheng): extend to other eligible cwise operations as requested.
 #define REGISTER_KERNELS(T)                                                  \
   REGISTER_KERNEL_BUILDER(                                                   \
@@ -171,7 +177,10 @@ class SparseDenseBinaryOpShared : public OpKernel {
                                                                              \
   REGISTER_KERNEL_BUILDER(                                                   \
       Name("SparseDenseCwiseDiv").Device(DEVICE_CPU).TypeConstraint<T>("T"), \
-      SparseDenseBinaryOpShared<CPUDevice, T, functor::div<T>>)
+      SparseDenseBinaryOpShared<CPUDevice, T, functor::div<T>>)              \
+  REGISTER_KERNEL_BUILDER(                                                   \
+      Name("SparseDenseCwiseAdd").Device(DEVICE_CPU).TypeConstraint<T>("T"), \
+      SparseDenseBinaryOpShared<CPUDevice, T, functor::add<T>>)
 
 TF_CALL_REAL_NUMBER_TYPES(REGISTER_KERNELS);
 #undef REGISTER_KERNELS
