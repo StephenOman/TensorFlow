@@ -1,0 +1,2169 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		94DDB74A1CB9ABBA005E6B99 /* env.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7491CB9ABBA005E6B99 /* env.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		94DDB7541CB9ACFC005E6B99 /* logging.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7511CB9ACFC005E6B99 /* logging.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		94DDB7551CB9ACFC005E6B99 /* platform.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7521CB9ACFC005E6B99 /* platform.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		94DDB7561CB9ACFC005E6B99 /* types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7531CB9ACFC005E6B99 /* types.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		94DDB7691CBA5B69005E6B99 /* eigen_activations.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB75E1CBA5B69005E6B99 /* eigen_activations.h */; };
+		94DDB76A1CBA5B69005E6B99 /* eigen_attention.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB75F1CBA5B69005E6B99 /* eigen_attention.h */; };
+		94DDB76B1CBA5B69005E6B99 /* eigen_backward_cuboid_convolutions.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7601CBA5B69005E6B99 /* eigen_backward_cuboid_convolutions.h */; };
+		94DDB76C1CBA5B69005E6B99 /* eigen_backward_spatial_convolutions.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7611CBA5B69005E6B99 /* eigen_backward_spatial_convolutions.h */; };
+		94DDB76D1CBA5B69005E6B99 /* eigen_patch_3d.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7621CBA5B69005E6B99 /* eigen_patch_3d.h */; };
+		94DDB76E1CBA5B69005E6B99 /* eigen_pooling.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7631CBA5B69005E6B99 /* eigen_pooling.h */; };
+		94DDB76F1CBA5B69005E6B99 /* eigen_softmax.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7641CBA5B69005E6B99 /* eigen_softmax.h */; };
+		94DDB7701CBA5B69005E6B99 /* eigen_spatial_convolutions.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7651CBA5B69005E6B99 /* eigen_spatial_convolutions.h */; };
+		94DDB7711CBA5B69005E6B99 /* ops_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7661CBA5B69005E6B99 /* ops_util.h */; };
+		94DDB7721CBA5B69005E6B99 /* pooling_ops_common.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7671CBA5B69005E6B99 /* pooling_ops_common.h */; };
+		94DDB7731CBA5B69005E6B99 /* ops_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7681CBA5B69005E6B99 /* ops_util.cc */; };
+		94DDB7771CBA5D21005E6B99 /* avgpooling_op.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7741CBA5D21005E6B99 /* avgpooling_op.h */; };
+		94DDB7781CBA5D21005E6B99 /* bounds_check.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7751CBA5D21005E6B99 /* bounds_check.h */; };
+		94DDB7791CBA5D21005E6B99 /* maxpooling_op.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7761CBA5D21005E6B99 /* maxpooling_op.h */; };
+		94DDB78B1CBA65FD005E6B99 /* tensor_c_api.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7891CBA65FD005E6B99 /* tensor_c_api.cc */; };
+		94DDB7E11CBA6648005E6B99 /* allocator_retry.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB78E1CBA6647005E6B99 /* allocator_retry.cc */; };
+		94DDB7E21CBA6648005E6B99 /* allocator_retry.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB78F1CBA6647005E6B99 /* allocator_retry.h */; };
+		94DDB7E31CBA6648005E6B99 /* bfc_allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7901CBA6647005E6B99 /* bfc_allocator.cc */; };
+		94DDB7E41CBA6648005E6B99 /* bfc_allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7911CBA6647005E6B99 /* bfc_allocator.h */; };
+		94DDB7E51CBA6648005E6B99 /* constant_folding.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7921CBA6647005E6B99 /* constant_folding.cc */; };
+		94DDB7E61CBA6648005E6B99 /* constant_folding.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7931CBA6647005E6B99 /* constant_folding.h */; };
+		94DDB7E81CBA6648005E6B99 /* copy_tensor.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7951CBA6647005E6B99 /* copy_tensor.cc */; };
+		94DDB7E91CBA6648005E6B99 /* copy_tensor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7961CBA6647005E6B99 /* copy_tensor.h */; };
+		94DDB7EA1CBA6648005E6B99 /* device.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7971CBA6647005E6B99 /* device.cc */; };
+		94DDB7EB1CBA6648005E6B99 /* device.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7981CBA6647005E6B99 /* device.h */; };
+		94DDB7EC1CBA6648005E6B99 /* device_factory.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7991CBA6647005E6B99 /* device_factory.cc */; };
+		94DDB7ED1CBA6648005E6B99 /* device_factory.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB79A1CBA6647005E6B99 /* device_factory.h */; };
+		94DDB7EE1CBA6648005E6B99 /* device_mgr.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB79B1CBA6647005E6B99 /* device_mgr.cc */; };
+		94DDB7EF1CBA6648005E6B99 /* device_mgr.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB79C1CBA6647005E6B99 /* device_mgr.h */; };
+		94DDB7F01CBA6648005E6B99 /* device_set.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB79D1CBA6647005E6B99 /* device_set.cc */; };
+		94DDB7F11CBA6648005E6B99 /* device_set.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB79E1CBA6647005E6B99 /* device_set.h */; };
+		94DDB7F31CBA6648005E6B99 /* direct_session.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7A01CBA6647005E6B99 /* direct_session.cc */; };
+		94DDB7F41CBA6648005E6B99 /* direct_session.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7A11CBA6647005E6B99 /* direct_session.h */; };
+		94DDB7F61CBA6648005E6B99 /* dma_helper.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7A31CBA6647005E6B99 /* dma_helper.h */; };
+		94DDB7F71CBA6648005E6B99 /* eigen_thread_pool.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7A41CBA6647005E6B99 /* eigen_thread_pool.h */; };
+		94DDB7F81CBA6648005E6B99 /* executor.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7A51CBA6647005E6B99 /* executor.cc */; };
+		94DDB7F91CBA6648005E6B99 /* executor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7A61CBA6647005E6B99 /* executor.h */; };
+		94DDB7FA1CBA6648005E6B99 /* function.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7A71CBA6647005E6B99 /* function.cc */; };
+		94DDB7FB1CBA6648005E6B99 /* function.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7A81CBA6647005E6B99 /* function.h */; };
+		94DDB7FE1CBA6649005E6B99 /* gpu_bfc_allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7AC1CBA6647005E6B99 /* gpu_bfc_allocator.cc */; };
+		94DDB7FF1CBA6649005E6B99 /* gpu_bfc_allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7AD1CBA6647005E6B99 /* gpu_bfc_allocator.h */; };
+		94DDB8011CBA6649005E6B99 /* gpu_debug_allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7AF1CBA6648005E6B99 /* gpu_debug_allocator.cc */; };
+		94DDB8021CBA6649005E6B99 /* gpu_debug_allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7B01CBA6648005E6B99 /* gpu_debug_allocator.h */; };
+		94DDB8041CBA6649005E6B99 /* gpu_device.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7B21CBA6648005E6B99 /* gpu_device.cc */; };
+		94DDB8051CBA6649005E6B99 /* gpu_device.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7B31CBA6648005E6B99 /* gpu_device.h */; };
+		94DDB8061CBA6649005E6B99 /* gpu_device_factory.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7B41CBA6648005E6B99 /* gpu_device_factory.cc */; };
+		94DDB8071CBA6649005E6B99 /* gpu_event_mgr.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7B51CBA6648005E6B99 /* gpu_event_mgr.cc */; };
+		94DDB8081CBA6649005E6B99 /* gpu_event_mgr.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7B61CBA6648005E6B99 /* gpu_event_mgr.h */; };
+		94DDB80A1CBA6649005E6B99 /* gpu_init.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7B81CBA6648005E6B99 /* gpu_init.cc */; };
+		94DDB80B1CBA6649005E6B99 /* gpu_init.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7B91CBA6648005E6B99 /* gpu_init.h */; };
+		94DDB80C1CBA6649005E6B99 /* gpu_stream_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7BA1CBA6648005E6B99 /* gpu_stream_util.cc */; };
+		94DDB80D1CBA6649005E6B99 /* gpu_stream_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7BB1CBA6648005E6B99 /* gpu_stream_util.h */; };
+		94DDB80F1CBA664A005E6B99 /* gpu_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7BD1CBA6648005E6B99 /* gpu_util.cc */; };
+		94DDB8101CBA664A005E6B99 /* gpu_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7BE1CBA6648005E6B99 /* gpu_util.h */; };
+		94DDB8111CBA664A005E6B99 /* gpu_util_platform_specific.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7BF1CBA6648005E6B99 /* gpu_util_platform_specific.cc */; };
+		94DDB8121CBA664A005E6B99 /* pool_allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7C01CBA6648005E6B99 /* pool_allocator.cc */; };
+		94DDB8131CBA664A005E6B99 /* pool_allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7C11CBA6648005E6B99 /* pool_allocator.h */; };
+		94DDB8151CBA664A005E6B99 /* process_state.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7C31CBA6648005E6B99 /* process_state.cc */; };
+		94DDB8161CBA664A005E6B99 /* process_state.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7C41CBA6648005E6B99 /* process_state.h */; };
+		94DDB8171CBA664A005E6B99 /* gpu_device_context.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7C51CBA6648005E6B99 /* gpu_device_context.h */; };
+		94DDB8181CBA664A005E6B99 /* graph_optimizer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7C61CBA6648005E6B99 /* graph_optimizer.cc */; };
+		94DDB8191CBA664A005E6B99 /* graph_optimizer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7C71CBA6648005E6B99 /* graph_optimizer.h */; };
+		94DDB81C1CBA664B005E6B99 /* local_device.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7CA1CBA6648005E6B99 /* local_device.cc */; };
+		94DDB81D1CBA664B005E6B99 /* local_device.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7CB1CBA6648005E6B99 /* local_device.h */; };
+		94DDB81E1CBA664B005E6B99 /* memory_types.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7CC1CBA6648005E6B99 /* memory_types.cc */; };
+		94DDB81F1CBA664B005E6B99 /* memory_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7CD1CBA6648005E6B99 /* memory_types.h */; };
+		94DDB8211CBA664B005E6B99 /* pending_counts.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7CF1CBA6648005E6B99 /* pending_counts.h */; };
+		94DDB8231CBA664B005E6B99 /* rendezvous_mgr.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7D11CBA6648005E6B99 /* rendezvous_mgr.cc */; };
+		94DDB8241CBA664C005E6B99 /* rendezvous_mgr.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7D21CBA6648005E6B99 /* rendezvous_mgr.h */; };
+		94DDB8251CBA664C005E6B99 /* session.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7D31CBA6648005E6B99 /* session.cc */; };
+		94DDB8261CBA664C005E6B99 /* session_factory.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7D41CBA6648005E6B99 /* session_factory.cc */; };
+		94DDB8271CBA664C005E6B99 /* session_factory.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7D51CBA6648005E6B99 /* session_factory.h */; };
+		94DDB8281CBA664C005E6B99 /* session_options.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7D61CBA6648005E6B99 /* session_options.cc */; };
+		94DDB82A1CBA664C005E6B99 /* simple_placer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7D81CBA6648005E6B99 /* simple_placer.cc */; };
+		94DDB82B1CBA664C005E6B99 /* simple_placer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7D91CBA6648005E6B99 /* simple_placer.h */; };
+		94DDB82D1CBA664C005E6B99 /* step_stats_collector.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7DB1CBA6648005E6B99 /* step_stats_collector.cc */; };
+		94DDB82E1CBA664D005E6B99 /* step_stats_collector.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7DC1CBA6648005E6B99 /* step_stats_collector.h */; };
+		94DDB82F1CBA664D005E6B99 /* threadpool_device.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7DD1CBA6648005E6B99 /* threadpool_device.cc */; };
+		94DDB8301CBA664D005E6B99 /* threadpool_device.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7DE1CBA6648005E6B99 /* threadpool_device.h */; };
+		94DDB8311CBA664D005E6B99 /* threadpool_device_factory.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB7DF1CBA6648005E6B99 /* threadpool_device_factory.cc */; };
+		94DDB8321CBA664D005E6B99 /* visitable_allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB7E01CBA6648005E6B99 /* visitable_allocator.h */; };
+		94DDBA021CBA673D005E6B99 /* allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8351CBA673D005E6B99 /* allocator.cc */; };
+		94DDBA031CBA673D005E6B99 /* allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8361CBA673D005E6B99 /* allocator.h */; };
+		94DDBA051CBA673D005E6B99 /* attr_value_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8391CBA673D005E6B99 /* attr_value_util.cc */; };
+		94DDBA061CBA673D005E6B99 /* attr_value_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB83A1CBA673D005E6B99 /* attr_value_util.h */; };
+		94DDBA081CBA673D005E6B99 /* bfloat16.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB83C1CBA673D005E6B99 /* bfloat16.cc */; };
+		94DDBA091CBA673D005E6B99 /* bfloat16.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB83D1CBA673D005E6B99 /* bfloat16.h */; };
+		94DDBA0B1CBA673D005E6B99 /* cancellation.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB83F1CBA673D005E6B99 /* cancellation.cc */; };
+		94DDBA0C1CBA673D005E6B99 /* cancellation.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8401CBA673D005E6B99 /* cancellation.h */; };
+		94DDBA0E1CBA673D005E6B99 /* control_flow.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8421CBA673D005E6B99 /* control_flow.h */; };
+		94DDBA0F1CBA673D005E6B99 /* device_base.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8441CBA673D005E6B99 /* device_base.cc */; };
+		94DDBA101CBA673D005E6B99 /* device_base.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8451CBA673D005E6B99 /* device_base.h */; };
+		94DDBA111CBA673D005E6B99 /* fake_input.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8461CBA673D005E6B99 /* fake_input.cc */; };
+		94DDBA121CBA673D005E6B99 /* fake_input.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8471CBA673D005E6B99 /* fake_input.h */; };
+		94DDBA131CBA673D005E6B99 /* function.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8481CBA673D005E6B99 /* function.cc */; };
+		94DDBA141CBA673D005E6B99 /* function.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8491CBA673D005E6B99 /* function.h */; };
+		94DDBA181CBA673D005E6B99 /* graph_def_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB84F1CBA673D005E6B99 /* graph_def_util.cc */; };
+		94DDBA191CBA673D005E6B99 /* graph_def_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8501CBA673D005E6B99 /* graph_def_util.h */; };
+		94DDBA1B1CBA673D005E6B99 /* kernel_def_builder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8531CBA673D005E6B99 /* kernel_def_builder.cc */; };
+		94DDBA1C1CBA673D005E6B99 /* kernel_def_builder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8541CBA673D005E6B99 /* kernel_def_builder.h */; };
+		94DDBA1E1CBA673D005E6B99 /* load_library.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8561CBA673D005E6B99 /* load_library.cc */; };
+		94DDBA1F1CBA673D005E6B99 /* log_memory.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8571CBA673D005E6B99 /* log_memory.cc */; };
+		94DDBA201CBA673D005E6B99 /* log_memory.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8581CBA673D005E6B99 /* log_memory.h */; };
+		94DDBA211CBA673D005E6B99 /* lookup_interface.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB85A1CBA673D005E6B99 /* lookup_interface.cc */; };
+		94DDBA221CBA673D005E6B99 /* lookup_interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB85B1CBA673D005E6B99 /* lookup_interface.h */; };
+		94DDBA231CBA673D005E6B99 /* memory_types.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB85C1CBA673D005E6B99 /* memory_types.cc */; };
+		94DDBA241CBA673D005E6B99 /* memory_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB85D1CBA673D005E6B99 /* memory_types.h */; };
+		94DDBA261CBA673D005E6B99 /* node_def_builder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB85F1CBA673D005E6B99 /* node_def_builder.cc */; };
+		94DDBA271CBA673D005E6B99 /* node_def_builder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8601CBA673D005E6B99 /* node_def_builder.h */; };
+		94DDBA291CBA673D005E6B99 /* node_def_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8621CBA673D005E6B99 /* node_def_util.cc */; };
+		94DDBA2A1CBA673D005E6B99 /* node_def_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8631CBA673D005E6B99 /* node_def_util.h */; };
+		94DDBA2C1CBA673D005E6B99 /* numeric_op.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8651CBA673D005E6B99 /* numeric_op.h */; };
+		94DDBA2D1CBA673D005E6B99 /* numeric_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8661CBA673D005E6B99 /* numeric_types.h */; };
+		94DDBA2E1CBA673D005E6B99 /* op.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8671CBA673D005E6B99 /* op.cc */; };
+		94DDBA2F1CBA673D005E6B99 /* op.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8681CBA673D005E6B99 /* op.h */; };
+		94DDBA311CBA673D005E6B99 /* op_def_builder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB86B1CBA673D005E6B99 /* op_def_builder.cc */; };
+		94DDBA321CBA673D005E6B99 /* op_def_builder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB86C1CBA673D005E6B99 /* op_def_builder.h */; };
+		94DDBA341CBA673D005E6B99 /* op_def_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB86E1CBA673D005E6B99 /* op_def_util.cc */; };
+		94DDBA351CBA673D005E6B99 /* op_def_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB86F1CBA673D005E6B99 /* op_def_util.h */; };
+		94DDBA371CBA673D005E6B99 /* op_gen_lib.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8711CBA673D005E6B99 /* op_gen_lib.cc */; };
+		94DDBA381CBA673D005E6B99 /* op_gen_lib.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8721CBA673D005E6B99 /* op_gen_lib.h */; };
+		94DDBA391CBA673D005E6B99 /* op_kernel.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8731CBA673D005E6B99 /* op_kernel.cc */; };
+		94DDBA3A1CBA673D005E6B99 /* op_kernel.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8741CBA673D005E6B99 /* op_kernel.h */; };
+		94DDBA3C1CBA673D005E6B99 /* op_segment.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8761CBA673D005E6B99 /* op_segment.cc */; };
+		94DDBA3D1CBA673D005E6B99 /* op_segment.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8771CBA673D005E6B99 /* op_segment.h */; };
+		94DDBA3F1CBA673D005E6B99 /* partial_tensor_shape.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8791CBA673D005E6B99 /* partial_tensor_shape.cc */; };
+		94DDBA401CBA673D005E6B99 /* partial_tensor_shape.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB87A1CBA673D005E6B99 /* partial_tensor_shape.h */; };
+		94DDBA421CBA673D005E6B99 /* queue_interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB87C1CBA673D005E6B99 /* queue_interface.h */; };
+		94DDBA431CBA673D005E6B99 /* reader_interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB87D1CBA673D005E6B99 /* reader_interface.h */; };
+		94DDBA441CBA673D005E6B99 /* reader_op_kernel.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB87E1CBA673D005E6B99 /* reader_op_kernel.cc */; };
+		94DDBA451CBA673D005E6B99 /* reader_op_kernel.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB87F1CBA673D005E6B99 /* reader_op_kernel.h */; };
+		94DDBA461CBA673D005E6B99 /* register_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8801CBA673D005E6B99 /* register_types.h */; };
+		94DDBA471CBA673D005E6B99 /* rendezvous.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8811CBA673D005E6B99 /* rendezvous.cc */; };
+		94DDBA481CBA673D005E6B99 /* rendezvous.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8821CBA673D005E6B99 /* rendezvous.h */; };
+		94DDBA4A1CBA673D005E6B99 /* resource_mgr.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8841CBA673D005E6B99 /* resource_mgr.cc */; };
+		94DDBA4B1CBA673D005E6B99 /* resource_mgr.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8851CBA673D005E6B99 /* resource_mgr.h */; };
+		94DDBA4D1CBA673D005E6B99 /* selective_registration.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8871CBA673D005E6B99 /* selective_registration.h */; };
+		94DDBA4E1CBA673D005E6B99 /* tensor.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB88A1CBA673D005E6B99 /* tensor.cc */; };
+		94DDBA4F1CBA673D005E6B99 /* tensor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB88B1CBA673D005E6B99 /* tensor.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		94DDBA501CBA673D005E6B99 /* tensor_reference.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB88E1CBA673D005E6B99 /* tensor_reference.cc */; };
+		94DDBA511CBA673D005E6B99 /* tensor_reference.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB88F1CBA673D005E6B99 /* tensor_reference.h */; };
+		94DDBA521CBA673D005E6B99 /* tensor_shape.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8901CBA673D005E6B99 /* tensor_shape.cc */; };
+		94DDBA531CBA673D005E6B99 /* tensor_shape.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8911CBA673D005E6B99 /* tensor_shape.h */; };
+		94DDBA551CBA673D005E6B99 /* tensor_slice.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8941CBA673D005E6B99 /* tensor_slice.cc */; };
+		94DDBA561CBA673D005E6B99 /* tensor_slice.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8951CBA673D005E6B99 /* tensor_slice.h */; };
+		94DDBA5A1CBA673D005E6B99 /* tensor_testutil.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB89A1CBA673D005E6B99 /* tensor_testutil.h */; };
+		94DDBA5B1CBA673D005E6B99 /* tensor_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB89B1CBA673D005E6B99 /* tensor_types.h */; };
+		94DDBA5C1CBA673D005E6B99 /* tensor_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB89C1CBA673D005E6B99 /* tensor_util.cc */; };
+		94DDBA5D1CBA673D005E6B99 /* tensor_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB89D1CBA673D005E6B99 /* tensor_util.h */; };
+		94DDBA5F1CBA673D005E6B99 /* tracking_allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB89F1CBA673D005E6B99 /* tracking_allocator.cc */; };
+		94DDBA601CBA673D005E6B99 /* tracking_allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8A01CBA673D005E6B99 /* tracking_allocator.h */; };
+		94DDBA621CBA673D005E6B99 /* type_index.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8A21CBA673D005E6B99 /* type_index.h */; };
+		94DDBA631CBA673D005E6B99 /* type_traits.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8A31CBA673D005E6B99 /* type_traits.h */; };
+		94DDBA641CBA673D005E6B99 /* types.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8A41CBA673D005E6B99 /* types.cc */; };
+		94DDBA651CBA673D005E6B99 /* types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8A51CBA673D005E6B99 /* types.h */; };
+		94DDBA671CBA673D005E6B99 /* unique_tensor_references.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8A81CBA673D005E6B99 /* unique_tensor_references.cc */; };
+		94DDBA681CBA673D005E6B99 /* unique_tensor_references.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8A91CBA673D005E6B99 /* unique_tensor_references.h */; };
+		94DDBA6A1CBA673D005E6B99 /* versions.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8AC1CBA673D005E6B99 /* versions.cc */; };
+		94DDBA6B1CBA673D005E6B99 /* versions.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8AD1CBA673D005E6B99 /* versions.h */; };
+		94DDBA6C1CBA673D005E6B99 /* algorithm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8B01CBA673D005E6B99 /* algorithm.cc */; };
+		94DDBA6D1CBA673D005E6B99 /* algorithm.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8B11CBA673D005E6B99 /* algorithm.h */; };
+		94DDBA6F1CBA673D005E6B99 /* colors.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8B31CBA673D005E6B99 /* colors.cc */; };
+		94DDBA701CBA673D005E6B99 /* colors.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8B41CBA673D005E6B99 /* colors.h */; };
+		94DDBA711CBA673D005E6B99 /* costmodel.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8B51CBA673D005E6B99 /* costmodel.cc */; };
+		94DDBA721CBA673D005E6B99 /* costmodel.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8B61CBA673D005E6B99 /* costmodel.h */; };
+		94DDBA731CBA673D005E6B99 /* default_device.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8B71CBA673D005E6B99 /* default_device.h */; };
+		94DDBA741CBA673D005E6B99 /* dot.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8B81CBA673D005E6B99 /* dot.cc */; };
+		94DDBA751CBA673D005E6B99 /* dot.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8B91CBA673D005E6B99 /* dot.h */; };
+		94DDBA761CBA673D005E6B99 /* edgeset.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8BA1CBA673D005E6B99 /* edgeset.cc */; };
+		94DDBA771CBA673D005E6B99 /* edgeset.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8BB1CBA673D005E6B99 /* edgeset.h */; };
+		94DDBA791CBA673D005E6B99 /* equal_graph_def.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8BD1CBA673D005E6B99 /* equal_graph_def.cc */; };
+		94DDBA7A1CBA673D005E6B99 /* equal_graph_def.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8BE1CBA673D005E6B99 /* equal_graph_def.h */; };
+		94DDBA7C1CBA673D005E6B99 /* gradients.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8C01CBA673D005E6B99 /* gradients.cc */; };
+		94DDBA7D1CBA673D005E6B99 /* gradients.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8C11CBA673D005E6B99 /* gradients.h */; };
+		94DDBA7E1CBA673D005E6B99 /* graph.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8C21CBA673D005E6B99 /* graph.cc */; };
+		94DDBA7F1CBA673D005E6B99 /* graph.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8C31CBA673D005E6B99 /* graph.h */; };
+		94DDBA801CBA673D005E6B99 /* graph_constructor.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8C41CBA673D005E6B99 /* graph_constructor.cc */; };
+		94DDBA811CBA673D005E6B99 /* graph_constructor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8C51CBA673D005E6B99 /* graph_constructor.h */; };
+		94DDBA831CBA673D005E6B99 /* graph_def_builder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8C71CBA673D005E6B99 /* graph_def_builder.cc */; };
+		94DDBA841CBA673D005E6B99 /* graph_def_builder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8C81CBA673D005E6B99 /* graph_def_builder.h */; };
+		94DDBA861CBA673D005E6B99 /* graph_partition.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8CA1CBA673D005E6B99 /* graph_partition.cc */; };
+		94DDBA871CBA673D005E6B99 /* graph_partition.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8CB1CBA673D005E6B99 /* graph_partition.h */; };
+		94DDBA8A1CBA673D005E6B99 /* node_builder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8CE1CBA673D005E6B99 /* node_builder.cc */; };
+		94DDBA8B1CBA673D005E6B99 /* node_builder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8CF1CBA673D005E6B99 /* node_builder.h */; };
+		94DDBA8D1CBA673D005E6B99 /* optimizer_cse.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8D11CBA673D005E6B99 /* optimizer_cse.cc */; };
+		94DDBA8E1CBA673D005E6B99 /* optimizer_cse.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8D21CBA673D005E6B99 /* optimizer_cse.h */; };
+		94DDBA901CBA673D005E6B99 /* subgraph.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8D41CBA673D005E6B99 /* subgraph.cc */; };
+		94DDBA911CBA673D005E6B99 /* subgraph.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8D51CBA673D005E6B99 /* subgraph.h */; };
+		94DDBA931CBA673D005E6B99 /* tensor_id.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8D71CBA673D005E6B99 /* tensor_id.cc */; };
+		94DDBA941CBA673D005E6B99 /* tensor_id.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8D81CBA673D005E6B99 /* tensor_id.h */; };
+		94DDBA961CBA673D005E6B99 /* testlib.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8DA1CBA673D005E6B99 /* testlib.cc */; };
+		94DDBA971CBA673D005E6B99 /* testlib.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8DB1CBA673D005E6B99 /* testlib.h */; };
+		94DDBA981CBA673D005E6B99 /* types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8DC1CBA673D005E6B99 /* types.h */; };
+		94DDBA991CBA673D005E6B99 /* validate.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8DD1CBA673D005E6B99 /* validate.cc */; };
+		94DDBA9A1CBA673D005E6B99 /* validate.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8DE1CBA673D005E6B99 /* validate.h */; };
+		94DDBA9C1CBA673D005E6B99 /* arena.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8E21CBA673D005E6B99 /* arena.cc */; };
+		94DDBA9D1CBA673D005E6B99 /* arena.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8E31CBA673D005E6B99 /* arena.h */; };
+		94DDBAA01CBA673D005E6B99 /* bits.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8E61CBA673D005E6B99 /* bits.h */; };
+		94DDBAA11CBA673D005E6B99 /* blocking_counter.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8E71CBA673D005E6B99 /* blocking_counter.h */; };
+		94DDBAA31CBA673D005E6B99 /* casts.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8E91CBA673D005E6B99 /* casts.h */; };
+		94DDBAA41CBA673D005E6B99 /* coding.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8EA1CBA673D005E6B99 /* coding.cc */; };
+		94DDBAA51CBA673D005E6B99 /* coding.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8EB1CBA673D005E6B99 /* coding.h */; };
+		94DDBAA71CBA673D005E6B99 /* command_line_flags.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8ED1CBA673D005E6B99 /* command_line_flags.cc */; };
+		94DDBAA81CBA673D005E6B99 /* command_line_flags.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8EE1CBA673D005E6B99 /* command_line_flags.h */; };
+		94DDBAA91CBA673D005E6B99 /* errors.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8F01CBA673D005E6B99 /* errors.h */; };
+		94DDBAAA1CBA673D005E6B99 /* notification.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8F11CBA673D005E6B99 /* notification.h */; };
+		94DDBAAC1CBA673D005E6B99 /* raw_coding.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8F31CBA673D005E6B99 /* raw_coding.h */; };
+		94DDBAAD1CBA673D005E6B99 /* refcount.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8F41CBA673D005E6B99 /* refcount.h */; };
+		94DDBAAF1CBA673D005E6B99 /* status.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8F61CBA673D005E6B99 /* status.cc */; };
+		94DDBAB01CBA673D005E6B99 /* status.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8F71CBA673D005E6B99 /* status.h */; };
+		94DDBAB31CBA673D005E6B99 /* stringpiece.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8FA1CBA673D005E6B99 /* stringpiece.cc */; };
+		94DDBAB41CBA673D005E6B99 /* stringpiece.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8FB1CBA673D005E6B99 /* stringpiece.h */; };
+		94DDBAB61CBA673D005E6B99 /* threadpool.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8FD1CBA673D005E6B99 /* threadpool.cc */; };
+		94DDBAB71CBA673D005E6B99 /* threadpool.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB8FE1CBA673D005E6B99 /* threadpool.h */; };
+		94DDBAB91CBA673D005E6B99 /* array_slice.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9011CBA673D005E6B99 /* array_slice.h */; };
+		94DDBABA1CBA673D005E6B99 /* array_slice_internal.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9021CBA673D005E6B99 /* array_slice_internal.h */; };
+		94DDBABC1CBA673D005E6B99 /* edit_distance.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9041CBA673D005E6B99 /* edit_distance.h */; };
+		94DDBABE1CBA673D005E6B99 /* inlined_vector.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9061CBA673D005E6B99 /* inlined_vector.h */; };
+		94DDBAC01CBA673D005E6B99 /* int_type.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9081CBA673D005E6B99 /* int_type.h */; };
+		94DDBAC21CBA673D005E6B99 /* iterator_range.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB90A1CBA673D005E6B99 /* iterator_range.h */; };
+		94DDBAC41CBA673D005E6B99 /* manual_constructor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB90C1CBA673D005E6B99 /* manual_constructor.h */; };
+		94DDBAC61CBA673D005E6B99 /* map_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB90E1CBA673D005E6B99 /* map_util.h */; };
+		94DDBAC81CBA673D005E6B99 /* stl_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9101CBA673D005E6B99 /* stl_util.h */; };
+		94DDBAC91CBA673D005E6B99 /* top_n.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9111CBA673D005E6B99 /* top_n.h */; };
+		94DDBACB1CBA673D005E6B99 /* crc32c.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9141CBA673D005E6B99 /* crc32c.cc */; };
+		94DDBACC1CBA673D005E6B99 /* crc32c.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9151CBA673D005E6B99 /* crc32c.h */; };
+		94DDBACE1CBA673D005E6B99 /* hash.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9171CBA673D005E6B99 /* hash.cc */; };
+		94DDBACF1CBA673D005E6B99 /* hash.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9181CBA673D005E6B99 /* hash.h */; };
+		94DDBAD11CBA673D005E6B99 /* histogram.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB91B1CBA673D005E6B99 /* histogram.cc */; };
+		94DDBAD21CBA673D005E6B99 /* histogram.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB91C1CBA673D005E6B99 /* histogram.h */; };
+		94DDBAD41CBA673D005E6B99 /* block.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB91F1CBA673D005E6B99 /* block.cc */; };
+		94DDBAD51CBA673D005E6B99 /* block.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9201CBA673D005E6B99 /* block.h */; };
+		94DDBAD61CBA673D005E6B99 /* block_builder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9211CBA673D005E6B99 /* block_builder.cc */; };
+		94DDBAD71CBA673D005E6B99 /* block_builder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9221CBA673D005E6B99 /* block_builder.h */; };
+		94DDBAD81CBA673D005E6B99 /* format.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9231CBA673D005E6B99 /* format.cc */; };
+		94DDBAD91CBA673D005E6B99 /* format.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9241CBA673D005E6B99 /* format.h */; };
+		94DDBADA1CBA673D005E6B99 /* inputbuffer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9251CBA673D005E6B99 /* inputbuffer.cc */; };
+		94DDBADB1CBA673D005E6B99 /* inputbuffer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9261CBA673D005E6B99 /* inputbuffer.h */; };
+		94DDBADD1CBA673D005E6B99 /* iterator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9281CBA673D005E6B99 /* iterator.cc */; };
+		94DDBADE1CBA673D005E6B99 /* iterator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9291CBA673D005E6B99 /* iterator.h */; };
+		94DDBADF1CBA673D005E6B99 /* match.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB92A1CBA673D005E6B99 /* match.cc */; };
+		94DDBAE01CBA673D005E6B99 /* match.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB92B1CBA673D005E6B99 /* match.h */; };
+		94DDBAE21CBA673D005E6B99 /* path.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB92D1CBA673D005E6B99 /* path.cc */; };
+		94DDBAE31CBA673D005E6B99 /* path.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB92E1CBA673D005E6B99 /* path.h */; };
+		94DDBAE51CBA673D005E6B99 /* record_reader.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9301CBA673D005E6B99 /* record_reader.cc */; };
+		94DDBAE61CBA673D005E6B99 /* record_reader.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9311CBA673D005E6B99 /* record_reader.h */; };
+		94DDBAE71CBA673D005E6B99 /* record_writer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9321CBA673D005E6B99 /* record_writer.cc */; };
+		94DDBAE81CBA673D005E6B99 /* record_writer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9331CBA673D005E6B99 /* record_writer.h */; };
+		94DDBAEA1CBA673D005E6B99 /* table.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9351CBA673D005E6B99 /* table.cc */; };
+		94DDBAEB1CBA673D005E6B99 /* table.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9361CBA673D005E6B99 /* table.h */; };
+		94DDBAEC1CBA673D005E6B99 /* table_builder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9371CBA673D005E6B99 /* table_builder.cc */; };
+		94DDBAED1CBA673D005E6B99 /* table_builder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9381CBA673D005E6B99 /* table_builder.h */; };
+		94DDBAEE1CBA673D005E6B99 /* table_options.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB93A1CBA673D005E6B99 /* table_options.h */; };
+		94DDBAF01CBA673D005E6B99 /* two_level_iterator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB93C1CBA673D005E6B99 /* two_level_iterator.cc */; };
+		94DDBAF11CBA673D005E6B99 /* two_level_iterator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB93D1CBA673D005E6B99 /* two_level_iterator.h */; };
+		94DDBAF91CBA673D005E6B99 /* distribution_sampler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9531CBA673D005E6B99 /* distribution_sampler.cc */; };
+		94DDBAFA1CBA673D005E6B99 /* distribution_sampler.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9541CBA673D005E6B99 /* distribution_sampler.h */; };
+		94DDBAFC1CBA673D005E6B99 /* exact_uniform_int.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9561CBA673D005E6B99 /* exact_uniform_int.h */; };
+		94DDBAFD1CBA673D005E6B99 /* philox_random.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9571CBA673D005E6B99 /* philox_random.h */; };
+		94DDBB001CBA673D005E6B99 /* random.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB95A1CBA673D005E6B99 /* random.cc */; };
+		94DDBB011CBA673D005E6B99 /* random.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB95B1CBA673D005E6B99 /* random.h */; };
+		94DDBB021CBA673D005E6B99 /* random_distributions.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB95C1CBA673D005E6B99 /* random_distributions.h */; };
+		94DDBB051CBA673D005E6B99 /* simple_philox.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB95F1CBA673D005E6B99 /* simple_philox.cc */; };
+		94DDBB061CBA673D005E6B99 /* simple_philox.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9601CBA673D005E6B99 /* simple_philox.h */; };
+		94DDBB081CBA673D005E6B99 /* weighted_picker.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9621CBA673D005E6B99 /* weighted_picker.cc */; };
+		94DDBB091CBA673D005E6B99 /* weighted_picker.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9631CBA673D005E6B99 /* weighted_picker.h */; };
+		94DDBB0B1CBA673D005E6B99 /* numbers.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9661CBA673D005E6B99 /* numbers.cc */; };
+		94DDBB0C1CBA673D005E6B99 /* numbers.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9671CBA673D005E6B99 /* numbers.h */; };
+		94DDBB0E1CBA673D005E6B99 /* ordered_code.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9691CBA673D005E6B99 /* ordered_code.cc */; };
+		94DDBB0F1CBA673D005E6B99 /* ordered_code.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB96A1CBA673D005E6B99 /* ordered_code.h */; };
+		94DDBB111CBA673D005E6B99 /* regexp.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB96C1CBA673D005E6B99 /* regexp.h */; };
+		94DDBB121CBA673D005E6B99 /* scanner.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB96D1CBA673D005E6B99 /* scanner.cc */; };
+		94DDBB131CBA673D005E6B99 /* scanner.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB96E1CBA673D005E6B99 /* scanner.h */; };
+		94DDBB151CBA673D005E6B99 /* str_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9701CBA673D005E6B99 /* str_util.cc */; };
+		94DDBB161CBA673D005E6B99 /* str_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9711CBA673D005E6B99 /* str_util.h */; };
+		94DDBB181CBA673D005E6B99 /* strcat.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9731CBA673D005E6B99 /* strcat.cc */; };
+		94DDBB191CBA673D005E6B99 /* strcat.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9741CBA673D005E6B99 /* strcat.h */; };
+		94DDBB1B1CBA673D005E6B99 /* stringprintf.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9761CBA673D005E6B99 /* stringprintf.cc */; };
+		94DDBB1C1CBA673D005E6B99 /* stringprintf.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9771CBA673D005E6B99 /* stringprintf.h */; };
+		94DDBB1E1CBA673D005E6B99 /* cuda.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB97A1CBA673D005E6B99 /* cuda.h */; };
+		94DDBB1F1CBA673D005E6B99 /* dynamic_annotations.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9811CBA673D005E6B99 /* dynamic_annotations.h */; };
+		94DDBB201CBA673D005E6B99 /* integral_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9821CBA673D005E6B99 /* integral_types.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		94DDBB211CBA673D005E6B99 /* logging.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9831CBA673D005E6B99 /* logging.cc */; };
+		94DDBB221CBA673D005E6B99 /* logging.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9841CBA673D005E6B99 /* logging.h */; };
+		94DDBB231CBA673D005E6B99 /* mutex.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9851CBA673D005E6B99 /* mutex.h */; };
+		94DDBB241CBA673D005E6B99 /* protobuf.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9861CBA673D005E6B99 /* protobuf.h */; };
+		94DDBB251CBA673D005E6B99 /* stream_executor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9871CBA673D005E6B99 /* stream_executor.h */; };
+		94DDBB261CBA673D005E6B99 /* test_benchmark.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9881CBA673D005E6B99 /* test_benchmark.cc */; };
+		94DDBB271CBA673D005E6B99 /* thread_annotations.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9891CBA673D005E6B99 /* thread_annotations.h */; };
+		94DDBB281CBA673D005E6B99 /* tracing.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB98A1CBA673D005E6B99 /* tracing.cc */; };
+		94DDBB291CBA673D005E6B99 /* tracing_impl.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB98B1CBA673D005E6B99 /* tracing_impl.h */; };
+		94DDBB2A1CBA673D005E6B99 /* denormal.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB98C1CBA673D005E6B99 /* denormal.cc */; };
+		94DDBB2B1CBA673D005E6B99 /* denormal.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB98D1CBA673D005E6B99 /* denormal.h */; };
+		94DDBB2C1CBA673D005E6B99 /* env.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB98E1CBA673D005E6B99 /* env.cc */; };
+		94DDBB2F1CBA673D005E6B99 /* host_info.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9911CBA673D005E6B99 /* host_info.h */; };
+		94DDBB301CBA673D005E6B99 /* init_main.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9921CBA673D005E6B99 /* init_main.h */; };
+		94DDBB321CBA673D005E6B99 /* jpeg.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9941CBA673D005E6B99 /* jpeg.h */; };
+		94DDBB331CBA673D005E6B99 /* load_library.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9951CBA673D005E6B99 /* load_library.cc */; };
+		94DDBB341CBA673D005E6B99 /* load_library.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9961CBA673D005E6B99 /* load_library.h */; };
+		94DDBB371CBA673D005E6B99 /* macros.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9991CBA673D005E6B99 /* macros.h */; };
+		94DDBB381CBA673D005E6B99 /* mem.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB99A1CBA673D005E6B99 /* mem.h */; };
+		94DDBB391CBA673D005E6B99 /* mutex.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB99B1CBA673D005E6B99 /* mutex.h */; };
+		94DDBB3B1CBA673D005E6B99 /* png.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB99D1CBA673D005E6B99 /* png.h */; };
+		94DDBB3D1CBA673D005E6B99 /* env.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9A01CBA673D005E6B99 /* env.cc */; };
+		94DDBB3E1CBA673D005E6B99 /* port.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9A11CBA673D005E6B99 /* port.cc */; };
+		94DDBB401CBA673D005E6B99 /* protobuf.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9A31CBA673D005E6B99 /* protobuf.h */; };
+		94DDBB411CBA673D005E6B99 /* protobuf_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9A41CBA673D005E6B99 /* protobuf_util.cc */; };
+		94DDBB421CBA673D005E6B99 /* regexp.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9A51CBA673D005E6B99 /* regexp.h */; };
+		94DDBB431CBA673D005E6B99 /* snappy.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9A61CBA673D005E6B99 /* snappy.h */; };
+		94DDBB441CBA673D005E6B99 /* stream_executor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9A71CBA673D005E6B99 /* stream_executor.h */; };
+		94DDBB451CBA673D005E6B99 /* tensor_coding.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9A81CBA673D005E6B99 /* tensor_coding.cc */; };
+		94DDBB461CBA673D005E6B99 /* tensor_coding.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9A91CBA673D005E6B99 /* tensor_coding.h */; };
+		94DDBB4B1CBA673D005E6B99 /* thread_annotations.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9AE1CBA673D005E6B99 /* thread_annotations.h */; };
+		94DDBB4C1CBA673D005E6B99 /* tracing.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9AF1CBA673D005E6B99 /* tracing.cc */; };
+		94DDBB4D1CBA673D005E6B99 /* tracing.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9B01CBA673D005E6B99 /* tracing.h */; };
+		94DDBB501CBA673D005E6B99 /* session.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9B41CBA673D005E6B99 /* session.h */; };
+		94DDBB511CBA673D005E6B99 /* session_options.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9B51CBA673D005E6B99 /* session_options.h */; };
+		94DDBB521CBA673D005E6B99 /* tensor_c_api.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9B61CBA673D005E6B99 /* tensor_c_api.h */; };
+		94DDBB531CBA673D005E6B99 /* version.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9B71CBA673D005E6B99 /* version.h */; };
+		94DDBB541CBA673D005E6B99 /* bcast.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9B91CBA673D005E6B99 /* bcast.cc */; };
+		94DDBB551CBA673D005E6B99 /* bcast.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9BA1CBA673D005E6B99 /* bcast.h */; };
+		94DDBB571CBA673D005E6B99 /* checkpoint_reader.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9BC1CBA673D005E6B99 /* checkpoint_reader.cc */; };
+		94DDBB581CBA673D005E6B99 /* checkpoint_reader.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9BD1CBA673D005E6B99 /* checkpoint_reader.h */; };
+		94DDBB591CBA673D005E6B99 /* command_line_flags.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9BE1CBA673D005E6B99 /* command_line_flags.cc */; };
+		94DDBB5A1CBA673D005E6B99 /* command_line_flags.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9BF1CBA673D005E6B99 /* command_line_flags.h */; };
+		94DDBB5C1CBA673D005E6B99 /* ctc_beam_entry.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9C31CBA673D005E6B99 /* ctc_beam_entry.h */; };
+		94DDBB5D1CBA673D005E6B99 /* ctc_beam_scorer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9C41CBA673D005E6B99 /* ctc_beam_scorer.h */; };
+		94DDBB5E1CBA673D005E6B99 /* ctc_beam_search.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9C51CBA673D005E6B99 /* ctc_beam_search.h */; };
+		94DDBB601CBA673D005E6B99 /* ctc_decoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9C71CBA673D005E6B99 /* ctc_decoder.h */; };
+		94DDBB611CBA673D005E6B99 /* ctc_loss_calculator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9C81CBA673D005E6B99 /* ctc_loss_calculator.cc */; };
+		94DDBB621CBA673D005E6B99 /* ctc_loss_calculator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9C91CBA673D005E6B99 /* ctc_loss_calculator.h */; };
+		94DDBB631CBA673D005E6B99 /* ctc_loss_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9CA1CBA673D005E6B99 /* ctc_loss_util.h */; };
+		94DDBB641CBA673D005E6B99 /* cuda_kernel_helper.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9CB1CBA673D005E6B99 /* cuda_kernel_helper.h */; };
+		94DDBB651CBA673D005E6B99 /* device_name_utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9CC1CBA673D005E6B99 /* device_name_utils.cc */; };
+		94DDBB661CBA673D005E6B99 /* device_name_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9CD1CBA673D005E6B99 /* device_name_utils.h */; };
+		94DDBB681CBA673D005E6B99 /* events_writer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9D01CBA673D005E6B99 /* events_writer.cc */; };
+		94DDBB691CBA673D005E6B99 /* events_writer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9D11CBA673D005E6B99 /* events_writer.h */; };
+		94DDBB6B1CBA673D005E6B99 /* guarded_philox_random.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9D31CBA673D005E6B99 /* guarded_philox_random.cc */; };
+		94DDBB6C1CBA673D005E6B99 /* guarded_philox_random.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9D41CBA673D005E6B99 /* guarded_philox_random.h */; };
+		94DDBB6D1CBA673D005E6B99 /* mirror_pad_mode.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9D51CBA673D005E6B99 /* mirror_pad_mode.cc */; };
+		94DDBB6E1CBA673D005E6B99 /* mirror_pad_mode.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9D61CBA673D005E6B99 /* mirror_pad_mode.h */; };
+		94DDBB6F1CBA673D005E6B99 /* padding.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9D71CBA673D005E6B99 /* padding.cc */; };
+		94DDBB701CBA673D005E6B99 /* padding.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9D81CBA673D005E6B99 /* padding.h */; };
+		94DDBB711CBA673D005E6B99 /* port.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9D91CBA673D005E6B99 /* port.cc */; };
+		94DDBB721CBA673D005E6B99 /* port.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9DA1CBA673D005E6B99 /* port.h */; };
+		94DDBB731CBA673D005E6B99 /* reporter.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9DB1CBA673D005E6B99 /* reporter.cc */; };
+		94DDBB741CBA673D005E6B99 /* reporter.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9DC1CBA673D005E6B99 /* reporter.h */; };
+		94DDBB761CBA673D005E6B99 /* saved_tensor_slice_util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9DF1CBA673D005E6B99 /* saved_tensor_slice_util.cc */; };
+		94DDBB771CBA673D005E6B99 /* saved_tensor_slice_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9E01CBA673D005E6B99 /* saved_tensor_slice_util.h */; };
+		94DDBB791CBA673D005E6B99 /* dim_comparator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9E31CBA673D005E6B99 /* dim_comparator.h */; };
+		94DDBB7A1CBA673D005E6B99 /* group_iterator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9E41CBA673D005E6B99 /* group_iterator.cc */; };
+		94DDBB7B1CBA673D005E6B99 /* group_iterator.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9E51CBA673D005E6B99 /* group_iterator.h */; };
+		94DDBB7D1CBA673D005E6B99 /* sparse_tensor.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9E71CBA673D005E6B99 /* sparse_tensor.h */; };
+		94DDBB7F1CBA673D005E6B99 /* stat_summarizer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9E91CBA673D005E6B99 /* stat_summarizer.cc */; };
+		94DDBB801CBA673D005E6B99 /* stat_summarizer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9EA1CBA673D005E6B99 /* stat_summarizer.h */; };
+		94DDBB811CBA673D005E6B99 /* tensor_format.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9EB1CBA673D005E6B99 /* tensor_format.cc */; };
+		94DDBB821CBA673D005E6B99 /* tensor_format.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9EC1CBA673D005E6B99 /* tensor_format.h */; };
+		94DDBB831CBA673D005E6B99 /* tensor_slice_reader.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9ED1CBA673D005E6B99 /* tensor_slice_reader.cc */; };
+		94DDBB841CBA673D005E6B99 /* tensor_slice_reader.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9EE1CBA673D005E6B99 /* tensor_slice_reader.h */; };
+		94DDBB851CBA673D005E6B99 /* tensor_slice_reader_cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9EF1CBA673D005E6B99 /* tensor_slice_reader_cache.cc */; };
+		94DDBB861CBA673D005E6B99 /* tensor_slice_reader_cache.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9F01CBA673D005E6B99 /* tensor_slice_reader_cache.h */; };
+		94DDBB881CBA673E005E6B99 /* tensor_slice_set.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9F21CBA673D005E6B99 /* tensor_slice_set.cc */; };
+		94DDBB891CBA673E005E6B99 /* tensor_slice_set.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9F31CBA673D005E6B99 /* tensor_slice_set.h */; };
+		94DDBB8B1CBA673E005E6B99 /* tensor_slice_util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9F51CBA673D005E6B99 /* tensor_slice_util.h */; };
+		94DDBB8D1CBA673E005E6B99 /* tensor_slice_writer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9F71CBA673D005E6B99 /* tensor_slice_writer.cc */; };
+		94DDBB8E1CBA673E005E6B99 /* tensor_slice_writer.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9F81CBA673D005E6B99 /* tensor_slice_writer.h */; };
+		94DDBB901CBA673E005E6B99 /* use_cudnn.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9FB1CBA673D005E6B99 /* use_cudnn.cc */; };
+		94DDBB911CBA673E005E6B99 /* use_cudnn.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9FC1CBA673D005E6B99 /* use_cudnn.h */; };
+		94DDBB921CBA673E005E6B99 /* util.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9FD1CBA673D005E6B99 /* util.cc */; };
+		94DDBB931CBA673E005E6B99 /* util.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDB9FE1CBA673D005E6B99 /* util.h */; };
+		94DDBB941CBA673E005E6B99 /* work_sharder.cc in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9FF1CBA673D005E6B99 /* work_sharder.cc */; };
+		94DDBB951CBA673E005E6B99 /* work_sharder.h in Headers */ = {isa = PBXBuildFile; fileRef = 94DDBA001CBA673D005E6B99 /* work_sharder.h */; };
+		94DDBD291CC3854F005E6B99 /* libprotobuf_lite.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 94DDBD281CC3854F005E6B99 /* libprotobuf_lite.a */; };
+		94DDBD2E1CC392A7005E6B99 /* test_log.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9FA1CBA673D005E6B99 /* test_log.proto */; };
+		94DDBD301CC392ED005E6B99 /* graph.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB84E1CBA673D005E6B99 /* graph.proto */; };
+		94DDBD311CC3CAD3005E6B99 /* attr_value.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8381CBA673D005E6B99 /* attr_value.proto */; };
+		94DDBD351CC3CDDA005E6B99 /* example.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD331CC3CDCD005E6B99 /* example.proto */; };
+		94DDBD361CC3CDDA005E6B99 /* feature.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD341CC3CDCD005E6B99 /* feature.proto */; };
+		94DDBD371CC3CE31005E6B99 /* allocation_description.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8341CBA673D005E6B99 /* allocation_description.proto */; };
+		94DDBD381CC3CE88005E6B99 /* device_attributes.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8431CBA673D005E6B99 /* device_attributes.proto */; };
+		94DDBD391CC3CE88005E6B99 /* function.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB84A1CBA673D005E6B99 /* function.proto */; };
+		94DDBD3A1CC3CE98005E6B99 /* kernel_def.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8521CBA673D005E6B99 /* kernel_def.proto */; };
+		94DDBD3B1CC3CE98005E6B99 /* log_memory.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8591CBA673D005E6B99 /* log_memory.proto */; };
+		94DDBD3C1CC3CE98005E6B99 /* op_def.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB86A1CBA673D005E6B99 /* op_def.proto */; };
+		94DDBD3D1CC3CE98005E6B99 /* step_stats.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8881CBA673D005E6B99 /* step_stats.proto */; };
+		94DDBD3E1CC3CE98005E6B99 /* summary.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8891CBA673D005E6B99 /* summary.proto */; };
+		94DDBD3F1CC3CE98005E6B99 /* tensor_description.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB88D1CBA673D005E6B99 /* tensor_description.proto */; };
+		94DDBD401CC3CE98005E6B99 /* tensor_shape.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8921CBA673D005E6B99 /* tensor_shape.proto */; };
+		94DDBD411CC3CE98005E6B99 /* tensor_slice.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8961CBA673D005E6B99 /* tensor_slice.proto */; };
+		94DDBD421CC3CE98005E6B99 /* tensor.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB88C1CBA673D005E6B99 /* tensor.proto */; };
+		94DDBD431CC3CE98005E6B99 /* types.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8A61CBA673D005E6B99 /* types.proto */; };
+		94DDBD441CC3CE98005E6B99 /* variable.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8AB1CBA673D005E6B99 /* variable.proto */; };
+		94DDBD451CC3CE98005E6B99 /* versions.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB8AE1CBA673D005E6B99 /* versions.proto */; };
+		94DDBD511CC3D0B5005E6B99 /* reader_base.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD471CC3CF38005E6B99 /* reader_base.proto */; };
+		94DDBD521CC3D0D3005E6B99 /* error_codes.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD491CC3CF67005E6B99 /* error_codes.proto */; };
+		94DDBD531CC3D0ED005E6B99 /* config.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD4C1CC3D01F005E6B99 /* config.proto */; };
+		94DDBD541CC3D0ED005E6B99 /* meta_graph.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD4D1CC3D01F005E6B99 /* meta_graph.proto */; };
+		94DDBD551CC3D0ED005E6B99 /* queue_runner.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD4E1CC3D01F005E6B99 /* queue_runner.proto */; };
+		94DDBD561CC3D0ED005E6B99 /* saver.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD4F1CC3D01F005E6B99 /* saver.proto */; };
+		94DDBD571CC3D0ED005E6B99 /* tensorflow_server.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDBD501CC3D01F005E6B99 /* tensorflow_server.proto */; };
+		94DDBD581CC3D0FD005E6B99 /* event.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9CF1CBA673D005E6B99 /* event.proto */; };
+		94DDBD591CC3D0FD005E6B99 /* saved_tensor_slice.proto in Sources */ = {isa = PBXBuildFile; fileRef = 94DDB9DE1CBA673D005E6B99 /* saved_tensor_slice.proto */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		94DDBD2D1CC3921B005E6B99 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			filePatterns = "*.proto";
+			fileType = pattern.proxy;
+			isEditable = 1;
+			outputFiles = (
+				"$(INPUT_FILE_DIR)/$(INPUT_FILE_BASE).pb.cc",
+				"$(INPUT_FILE_DIR)/$(INPUT_FILE_BASE).pb.h",
+			);
+			script = "cd ${WORKSPACE}\nprotoc -I=${WORKSPACE} -I=${WORKSPACE}google/protobuf/src/ --cpp_out=. $INPUT_FILE_PATH";
+		};
+/* End PBXBuildRule section */
+
+/* Begin PBXFileReference section */
+		94DDB7401CB9A9F8005E6B99 /* libtensorflow_lite.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libtensorflow_lite.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		94DDB7491CB9ABBA005E6B99 /* env.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = env.h; sourceTree = "<group>"; };
+		94DDB7511CB9ACFC005E6B99 /* logging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = logging.h; sourceTree = "<group>"; };
+		94DDB7521CB9ACFC005E6B99 /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
+		94DDB7531CB9ACFC005E6B99 /* types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = types.h; sourceTree = "<group>"; };
+		94DDB75E1CBA5B69005E6B99 /* eigen_activations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_activations.h; path = ../../../core/kernels/eigen_activations.h; sourceTree = "<group>"; };
+		94DDB75F1CBA5B69005E6B99 /* eigen_attention.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_attention.h; path = ../../../core/kernels/eigen_attention.h; sourceTree = "<group>"; };
+		94DDB7601CBA5B69005E6B99 /* eigen_backward_cuboid_convolutions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_backward_cuboid_convolutions.h; path = ../../../core/kernels/eigen_backward_cuboid_convolutions.h; sourceTree = "<group>"; };
+		94DDB7611CBA5B69005E6B99 /* eigen_backward_spatial_convolutions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_backward_spatial_convolutions.h; path = ../../../core/kernels/eigen_backward_spatial_convolutions.h; sourceTree = "<group>"; };
+		94DDB7621CBA5B69005E6B99 /* eigen_patch_3d.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_patch_3d.h; path = ../../../core/kernels/eigen_patch_3d.h; sourceTree = "<group>"; };
+		94DDB7631CBA5B69005E6B99 /* eigen_pooling.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_pooling.h; path = ../../../core/kernels/eigen_pooling.h; sourceTree = "<group>"; };
+		94DDB7641CBA5B69005E6B99 /* eigen_softmax.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_softmax.h; path = ../../../core/kernels/eigen_softmax.h; sourceTree = "<group>"; };
+		94DDB7651CBA5B69005E6B99 /* eigen_spatial_convolutions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eigen_spatial_convolutions.h; path = ../../../core/kernels/eigen_spatial_convolutions.h; sourceTree = "<group>"; };
+		94DDB7661CBA5B69005E6B99 /* ops_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ops_util.h; path = ../../../core/kernels/ops_util.h; sourceTree = "<group>"; };
+		94DDB7671CBA5B69005E6B99 /* pooling_ops_common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pooling_ops_common.h; path = ../../../core/kernels/pooling_ops_common.h; sourceTree = "<group>"; };
+		94DDB7681CBA5B69005E6B99 /* ops_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ops_util.cc; path = ../../../core/kernels/ops_util.cc; sourceTree = "<group>"; };
+		94DDB7741CBA5D21005E6B99 /* avgpooling_op.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = avgpooling_op.h; path = ../../../core/kernels/avgpooling_op.h; sourceTree = "<group>"; };
+		94DDB7751CBA5D21005E6B99 /* bounds_check.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bounds_check.h; path = ../../../core/kernels/bounds_check.h; sourceTree = "<group>"; };
+		94DDB7761CBA5D21005E6B99 /* maxpooling_op.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = maxpooling_op.h; path = ../../../core/kernels/maxpooling_op.h; sourceTree = "<group>"; };
+		94DDB7891CBA65FD005E6B99 /* tensor_c_api.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_c_api.cc; sourceTree = "<group>"; };
+		94DDB78E1CBA6647005E6B99 /* allocator_retry.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = allocator_retry.cc; sourceTree = "<group>"; };
+		94DDB78F1CBA6647005E6B99 /* allocator_retry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = allocator_retry.h; sourceTree = "<group>"; };
+		94DDB7901CBA6647005E6B99 /* bfc_allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bfc_allocator.cc; sourceTree = "<group>"; };
+		94DDB7911CBA6647005E6B99 /* bfc_allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bfc_allocator.h; sourceTree = "<group>"; };
+		94DDB7921CBA6647005E6B99 /* constant_folding.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = constant_folding.cc; sourceTree = "<group>"; };
+		94DDB7931CBA6647005E6B99 /* constant_folding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = constant_folding.h; sourceTree = "<group>"; };
+		94DDB7951CBA6647005E6B99 /* copy_tensor.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = copy_tensor.cc; sourceTree = "<group>"; };
+		94DDB7961CBA6647005E6B99 /* copy_tensor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = copy_tensor.h; sourceTree = "<group>"; };
+		94DDB7971CBA6647005E6B99 /* device.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = device.cc; sourceTree = "<group>"; };
+		94DDB7981CBA6647005E6B99 /* device.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device.h; sourceTree = "<group>"; };
+		94DDB7991CBA6647005E6B99 /* device_factory.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = device_factory.cc; sourceTree = "<group>"; };
+		94DDB79A1CBA6647005E6B99 /* device_factory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device_factory.h; sourceTree = "<group>"; };
+		94DDB79B1CBA6647005E6B99 /* device_mgr.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = device_mgr.cc; sourceTree = "<group>"; };
+		94DDB79C1CBA6647005E6B99 /* device_mgr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device_mgr.h; sourceTree = "<group>"; };
+		94DDB79D1CBA6647005E6B99 /* device_set.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = device_set.cc; sourceTree = "<group>"; };
+		94DDB79E1CBA6647005E6B99 /* device_set.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device_set.h; sourceTree = "<group>"; };
+		94DDB7A01CBA6647005E6B99 /* direct_session.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = direct_session.cc; sourceTree = "<group>"; };
+		94DDB7A11CBA6647005E6B99 /* direct_session.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = direct_session.h; sourceTree = "<group>"; };
+		94DDB7A31CBA6647005E6B99 /* dma_helper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dma_helper.h; sourceTree = "<group>"; };
+		94DDB7A41CBA6647005E6B99 /* eigen_thread_pool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = eigen_thread_pool.h; sourceTree = "<group>"; };
+		94DDB7A51CBA6647005E6B99 /* executor.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = executor.cc; sourceTree = "<group>"; };
+		94DDB7A61CBA6647005E6B99 /* executor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = executor.h; sourceTree = "<group>"; };
+		94DDB7A71CBA6647005E6B99 /* function.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = function.cc; sourceTree = "<group>"; };
+		94DDB7A81CBA6647005E6B99 /* function.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = function.h; sourceTree = "<group>"; };
+		94DDB7AC1CBA6647005E6B99 /* gpu_bfc_allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_bfc_allocator.cc; sourceTree = "<group>"; };
+		94DDB7AD1CBA6647005E6B99 /* gpu_bfc_allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_bfc_allocator.h; sourceTree = "<group>"; };
+		94DDB7AF1CBA6648005E6B99 /* gpu_debug_allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_debug_allocator.cc; sourceTree = "<group>"; };
+		94DDB7B01CBA6648005E6B99 /* gpu_debug_allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_debug_allocator.h; sourceTree = "<group>"; };
+		94DDB7B21CBA6648005E6B99 /* gpu_device.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_device.cc; sourceTree = "<group>"; };
+		94DDB7B31CBA6648005E6B99 /* gpu_device.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_device.h; sourceTree = "<group>"; };
+		94DDB7B41CBA6648005E6B99 /* gpu_device_factory.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_device_factory.cc; sourceTree = "<group>"; };
+		94DDB7B51CBA6648005E6B99 /* gpu_event_mgr.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_event_mgr.cc; sourceTree = "<group>"; };
+		94DDB7B61CBA6648005E6B99 /* gpu_event_mgr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_event_mgr.h; sourceTree = "<group>"; };
+		94DDB7B81CBA6648005E6B99 /* gpu_init.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_init.cc; sourceTree = "<group>"; };
+		94DDB7B91CBA6648005E6B99 /* gpu_init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_init.h; sourceTree = "<group>"; };
+		94DDB7BA1CBA6648005E6B99 /* gpu_stream_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_stream_util.cc; sourceTree = "<group>"; };
+		94DDB7BB1CBA6648005E6B99 /* gpu_stream_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_stream_util.h; sourceTree = "<group>"; };
+		94DDB7BD1CBA6648005E6B99 /* gpu_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_util.cc; sourceTree = "<group>"; };
+		94DDB7BE1CBA6648005E6B99 /* gpu_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_util.h; sourceTree = "<group>"; };
+		94DDB7BF1CBA6648005E6B99 /* gpu_util_platform_specific.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpu_util_platform_specific.cc; sourceTree = "<group>"; };
+		94DDB7C01CBA6648005E6B99 /* pool_allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = pool_allocator.cc; sourceTree = "<group>"; };
+		94DDB7C11CBA6648005E6B99 /* pool_allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pool_allocator.h; sourceTree = "<group>"; };
+		94DDB7C31CBA6648005E6B99 /* process_state.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = process_state.cc; sourceTree = "<group>"; };
+		94DDB7C41CBA6648005E6B99 /* process_state.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = process_state.h; sourceTree = "<group>"; };
+		94DDB7C51CBA6648005E6B99 /* gpu_device_context.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpu_device_context.h; sourceTree = "<group>"; };
+		94DDB7C61CBA6648005E6B99 /* graph_optimizer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = graph_optimizer.cc; sourceTree = "<group>"; };
+		94DDB7C71CBA6648005E6B99 /* graph_optimizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graph_optimizer.h; sourceTree = "<group>"; };
+		94DDB7CA1CBA6648005E6B99 /* local_device.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = local_device.cc; sourceTree = "<group>"; };
+		94DDB7CB1CBA6648005E6B99 /* local_device.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = local_device.h; sourceTree = "<group>"; };
+		94DDB7CC1CBA6648005E6B99 /* memory_types.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = memory_types.cc; sourceTree = "<group>"; };
+		94DDB7CD1CBA6648005E6B99 /* memory_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = memory_types.h; sourceTree = "<group>"; };
+		94DDB7CF1CBA6648005E6B99 /* pending_counts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pending_counts.h; sourceTree = "<group>"; };
+		94DDB7D11CBA6648005E6B99 /* rendezvous_mgr.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = rendezvous_mgr.cc; sourceTree = "<group>"; };
+		94DDB7D21CBA6648005E6B99 /* rendezvous_mgr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = rendezvous_mgr.h; sourceTree = "<group>"; };
+		94DDB7D31CBA6648005E6B99 /* session.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = session.cc; sourceTree = "<group>"; };
+		94DDB7D41CBA6648005E6B99 /* session_factory.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = session_factory.cc; sourceTree = "<group>"; };
+		94DDB7D51CBA6648005E6B99 /* session_factory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = session_factory.h; sourceTree = "<group>"; };
+		94DDB7D61CBA6648005E6B99 /* session_options.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = session_options.cc; sourceTree = "<group>"; };
+		94DDB7D81CBA6648005E6B99 /* simple_placer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = simple_placer.cc; sourceTree = "<group>"; };
+		94DDB7D91CBA6648005E6B99 /* simple_placer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = simple_placer.h; sourceTree = "<group>"; };
+		94DDB7DB1CBA6648005E6B99 /* step_stats_collector.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = step_stats_collector.cc; sourceTree = "<group>"; };
+		94DDB7DC1CBA6648005E6B99 /* step_stats_collector.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = step_stats_collector.h; sourceTree = "<group>"; };
+		94DDB7DD1CBA6648005E6B99 /* threadpool_device.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = threadpool_device.cc; sourceTree = "<group>"; };
+		94DDB7DE1CBA6648005E6B99 /* threadpool_device.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = threadpool_device.h; sourceTree = "<group>"; };
+		94DDB7DF1CBA6648005E6B99 /* threadpool_device_factory.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = threadpool_device_factory.cc; sourceTree = "<group>"; };
+		94DDB7E01CBA6648005E6B99 /* visitable_allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = visitable_allocator.h; sourceTree = "<group>"; };
+		94DDB8341CBA673D005E6B99 /* allocation_description.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = allocation_description.proto; path = ../../../core/framework/allocation_description.proto; sourceTree = "<group>"; };
+		94DDB8351CBA673D005E6B99 /* allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = allocator.cc; sourceTree = "<group>"; };
+		94DDB8361CBA673D005E6B99 /* allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = allocator.h; sourceTree = "<group>"; };
+		94DDB8381CBA673D005E6B99 /* attr_value.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = attr_value.proto; path = ../../../core/framework/attr_value.proto; sourceTree = "<group>"; };
+		94DDB8391CBA673D005E6B99 /* attr_value_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = attr_value_util.cc; sourceTree = "<group>"; };
+		94DDB83A1CBA673D005E6B99 /* attr_value_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = attr_value_util.h; sourceTree = "<group>"; };
+		94DDB83C1CBA673D005E6B99 /* bfloat16.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bfloat16.cc; sourceTree = "<group>"; };
+		94DDB83D1CBA673D005E6B99 /* bfloat16.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bfloat16.h; sourceTree = "<group>"; };
+		94DDB83F1CBA673D005E6B99 /* cancellation.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = cancellation.cc; sourceTree = "<group>"; };
+		94DDB8401CBA673D005E6B99 /* cancellation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cancellation.h; sourceTree = "<group>"; };
+		94DDB8421CBA673D005E6B99 /* control_flow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = control_flow.h; sourceTree = "<group>"; };
+		94DDB8431CBA673D005E6B99 /* device_attributes.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = device_attributes.proto; path = ../../../core/framework/device_attributes.proto; sourceTree = "<group>"; };
+		94DDB8441CBA673D005E6B99 /* device_base.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = device_base.cc; sourceTree = "<group>"; };
+		94DDB8451CBA673D005E6B99 /* device_base.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device_base.h; sourceTree = "<group>"; };
+		94DDB8461CBA673D005E6B99 /* fake_input.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fake_input.cc; sourceTree = "<group>"; };
+		94DDB8471CBA673D005E6B99 /* fake_input.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fake_input.h; sourceTree = "<group>"; };
+		94DDB8481CBA673D005E6B99 /* function.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = function.cc; sourceTree = "<group>"; };
+		94DDB8491CBA673D005E6B99 /* function.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = function.h; sourceTree = "<group>"; };
+		94DDB84A1CBA673D005E6B99 /* function.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = function.proto; path = ../../../core/framework/function.proto; sourceTree = "<group>"; };
+		94DDB84E1CBA673D005E6B99 /* graph.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = graph.proto; path = ../../../core/framework/graph.proto; sourceTree = "<group>"; };
+		94DDB84F1CBA673D005E6B99 /* graph_def_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = graph_def_util.cc; sourceTree = "<group>"; };
+		94DDB8501CBA673D005E6B99 /* graph_def_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graph_def_util.h; sourceTree = "<group>"; };
+		94DDB8521CBA673D005E6B99 /* kernel_def.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = kernel_def.proto; path = ../../../core/framework/kernel_def.proto; sourceTree = "<group>"; };
+		94DDB8531CBA673D005E6B99 /* kernel_def_builder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kernel_def_builder.cc; sourceTree = "<group>"; };
+		94DDB8541CBA673D005E6B99 /* kernel_def_builder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kernel_def_builder.h; sourceTree = "<group>"; };
+		94DDB8561CBA673D005E6B99 /* load_library.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = load_library.cc; sourceTree = "<group>"; };
+		94DDB8571CBA673D005E6B99 /* log_memory.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = log_memory.cc; sourceTree = "<group>"; };
+		94DDB8581CBA673D005E6B99 /* log_memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = log_memory.h; sourceTree = "<group>"; };
+		94DDB8591CBA673D005E6B99 /* log_memory.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = log_memory.proto; path = ../../../core/framework/log_memory.proto; sourceTree = "<group>"; };
+		94DDB85A1CBA673D005E6B99 /* lookup_interface.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = lookup_interface.cc; sourceTree = "<group>"; };
+		94DDB85B1CBA673D005E6B99 /* lookup_interface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lookup_interface.h; sourceTree = "<group>"; };
+		94DDB85C1CBA673D005E6B99 /* memory_types.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = memory_types.cc; sourceTree = "<group>"; };
+		94DDB85D1CBA673D005E6B99 /* memory_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = memory_types.h; sourceTree = "<group>"; };
+		94DDB85F1CBA673D005E6B99 /* node_def_builder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = node_def_builder.cc; sourceTree = "<group>"; };
+		94DDB8601CBA673D005E6B99 /* node_def_builder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = node_def_builder.h; sourceTree = "<group>"; };
+		94DDB8621CBA673D005E6B99 /* node_def_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = node_def_util.cc; sourceTree = "<group>"; };
+		94DDB8631CBA673D005E6B99 /* node_def_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = node_def_util.h; sourceTree = "<group>"; };
+		94DDB8651CBA673D005E6B99 /* numeric_op.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = numeric_op.h; sourceTree = "<group>"; };
+		94DDB8661CBA673D005E6B99 /* numeric_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = numeric_types.h; sourceTree = "<group>"; };
+		94DDB8671CBA673D005E6B99 /* op.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = op.cc; sourceTree = "<group>"; };
+		94DDB8681CBA673D005E6B99 /* op.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = op.h; sourceTree = "<group>"; };
+		94DDB86A1CBA673D005E6B99 /* op_def.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = op_def.proto; path = ../../../core/framework/op_def.proto; sourceTree = "<group>"; };
+		94DDB86B1CBA673D005E6B99 /* op_def_builder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = op_def_builder.cc; sourceTree = "<group>"; };
+		94DDB86C1CBA673D005E6B99 /* op_def_builder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = op_def_builder.h; sourceTree = "<group>"; };
+		94DDB86E1CBA673D005E6B99 /* op_def_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = op_def_util.cc; sourceTree = "<group>"; };
+		94DDB86F1CBA673D005E6B99 /* op_def_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = op_def_util.h; sourceTree = "<group>"; };
+		94DDB8711CBA673D005E6B99 /* op_gen_lib.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = op_gen_lib.cc; sourceTree = "<group>"; };
+		94DDB8721CBA673D005E6B99 /* op_gen_lib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = op_gen_lib.h; sourceTree = "<group>"; };
+		94DDB8731CBA673D005E6B99 /* op_kernel.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = op_kernel.cc; sourceTree = "<group>"; };
+		94DDB8741CBA673D005E6B99 /* op_kernel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = op_kernel.h; sourceTree = "<group>"; };
+		94DDB8761CBA673D005E6B99 /* op_segment.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = op_segment.cc; sourceTree = "<group>"; };
+		94DDB8771CBA673D005E6B99 /* op_segment.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = op_segment.h; sourceTree = "<group>"; };
+		94DDB8791CBA673D005E6B99 /* partial_tensor_shape.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = partial_tensor_shape.cc; sourceTree = "<group>"; };
+		94DDB87A1CBA673D005E6B99 /* partial_tensor_shape.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = partial_tensor_shape.h; sourceTree = "<group>"; };
+		94DDB87C1CBA673D005E6B99 /* queue_interface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = queue_interface.h; sourceTree = "<group>"; };
+		94DDB87D1CBA673D005E6B99 /* reader_interface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reader_interface.h; sourceTree = "<group>"; };
+		94DDB87E1CBA673D005E6B99 /* reader_op_kernel.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = reader_op_kernel.cc; sourceTree = "<group>"; };
+		94DDB87F1CBA673D005E6B99 /* reader_op_kernel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reader_op_kernel.h; sourceTree = "<group>"; };
+		94DDB8801CBA673D005E6B99 /* register_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = register_types.h; sourceTree = "<group>"; };
+		94DDB8811CBA673D005E6B99 /* rendezvous.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = rendezvous.cc; sourceTree = "<group>"; };
+		94DDB8821CBA673D005E6B99 /* rendezvous.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = rendezvous.h; sourceTree = "<group>"; };
+		94DDB8841CBA673D005E6B99 /* resource_mgr.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = resource_mgr.cc; sourceTree = "<group>"; };
+		94DDB8851CBA673D005E6B99 /* resource_mgr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = resource_mgr.h; sourceTree = "<group>"; };
+		94DDB8871CBA673D005E6B99 /* selective_registration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = selective_registration.h; sourceTree = "<group>"; };
+		94DDB8881CBA673D005E6B99 /* step_stats.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = step_stats.proto; path = ../../../core/framework/step_stats.proto; sourceTree = "<group>"; };
+		94DDB8891CBA673D005E6B99 /* summary.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = summary.proto; path = ../../../core/framework/summary.proto; sourceTree = "<group>"; };
+		94DDB88A1CBA673D005E6B99 /* tensor.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor.cc; sourceTree = "<group>"; };
+		94DDB88B1CBA673D005E6B99 /* tensor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor.h; sourceTree = "<group>"; };
+		94DDB88C1CBA673D005E6B99 /* tensor.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tensor.proto; path = ../../../core/framework/tensor.proto; sourceTree = "<group>"; };
+		94DDB88D1CBA673D005E6B99 /* tensor_description.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tensor_description.proto; path = ../../../core/framework/tensor_description.proto; sourceTree = "<group>"; };
+		94DDB88E1CBA673D005E6B99 /* tensor_reference.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_reference.cc; sourceTree = "<group>"; };
+		94DDB88F1CBA673D005E6B99 /* tensor_reference.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_reference.h; sourceTree = "<group>"; };
+		94DDB8901CBA673D005E6B99 /* tensor_shape.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_shape.cc; sourceTree = "<group>"; };
+		94DDB8911CBA673D005E6B99 /* tensor_shape.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_shape.h; sourceTree = "<group>"; };
+		94DDB8921CBA673D005E6B99 /* tensor_shape.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tensor_shape.proto; path = ../../../core/framework/tensor_shape.proto; sourceTree = "<group>"; };
+		94DDB8941CBA673D005E6B99 /* tensor_slice.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_slice.cc; sourceTree = "<group>"; };
+		94DDB8951CBA673D005E6B99 /* tensor_slice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_slice.h; sourceTree = "<group>"; };
+		94DDB8961CBA673D005E6B99 /* tensor_slice.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tensor_slice.proto; path = ../../../core/framework/tensor_slice.proto; sourceTree = "<group>"; };
+		94DDB89A1CBA673D005E6B99 /* tensor_testutil.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_testutil.h; sourceTree = "<group>"; };
+		94DDB89B1CBA673D005E6B99 /* tensor_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_types.h; sourceTree = "<group>"; };
+		94DDB89C1CBA673D005E6B99 /* tensor_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_util.cc; sourceTree = "<group>"; };
+		94DDB89D1CBA673D005E6B99 /* tensor_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_util.h; sourceTree = "<group>"; };
+		94DDB89F1CBA673D005E6B99 /* tracking_allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tracking_allocator.cc; sourceTree = "<group>"; };
+		94DDB8A01CBA673D005E6B99 /* tracking_allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tracking_allocator.h; sourceTree = "<group>"; };
+		94DDB8A21CBA673D005E6B99 /* type_index.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = type_index.h; sourceTree = "<group>"; };
+		94DDB8A31CBA673D005E6B99 /* type_traits.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = type_traits.h; sourceTree = "<group>"; };
+		94DDB8A41CBA673D005E6B99 /* types.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = types.cc; sourceTree = "<group>"; };
+		94DDB8A51CBA673D005E6B99 /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = types.h; sourceTree = "<group>"; };
+		94DDB8A61CBA673D005E6B99 /* types.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = types.proto; path = ../../../core/framework/types.proto; sourceTree = "<group>"; };
+		94DDB8A81CBA673D005E6B99 /* unique_tensor_references.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = unique_tensor_references.cc; sourceTree = "<group>"; };
+		94DDB8A91CBA673D005E6B99 /* unique_tensor_references.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unique_tensor_references.h; sourceTree = "<group>"; };
+		94DDB8AB1CBA673D005E6B99 /* variable.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = variable.proto; path = ../../../core/framework/variable.proto; sourceTree = "<group>"; };
+		94DDB8AC1CBA673D005E6B99 /* versions.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = versions.cc; sourceTree = "<group>"; };
+		94DDB8AD1CBA673D005E6B99 /* versions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = versions.h; sourceTree = "<group>"; };
+		94DDB8AE1CBA673D005E6B99 /* versions.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = versions.proto; path = ../../../core/framework/versions.proto; sourceTree = "<group>"; };
+		94DDB8B01CBA673D005E6B99 /* algorithm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = algorithm.cc; sourceTree = "<group>"; };
+		94DDB8B11CBA673D005E6B99 /* algorithm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = algorithm.h; sourceTree = "<group>"; };
+		94DDB8B31CBA673D005E6B99 /* colors.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = colors.cc; sourceTree = "<group>"; };
+		94DDB8B41CBA673D005E6B99 /* colors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = colors.h; sourceTree = "<group>"; };
+		94DDB8B51CBA673D005E6B99 /* costmodel.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = costmodel.cc; sourceTree = "<group>"; };
+		94DDB8B61CBA673D005E6B99 /* costmodel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = costmodel.h; sourceTree = "<group>"; };
+		94DDB8B71CBA673D005E6B99 /* default_device.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = default_device.h; sourceTree = "<group>"; };
+		94DDB8B81CBA673D005E6B99 /* dot.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = dot.cc; sourceTree = "<group>"; };
+		94DDB8B91CBA673D005E6B99 /* dot.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dot.h; sourceTree = "<group>"; };
+		94DDB8BA1CBA673D005E6B99 /* edgeset.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = edgeset.cc; sourceTree = "<group>"; };
+		94DDB8BB1CBA673D005E6B99 /* edgeset.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = edgeset.h; sourceTree = "<group>"; };
+		94DDB8BD1CBA673D005E6B99 /* equal_graph_def.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = equal_graph_def.cc; sourceTree = "<group>"; };
+		94DDB8BE1CBA673D005E6B99 /* equal_graph_def.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = equal_graph_def.h; sourceTree = "<group>"; };
+		94DDB8C01CBA673D005E6B99 /* gradients.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gradients.cc; sourceTree = "<group>"; };
+		94DDB8C11CBA673D005E6B99 /* gradients.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gradients.h; sourceTree = "<group>"; };
+		94DDB8C21CBA673D005E6B99 /* graph.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = graph.cc; sourceTree = "<group>"; };
+		94DDB8C31CBA673D005E6B99 /* graph.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graph.h; sourceTree = "<group>"; };
+		94DDB8C41CBA673D005E6B99 /* graph_constructor.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = graph_constructor.cc; sourceTree = "<group>"; };
+		94DDB8C51CBA673D005E6B99 /* graph_constructor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graph_constructor.h; sourceTree = "<group>"; };
+		94DDB8C71CBA673D005E6B99 /* graph_def_builder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = graph_def_builder.cc; sourceTree = "<group>"; };
+		94DDB8C81CBA673D005E6B99 /* graph_def_builder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graph_def_builder.h; sourceTree = "<group>"; };
+		94DDB8CA1CBA673D005E6B99 /* graph_partition.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = graph_partition.cc; sourceTree = "<group>"; };
+		94DDB8CB1CBA673D005E6B99 /* graph_partition.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graph_partition.h; sourceTree = "<group>"; };
+		94DDB8CE1CBA673D005E6B99 /* node_builder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = node_builder.cc; sourceTree = "<group>"; };
+		94DDB8CF1CBA673D005E6B99 /* node_builder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = node_builder.h; sourceTree = "<group>"; };
+		94DDB8D11CBA673D005E6B99 /* optimizer_cse.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = optimizer_cse.cc; sourceTree = "<group>"; };
+		94DDB8D21CBA673D005E6B99 /* optimizer_cse.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = optimizer_cse.h; sourceTree = "<group>"; };
+		94DDB8D41CBA673D005E6B99 /* subgraph.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = subgraph.cc; sourceTree = "<group>"; };
+		94DDB8D51CBA673D005E6B99 /* subgraph.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = subgraph.h; sourceTree = "<group>"; };
+		94DDB8D71CBA673D005E6B99 /* tensor_id.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_id.cc; sourceTree = "<group>"; };
+		94DDB8D81CBA673D005E6B99 /* tensor_id.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_id.h; sourceTree = "<group>"; };
+		94DDB8DA1CBA673D005E6B99 /* testlib.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = testlib.cc; sourceTree = "<group>"; };
+		94DDB8DB1CBA673D005E6B99 /* testlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = testlib.h; sourceTree = "<group>"; };
+		94DDB8DC1CBA673D005E6B99 /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = types.h; sourceTree = "<group>"; };
+		94DDB8DD1CBA673D005E6B99 /* validate.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = validate.cc; sourceTree = "<group>"; };
+		94DDB8DE1CBA673D005E6B99 /* validate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = validate.h; sourceTree = "<group>"; };
+		94DDB8E21CBA673D005E6B99 /* arena.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = arena.cc; sourceTree = "<group>"; };
+		94DDB8E31CBA673D005E6B99 /* arena.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = arena.h; sourceTree = "<group>"; };
+		94DDB8E61CBA673D005E6B99 /* bits.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bits.h; sourceTree = "<group>"; };
+		94DDB8E71CBA673D005E6B99 /* blocking_counter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = blocking_counter.h; sourceTree = "<group>"; };
+		94DDB8E91CBA673D005E6B99 /* casts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = casts.h; sourceTree = "<group>"; };
+		94DDB8EA1CBA673D005E6B99 /* coding.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = coding.cc; sourceTree = "<group>"; };
+		94DDB8EB1CBA673D005E6B99 /* coding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = coding.h; sourceTree = "<group>"; };
+		94DDB8ED1CBA673D005E6B99 /* command_line_flags.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = command_line_flags.cc; sourceTree = "<group>"; };
+		94DDB8EE1CBA673D005E6B99 /* command_line_flags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = command_line_flags.h; sourceTree = "<group>"; };
+		94DDB8F01CBA673D005E6B99 /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = errors.h; sourceTree = "<group>"; };
+		94DDB8F11CBA673D005E6B99 /* notification.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = notification.h; sourceTree = "<group>"; };
+		94DDB8F31CBA673D005E6B99 /* raw_coding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = raw_coding.h; sourceTree = "<group>"; };
+		94DDB8F41CBA673D005E6B99 /* refcount.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = refcount.h; sourceTree = "<group>"; };
+		94DDB8F61CBA673D005E6B99 /* status.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = status.cc; sourceTree = "<group>"; };
+		94DDB8F71CBA673D005E6B99 /* status.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = status.h; sourceTree = "<group>"; };
+		94DDB8FA1CBA673D005E6B99 /* stringpiece.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = stringpiece.cc; sourceTree = "<group>"; };
+		94DDB8FB1CBA673D005E6B99 /* stringpiece.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stringpiece.h; sourceTree = "<group>"; };
+		94DDB8FD1CBA673D005E6B99 /* threadpool.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = threadpool.cc; sourceTree = "<group>"; };
+		94DDB8FE1CBA673D005E6B99 /* threadpool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = threadpool.h; sourceTree = "<group>"; };
+		94DDB9011CBA673D005E6B99 /* array_slice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = array_slice.h; sourceTree = "<group>"; };
+		94DDB9021CBA673D005E6B99 /* array_slice_internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = array_slice_internal.h; sourceTree = "<group>"; };
+		94DDB9041CBA673D005E6B99 /* edit_distance.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = edit_distance.h; sourceTree = "<group>"; };
+		94DDB9061CBA673D005E6B99 /* inlined_vector.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = inlined_vector.h; sourceTree = "<group>"; };
+		94DDB9081CBA673D005E6B99 /* int_type.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = int_type.h; sourceTree = "<group>"; };
+		94DDB90A1CBA673D005E6B99 /* iterator_range.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = iterator_range.h; sourceTree = "<group>"; };
+		94DDB90C1CBA673D005E6B99 /* manual_constructor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = manual_constructor.h; sourceTree = "<group>"; };
+		94DDB90E1CBA673D005E6B99 /* map_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = map_util.h; sourceTree = "<group>"; };
+		94DDB9101CBA673D005E6B99 /* stl_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stl_util.h; sourceTree = "<group>"; };
+		94DDB9111CBA673D005E6B99 /* top_n.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = top_n.h; sourceTree = "<group>"; };
+		94DDB9141CBA673D005E6B99 /* crc32c.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = crc32c.cc; sourceTree = "<group>"; };
+		94DDB9151CBA673D005E6B99 /* crc32c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = crc32c.h; sourceTree = "<group>"; };
+		94DDB9171CBA673D005E6B99 /* hash.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = hash.cc; sourceTree = "<group>"; };
+		94DDB9181CBA673D005E6B99 /* hash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = hash.h; sourceTree = "<group>"; };
+		94DDB91B1CBA673D005E6B99 /* histogram.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = histogram.cc; sourceTree = "<group>"; };
+		94DDB91C1CBA673D005E6B99 /* histogram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = histogram.h; sourceTree = "<group>"; };
+		94DDB91F1CBA673D005E6B99 /* block.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = block.cc; sourceTree = "<group>"; };
+		94DDB9201CBA673D005E6B99 /* block.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = block.h; sourceTree = "<group>"; };
+		94DDB9211CBA673D005E6B99 /* block_builder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = block_builder.cc; sourceTree = "<group>"; };
+		94DDB9221CBA673D005E6B99 /* block_builder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = block_builder.h; sourceTree = "<group>"; };
+		94DDB9231CBA673D005E6B99 /* format.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = format.cc; sourceTree = "<group>"; };
+		94DDB9241CBA673D005E6B99 /* format.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = format.h; sourceTree = "<group>"; };
+		94DDB9251CBA673D005E6B99 /* inputbuffer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = inputbuffer.cc; sourceTree = "<group>"; };
+		94DDB9261CBA673D005E6B99 /* inputbuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = inputbuffer.h; sourceTree = "<group>"; };
+		94DDB9281CBA673D005E6B99 /* iterator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = iterator.cc; sourceTree = "<group>"; };
+		94DDB9291CBA673D005E6B99 /* iterator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = iterator.h; sourceTree = "<group>"; };
+		94DDB92A1CBA673D005E6B99 /* match.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = match.cc; sourceTree = "<group>"; };
+		94DDB92B1CBA673D005E6B99 /* match.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = match.h; sourceTree = "<group>"; };
+		94DDB92D1CBA673D005E6B99 /* path.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = path.cc; sourceTree = "<group>"; };
+		94DDB92E1CBA673D005E6B99 /* path.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = path.h; sourceTree = "<group>"; };
+		94DDB9301CBA673D005E6B99 /* record_reader.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = record_reader.cc; sourceTree = "<group>"; };
+		94DDB9311CBA673D005E6B99 /* record_reader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = record_reader.h; sourceTree = "<group>"; };
+		94DDB9321CBA673D005E6B99 /* record_writer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = record_writer.cc; sourceTree = "<group>"; };
+		94DDB9331CBA673D005E6B99 /* record_writer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = record_writer.h; sourceTree = "<group>"; };
+		94DDB9351CBA673D005E6B99 /* table.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = table.cc; sourceTree = "<group>"; };
+		94DDB9361CBA673D005E6B99 /* table.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = table.h; sourceTree = "<group>"; };
+		94DDB9371CBA673D005E6B99 /* table_builder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = table_builder.cc; sourceTree = "<group>"; };
+		94DDB9381CBA673D005E6B99 /* table_builder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = table_builder.h; sourceTree = "<group>"; };
+		94DDB9391CBA673D005E6B99 /* table_format.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = table_format.txt; sourceTree = "<group>"; };
+		94DDB93A1CBA673D005E6B99 /* table_options.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = table_options.h; sourceTree = "<group>"; };
+		94DDB93C1CBA673D005E6B99 /* two_level_iterator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = two_level_iterator.cc; sourceTree = "<group>"; };
+		94DDB93D1CBA673D005E6B99 /* two_level_iterator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = two_level_iterator.h; sourceTree = "<group>"; };
+		94DDB9531CBA673D005E6B99 /* distribution_sampler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = distribution_sampler.cc; sourceTree = "<group>"; };
+		94DDB9541CBA673D005E6B99 /* distribution_sampler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = distribution_sampler.h; sourceTree = "<group>"; };
+		94DDB9561CBA673D005E6B99 /* exact_uniform_int.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = exact_uniform_int.h; sourceTree = "<group>"; };
+		94DDB9571CBA673D005E6B99 /* philox_random.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = philox_random.h; sourceTree = "<group>"; };
+		94DDB95A1CBA673D005E6B99 /* random.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = random.cc; sourceTree = "<group>"; };
+		94DDB95B1CBA673D005E6B99 /* random.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = random.h; sourceTree = "<group>"; };
+		94DDB95C1CBA673D005E6B99 /* random_distributions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = random_distributions.h; sourceTree = "<group>"; };
+		94DDB95F1CBA673D005E6B99 /* simple_philox.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = simple_philox.cc; sourceTree = "<group>"; };
+		94DDB9601CBA673D005E6B99 /* simple_philox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = simple_philox.h; sourceTree = "<group>"; };
+		94DDB9621CBA673D005E6B99 /* weighted_picker.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = weighted_picker.cc; sourceTree = "<group>"; };
+		94DDB9631CBA673D005E6B99 /* weighted_picker.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = weighted_picker.h; sourceTree = "<group>"; };
+		94DDB9661CBA673D005E6B99 /* numbers.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = numbers.cc; sourceTree = "<group>"; };
+		94DDB9671CBA673D005E6B99 /* numbers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = numbers.h; sourceTree = "<group>"; };
+		94DDB9691CBA673D005E6B99 /* ordered_code.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ordered_code.cc; sourceTree = "<group>"; };
+		94DDB96A1CBA673D005E6B99 /* ordered_code.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ordered_code.h; sourceTree = "<group>"; };
+		94DDB96C1CBA673D005E6B99 /* regexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = regexp.h; sourceTree = "<group>"; };
+		94DDB96D1CBA673D005E6B99 /* scanner.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scanner.cc; sourceTree = "<group>"; };
+		94DDB96E1CBA673D005E6B99 /* scanner.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = scanner.h; sourceTree = "<group>"; };
+		94DDB9701CBA673D005E6B99 /* str_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = str_util.cc; sourceTree = "<group>"; };
+		94DDB9711CBA673D005E6B99 /* str_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = str_util.h; sourceTree = "<group>"; };
+		94DDB9731CBA673D005E6B99 /* strcat.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = strcat.cc; sourceTree = "<group>"; };
+		94DDB9741CBA673D005E6B99 /* strcat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = strcat.h; sourceTree = "<group>"; };
+		94DDB9761CBA673D005E6B99 /* stringprintf.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = stringprintf.cc; sourceTree = "<group>"; };
+		94DDB9771CBA673D005E6B99 /* stringprintf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stringprintf.h; sourceTree = "<group>"; };
+		94DDB97A1CBA673D005E6B99 /* cuda.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cuda.h; sourceTree = "<group>"; };
+		94DDB9811CBA673D005E6B99 /* dynamic_annotations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dynamic_annotations.h; sourceTree = "<group>"; };
+		94DDB9821CBA673D005E6B99 /* integral_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = integral_types.h; sourceTree = "<group>"; };
+		94DDB9831CBA673D005E6B99 /* logging.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = logging.cc; sourceTree = "<group>"; };
+		94DDB9841CBA673D005E6B99 /* logging.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = logging.h; sourceTree = "<group>"; };
+		94DDB9851CBA673D005E6B99 /* mutex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mutex.h; sourceTree = "<group>"; };
+		94DDB9861CBA673D005E6B99 /* protobuf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = protobuf.h; sourceTree = "<group>"; };
+		94DDB9871CBA673D005E6B99 /* stream_executor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stream_executor.h; sourceTree = "<group>"; };
+		94DDB9881CBA673D005E6B99 /* test_benchmark.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = test_benchmark.cc; sourceTree = "<group>"; };
+		94DDB9891CBA673D005E6B99 /* thread_annotations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = thread_annotations.h; sourceTree = "<group>"; };
+		94DDB98A1CBA673D005E6B99 /* tracing.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tracing.cc; sourceTree = "<group>"; };
+		94DDB98B1CBA673D005E6B99 /* tracing_impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tracing_impl.h; sourceTree = "<group>"; };
+		94DDB98C1CBA673D005E6B99 /* denormal.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = denormal.cc; sourceTree = "<group>"; };
+		94DDB98D1CBA673D005E6B99 /* denormal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = denormal.h; sourceTree = "<group>"; };
+		94DDB98E1CBA673D005E6B99 /* env.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = env.cc; sourceTree = "<group>"; };
+		94DDB9911CBA673D005E6B99 /* host_info.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = host_info.h; sourceTree = "<group>"; };
+		94DDB9921CBA673D005E6B99 /* init_main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = init_main.h; sourceTree = "<group>"; };
+		94DDB9941CBA673D005E6B99 /* jpeg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = jpeg.h; sourceTree = "<group>"; };
+		94DDB9951CBA673D005E6B99 /* load_library.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = load_library.cc; sourceTree = "<group>"; };
+		94DDB9961CBA673D005E6B99 /* load_library.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = load_library.h; sourceTree = "<group>"; };
+		94DDB9991CBA673D005E6B99 /* macros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = macros.h; sourceTree = "<group>"; };
+		94DDB99A1CBA673D005E6B99 /* mem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mem.h; sourceTree = "<group>"; };
+		94DDB99B1CBA673D005E6B99 /* mutex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mutex.h; sourceTree = "<group>"; };
+		94DDB99D1CBA673D005E6B99 /* png.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = png.h; sourceTree = "<group>"; };
+		94DDB9A01CBA673D005E6B99 /* env.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = env.cc; sourceTree = "<group>"; };
+		94DDB9A11CBA673D005E6B99 /* port.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = port.cc; sourceTree = "<group>"; };
+		94DDB9A31CBA673D005E6B99 /* protobuf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = protobuf.h; sourceTree = "<group>"; };
+		94DDB9A41CBA673D005E6B99 /* protobuf_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = protobuf_util.cc; sourceTree = "<group>"; };
+		94DDB9A51CBA673D005E6B99 /* regexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = regexp.h; sourceTree = "<group>"; };
+		94DDB9A61CBA673D005E6B99 /* snappy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = snappy.h; sourceTree = "<group>"; };
+		94DDB9A71CBA673D005E6B99 /* stream_executor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stream_executor.h; sourceTree = "<group>"; };
+		94DDB9A81CBA673D005E6B99 /* tensor_coding.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_coding.cc; sourceTree = "<group>"; };
+		94DDB9A91CBA673D005E6B99 /* tensor_coding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_coding.h; sourceTree = "<group>"; };
+		94DDB9AE1CBA673D005E6B99 /* thread_annotations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = thread_annotations.h; sourceTree = "<group>"; };
+		94DDB9AF1CBA673D005E6B99 /* tracing.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tracing.cc; sourceTree = "<group>"; };
+		94DDB9B01CBA673D005E6B99 /* tracing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tracing.h; sourceTree = "<group>"; };
+		94DDB9B41CBA673D005E6B99 /* session.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = session.h; sourceTree = "<group>"; };
+		94DDB9B51CBA673D005E6B99 /* session_options.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = session_options.h; sourceTree = "<group>"; };
+		94DDB9B61CBA673D005E6B99 /* tensor_c_api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_c_api.h; sourceTree = "<group>"; };
+		94DDB9B71CBA673D005E6B99 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
+		94DDB9B91CBA673D005E6B99 /* bcast.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bcast.cc; sourceTree = "<group>"; };
+		94DDB9BA1CBA673D005E6B99 /* bcast.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bcast.h; sourceTree = "<group>"; };
+		94DDB9BC1CBA673D005E6B99 /* checkpoint_reader.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = checkpoint_reader.cc; sourceTree = "<group>"; };
+		94DDB9BD1CBA673D005E6B99 /* checkpoint_reader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = checkpoint_reader.h; sourceTree = "<group>"; };
+		94DDB9BE1CBA673D005E6B99 /* command_line_flags.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = command_line_flags.cc; sourceTree = "<group>"; };
+		94DDB9BF1CBA673D005E6B99 /* command_line_flags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = command_line_flags.h; sourceTree = "<group>"; };
+		94DDB9C31CBA673D005E6B99 /* ctc_beam_entry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ctc_beam_entry.h; sourceTree = "<group>"; };
+		94DDB9C41CBA673D005E6B99 /* ctc_beam_scorer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ctc_beam_scorer.h; sourceTree = "<group>"; };
+		94DDB9C51CBA673D005E6B99 /* ctc_beam_search.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ctc_beam_search.h; sourceTree = "<group>"; };
+		94DDB9C71CBA673D005E6B99 /* ctc_decoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ctc_decoder.h; sourceTree = "<group>"; };
+		94DDB9C81CBA673D005E6B99 /* ctc_loss_calculator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ctc_loss_calculator.cc; sourceTree = "<group>"; };
+		94DDB9C91CBA673D005E6B99 /* ctc_loss_calculator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ctc_loss_calculator.h; sourceTree = "<group>"; };
+		94DDB9CA1CBA673D005E6B99 /* ctc_loss_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ctc_loss_util.h; sourceTree = "<group>"; };
+		94DDB9CB1CBA673D005E6B99 /* cuda_kernel_helper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cuda_kernel_helper.h; sourceTree = "<group>"; };
+		94DDB9CC1CBA673D005E6B99 /* device_name_utils.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = device_name_utils.cc; sourceTree = "<group>"; };
+		94DDB9CD1CBA673D005E6B99 /* device_name_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device_name_utils.h; sourceTree = "<group>"; };
+		94DDB9CF1CBA673D005E6B99 /* event.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = event.proto; path = ../../../core/util/event.proto; sourceTree = "<group>"; };
+		94DDB9D01CBA673D005E6B99 /* events_writer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = events_writer.cc; sourceTree = "<group>"; };
+		94DDB9D11CBA673D005E6B99 /* events_writer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = events_writer.h; sourceTree = "<group>"; };
+		94DDB9D31CBA673D005E6B99 /* guarded_philox_random.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = guarded_philox_random.cc; sourceTree = "<group>"; };
+		94DDB9D41CBA673D005E6B99 /* guarded_philox_random.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = guarded_philox_random.h; sourceTree = "<group>"; };
+		94DDB9D51CBA673D005E6B99 /* mirror_pad_mode.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mirror_pad_mode.cc; sourceTree = "<group>"; };
+		94DDB9D61CBA673D005E6B99 /* mirror_pad_mode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mirror_pad_mode.h; sourceTree = "<group>"; };
+		94DDB9D71CBA673D005E6B99 /* padding.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = padding.cc; sourceTree = "<group>"; };
+		94DDB9D81CBA673D005E6B99 /* padding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = padding.h; sourceTree = "<group>"; };
+		94DDB9D91CBA673D005E6B99 /* port.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = port.cc; sourceTree = "<group>"; };
+		94DDB9DA1CBA673D005E6B99 /* port.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = port.h; sourceTree = "<group>"; };
+		94DDB9DB1CBA673D005E6B99 /* reporter.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = reporter.cc; sourceTree = "<group>"; };
+		94DDB9DC1CBA673D005E6B99 /* reporter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reporter.h; sourceTree = "<group>"; };
+		94DDB9DE1CBA673D005E6B99 /* saved_tensor_slice.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = saved_tensor_slice.proto; path = ../../../core/util/saved_tensor_slice.proto; sourceTree = "<group>"; };
+		94DDB9DF1CBA673D005E6B99 /* saved_tensor_slice_util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = saved_tensor_slice_util.cc; sourceTree = "<group>"; };
+		94DDB9E01CBA673D005E6B99 /* saved_tensor_slice_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = saved_tensor_slice_util.h; sourceTree = "<group>"; };
+		94DDB9E31CBA673D005E6B99 /* dim_comparator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dim_comparator.h; sourceTree = "<group>"; };
+		94DDB9E41CBA673D005E6B99 /* group_iterator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = group_iterator.cc; sourceTree = "<group>"; };
+		94DDB9E51CBA673D005E6B99 /* group_iterator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = group_iterator.h; sourceTree = "<group>"; };
+		94DDB9E71CBA673D005E6B99 /* sparse_tensor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sparse_tensor.h; sourceTree = "<group>"; };
+		94DDB9E91CBA673D005E6B99 /* stat_summarizer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = stat_summarizer.cc; sourceTree = "<group>"; };
+		94DDB9EA1CBA673D005E6B99 /* stat_summarizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stat_summarizer.h; sourceTree = "<group>"; };
+		94DDB9EB1CBA673D005E6B99 /* tensor_format.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_format.cc; sourceTree = "<group>"; };
+		94DDB9EC1CBA673D005E6B99 /* tensor_format.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_format.h; sourceTree = "<group>"; };
+		94DDB9ED1CBA673D005E6B99 /* tensor_slice_reader.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_slice_reader.cc; sourceTree = "<group>"; };
+		94DDB9EE1CBA673D005E6B99 /* tensor_slice_reader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_slice_reader.h; sourceTree = "<group>"; };
+		94DDB9EF1CBA673D005E6B99 /* tensor_slice_reader_cache.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_slice_reader_cache.cc; sourceTree = "<group>"; };
+		94DDB9F01CBA673D005E6B99 /* tensor_slice_reader_cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_slice_reader_cache.h; sourceTree = "<group>"; };
+		94DDB9F21CBA673D005E6B99 /* tensor_slice_set.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_slice_set.cc; sourceTree = "<group>"; };
+		94DDB9F31CBA673D005E6B99 /* tensor_slice_set.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_slice_set.h; sourceTree = "<group>"; };
+		94DDB9F51CBA673D005E6B99 /* tensor_slice_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_slice_util.h; sourceTree = "<group>"; };
+		94DDB9F71CBA673D005E6B99 /* tensor_slice_writer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = tensor_slice_writer.cc; sourceTree = "<group>"; };
+		94DDB9F81CBA673D005E6B99 /* tensor_slice_writer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tensor_slice_writer.h; sourceTree = "<group>"; };
+		94DDB9FA1CBA673D005E6B99 /* test_log.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test_log.proto; path = ../../../core/util/test_log.proto; sourceTree = "<group>"; };
+		94DDB9FB1CBA673D005E6B99 /* use_cudnn.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = use_cudnn.cc; sourceTree = "<group>"; };
+		94DDB9FC1CBA673D005E6B99 /* use_cudnn.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = use_cudnn.h; sourceTree = "<group>"; };
+		94DDB9FD1CBA673D005E6B99 /* util.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = util.cc; sourceTree = "<group>"; };
+		94DDB9FE1CBA673D005E6B99 /* util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = util.h; sourceTree = "<group>"; };
+		94DDB9FF1CBA673D005E6B99 /* work_sharder.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = work_sharder.cc; sourceTree = "<group>"; };
+		94DDBA001CBA673D005E6B99 /* work_sharder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = work_sharder.h; sourceTree = "<group>"; };
+		94DDBD281CC3854F005E6B99 /* libprotobuf_lite.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libprotobuf_lite.a; path = "../../../../../../Library/Developer/Xcode/DerivedData/tensorflow-amcshqlobjayxsfkkeksskkofmae/Build/Products/Debug/libprotobuf_lite.a"; sourceTree = "<group>"; };
+		94DDBD331CC3CDCD005E6B99 /* example.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = example.proto; path = ../../../core/example/example.proto; sourceTree = "<group>"; };
+		94DDBD341CC3CDCD005E6B99 /* feature.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = feature.proto; path = ../../../core/example/feature.proto; sourceTree = "<group>"; };
+		94DDBD471CC3CF38005E6B99 /* reader_base.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = reader_base.proto; path = ../../../core/kernels/reader_base.proto; sourceTree = "<group>"; };
+		94DDBD491CC3CF67005E6B99 /* error_codes.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = error_codes.proto; path = ../../../core/lib/core/error_codes.proto; sourceTree = "<group>"; };
+		94DDBD4C1CC3D01F005E6B99 /* config.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config.proto; path = ../../../core/protobuf/config.proto; sourceTree = "<group>"; };
+		94DDBD4D1CC3D01F005E6B99 /* meta_graph.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = meta_graph.proto; path = ../../../core/protobuf/meta_graph.proto; sourceTree = "<group>"; };
+		94DDBD4E1CC3D01F005E6B99 /* queue_runner.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = queue_runner.proto; path = ../../../core/protobuf/queue_runner.proto; sourceTree = "<group>"; };
+		94DDBD4F1CC3D01F005E6B99 /* saver.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = saver.proto; path = ../../../core/protobuf/saver.proto; sourceTree = "<group>"; };
+		94DDBD501CC3D01F005E6B99 /* tensorflow_server.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = tensorflow_server.proto; path = ../../../core/protobuf/tensorflow_server.proto; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		94DDB73D1CB9A9F8005E6B99 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94DDBD291CC3854F005E6B99 /* libprotobuf_lite.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		94DDB7371CB9A9F8005E6B99 = {
+			isa = PBXGroup;
+			children = (
+				94DDBD281CC3854F005E6B99 /* libprotobuf_lite.a */,
+				94DDBD2A1CC3900B005E6B99 /* protos */,
+				94DDB74B1CB9ABC9005E6B99 /* tensorflow */,
+				94DDB7411CB9A9F8005E6B99 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		94DDB7411CB9A9F8005E6B99 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB7401CB9A9F8005E6B99 /* libtensorflow_lite.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		94DDB74B1CB9ABC9005E6B99 /* tensorflow */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB74C1CB9AC15005E6B99 /* core */,
+			);
+			name = tensorflow;
+			sourceTree = "<group>";
+		};
+		94DDB74C1CB9AC15005E6B99 /* core */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB7881CBA65FD005E6B99 /* client */,
+				94DDB78D1CBA6647005E6B99 /* common_runtime */,
+				94DDB8331CBA673C005E6B99 /* framework */,
+				94DDB8AF1CBA673D005E6B99 /* graph */,
+				94DDB75D1CBA5A61005E6B99 /* kernels */,
+				94DDB8E01CBA673D005E6B99 /* lib */,
+				94DDB9791CBA673D005E6B99 /* platform */,
+				94DDB9B21CBA673D005E6B99 /* public */,
+				94DDB9B81CBA673D005E6B99 /* util */,
+			);
+			name = core;
+			sourceTree = "<group>";
+		};
+		94DDB75D1CBA5A61005E6B99 /* kernels */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB7741CBA5D21005E6B99 /* avgpooling_op.h */,
+				94DDB7751CBA5D21005E6B99 /* bounds_check.h */,
+				94DDB7761CBA5D21005E6B99 /* maxpooling_op.h */,
+				94DDB75E1CBA5B69005E6B99 /* eigen_activations.h */,
+				94DDB75F1CBA5B69005E6B99 /* eigen_attention.h */,
+				94DDB7601CBA5B69005E6B99 /* eigen_backward_cuboid_convolutions.h */,
+				94DDB7611CBA5B69005E6B99 /* eigen_backward_spatial_convolutions.h */,
+				94DDB7621CBA5B69005E6B99 /* eigen_patch_3d.h */,
+				94DDB7631CBA5B69005E6B99 /* eigen_pooling.h */,
+				94DDB7641CBA5B69005E6B99 /* eigen_softmax.h */,
+				94DDB7651CBA5B69005E6B99 /* eigen_spatial_convolutions.h */,
+				94DDB7661CBA5B69005E6B99 /* ops_util.h */,
+				94DDB7671CBA5B69005E6B99 /* pooling_ops_common.h */,
+				94DDB7681CBA5B69005E6B99 /* ops_util.cc */,
+			);
+			name = kernels;
+			sourceTree = "<group>";
+		};
+		94DDB7881CBA65FD005E6B99 /* client */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB7891CBA65FD005E6B99 /* tensor_c_api.cc */,
+			);
+			name = client;
+			path = ../../../core/client;
+			sourceTree = "<group>";
+		};
+		94DDB78D1CBA6647005E6B99 /* common_runtime */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB78E1CBA6647005E6B99 /* allocator_retry.cc */,
+				94DDB78F1CBA6647005E6B99 /* allocator_retry.h */,
+				94DDB7901CBA6647005E6B99 /* bfc_allocator.cc */,
+				94DDB7911CBA6647005E6B99 /* bfc_allocator.h */,
+				94DDB7921CBA6647005E6B99 /* constant_folding.cc */,
+				94DDB7931CBA6647005E6B99 /* constant_folding.h */,
+				94DDB7951CBA6647005E6B99 /* copy_tensor.cc */,
+				94DDB7961CBA6647005E6B99 /* copy_tensor.h */,
+				94DDB7971CBA6647005E6B99 /* device.cc */,
+				94DDB7981CBA6647005E6B99 /* device.h */,
+				94DDB7991CBA6647005E6B99 /* device_factory.cc */,
+				94DDB79A1CBA6647005E6B99 /* device_factory.h */,
+				94DDB79B1CBA6647005E6B99 /* device_mgr.cc */,
+				94DDB79C1CBA6647005E6B99 /* device_mgr.h */,
+				94DDB79D1CBA6647005E6B99 /* device_set.cc */,
+				94DDB79E1CBA6647005E6B99 /* device_set.h */,
+				94DDB7A01CBA6647005E6B99 /* direct_session.cc */,
+				94DDB7A11CBA6647005E6B99 /* direct_session.h */,
+				94DDB7A31CBA6647005E6B99 /* dma_helper.h */,
+				94DDB7A41CBA6647005E6B99 /* eigen_thread_pool.h */,
+				94DDB7A51CBA6647005E6B99 /* executor.cc */,
+				94DDB7A61CBA6647005E6B99 /* executor.h */,
+				94DDB7A71CBA6647005E6B99 /* function.cc */,
+				94DDB7A81CBA6647005E6B99 /* function.h */,
+				94DDB7AA1CBA6647005E6B99 /* gpu */,
+				94DDB7C51CBA6648005E6B99 /* gpu_device_context.h */,
+				94DDB7C61CBA6648005E6B99 /* graph_optimizer.cc */,
+				94DDB7C71CBA6648005E6B99 /* graph_optimizer.h */,
+				94DDB7CA1CBA6648005E6B99 /* local_device.cc */,
+				94DDB7CB1CBA6648005E6B99 /* local_device.h */,
+				94DDB7CC1CBA6648005E6B99 /* memory_types.cc */,
+				94DDB7CD1CBA6648005E6B99 /* memory_types.h */,
+				94DDB7CF1CBA6648005E6B99 /* pending_counts.h */,
+				94DDB7D11CBA6648005E6B99 /* rendezvous_mgr.cc */,
+				94DDB7D21CBA6648005E6B99 /* rendezvous_mgr.h */,
+				94DDB7D31CBA6648005E6B99 /* session.cc */,
+				94DDB7D41CBA6648005E6B99 /* session_factory.cc */,
+				94DDB7D51CBA6648005E6B99 /* session_factory.h */,
+				94DDB7D61CBA6648005E6B99 /* session_options.cc */,
+				94DDB7D81CBA6648005E6B99 /* simple_placer.cc */,
+				94DDB7D91CBA6648005E6B99 /* simple_placer.h */,
+				94DDB7DB1CBA6648005E6B99 /* step_stats_collector.cc */,
+				94DDB7DC1CBA6648005E6B99 /* step_stats_collector.h */,
+				94DDB7DD1CBA6648005E6B99 /* threadpool_device.cc */,
+				94DDB7DE1CBA6648005E6B99 /* threadpool_device.h */,
+				94DDB7DF1CBA6648005E6B99 /* threadpool_device_factory.cc */,
+				94DDB7E01CBA6648005E6B99 /* visitable_allocator.h */,
+			);
+			name = common_runtime;
+			path = ../../../core/common_runtime;
+			sourceTree = "<group>";
+		};
+		94DDB7AA1CBA6647005E6B99 /* gpu */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB7AC1CBA6647005E6B99 /* gpu_bfc_allocator.cc */,
+				94DDB7AD1CBA6647005E6B99 /* gpu_bfc_allocator.h */,
+				94DDB7AF1CBA6648005E6B99 /* gpu_debug_allocator.cc */,
+				94DDB7B01CBA6648005E6B99 /* gpu_debug_allocator.h */,
+				94DDB7B21CBA6648005E6B99 /* gpu_device.cc */,
+				94DDB7B31CBA6648005E6B99 /* gpu_device.h */,
+				94DDB7B41CBA6648005E6B99 /* gpu_device_factory.cc */,
+				94DDB7B51CBA6648005E6B99 /* gpu_event_mgr.cc */,
+				94DDB7B61CBA6648005E6B99 /* gpu_event_mgr.h */,
+				94DDB7B81CBA6648005E6B99 /* gpu_init.cc */,
+				94DDB7B91CBA6648005E6B99 /* gpu_init.h */,
+				94DDB7BA1CBA6648005E6B99 /* gpu_stream_util.cc */,
+				94DDB7BB1CBA6648005E6B99 /* gpu_stream_util.h */,
+				94DDB7BD1CBA6648005E6B99 /* gpu_util.cc */,
+				94DDB7BE1CBA6648005E6B99 /* gpu_util.h */,
+				94DDB7BF1CBA6648005E6B99 /* gpu_util_platform_specific.cc */,
+				94DDB7C01CBA6648005E6B99 /* pool_allocator.cc */,
+				94DDB7C11CBA6648005E6B99 /* pool_allocator.h */,
+				94DDB7C31CBA6648005E6B99 /* process_state.cc */,
+				94DDB7C41CBA6648005E6B99 /* process_state.h */,
+			);
+			path = gpu;
+			sourceTree = "<group>";
+		};
+		94DDB8331CBA673C005E6B99 /* framework */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB8351CBA673D005E6B99 /* allocator.cc */,
+				94DDB8391CBA673D005E6B99 /* attr_value_util.cc */,
+				94DDB83C1CBA673D005E6B99 /* bfloat16.cc */,
+				94DDB83F1CBA673D005E6B99 /* cancellation.cc */,
+				94DDB8441CBA673D005E6B99 /* device_base.cc */,
+				94DDB8461CBA673D005E6B99 /* fake_input.cc */,
+				94DDB8481CBA673D005E6B99 /* function.cc */,
+				94DDB84F1CBA673D005E6B99 /* graph_def_util.cc */,
+				94DDB8531CBA673D005E6B99 /* kernel_def_builder.cc */,
+				94DDB8561CBA673D005E6B99 /* load_library.cc */,
+				94DDB8571CBA673D005E6B99 /* log_memory.cc */,
+				94DDB85A1CBA673D005E6B99 /* lookup_interface.cc */,
+				94DDB85C1CBA673D005E6B99 /* memory_types.cc */,
+				94DDB85F1CBA673D005E6B99 /* node_def_builder.cc */,
+				94DDB8621CBA673D005E6B99 /* node_def_util.cc */,
+				94DDB86B1CBA673D005E6B99 /* op_def_builder.cc */,
+				94DDB86E1CBA673D005E6B99 /* op_def_util.cc */,
+				94DDB8711CBA673D005E6B99 /* op_gen_lib.cc */,
+				94DDB8731CBA673D005E6B99 /* op_kernel.cc */,
+				94DDB8761CBA673D005E6B99 /* op_segment.cc */,
+				94DDB8671CBA673D005E6B99 /* op.cc */,
+				94DDB8791CBA673D005E6B99 /* partial_tensor_shape.cc */,
+				94DDB87E1CBA673D005E6B99 /* reader_op_kernel.cc */,
+				94DDB8811CBA673D005E6B99 /* rendezvous.cc */,
+				94DDB8841CBA673D005E6B99 /* resource_mgr.cc */,
+				94DDB88E1CBA673D005E6B99 /* tensor_reference.cc */,
+				94DDB8901CBA673D005E6B99 /* tensor_shape.cc */,
+				94DDB8941CBA673D005E6B99 /* tensor_slice.cc */,
+				94DDB89C1CBA673D005E6B99 /* tensor_util.cc */,
+				94DDB88A1CBA673D005E6B99 /* tensor.cc */,
+				94DDB89F1CBA673D005E6B99 /* tracking_allocator.cc */,
+				94DDB8A41CBA673D005E6B99 /* types.cc */,
+				94DDB8A81CBA673D005E6B99 /* unique_tensor_references.cc */,
+				94DDB8AC1CBA673D005E6B99 /* versions.cc */,
+				94DDB8361CBA673D005E6B99 /* allocator.h */,
+				94DDB83A1CBA673D005E6B99 /* attr_value_util.h */,
+				94DDB83D1CBA673D005E6B99 /* bfloat16.h */,
+				94DDB8401CBA673D005E6B99 /* cancellation.h */,
+				94DDB8421CBA673D005E6B99 /* control_flow.h */,
+				94DDB8451CBA673D005E6B99 /* device_base.h */,
+				94DDB8471CBA673D005E6B99 /* fake_input.h */,
+				94DDB8491CBA673D005E6B99 /* function.h */,
+				94DDB8501CBA673D005E6B99 /* graph_def_util.h */,
+				94DDB8541CBA673D005E6B99 /* kernel_def_builder.h */,
+				94DDB8581CBA673D005E6B99 /* log_memory.h */,
+				94DDB85B1CBA673D005E6B99 /* lookup_interface.h */,
+				94DDB85D1CBA673D005E6B99 /* memory_types.h */,
+				94DDB8601CBA673D005E6B99 /* node_def_builder.h */,
+				94DDB8631CBA673D005E6B99 /* node_def_util.h */,
+				94DDB8651CBA673D005E6B99 /* numeric_op.h */,
+				94DDB8661CBA673D005E6B99 /* numeric_types.h */,
+				94DDB86C1CBA673D005E6B99 /* op_def_builder.h */,
+				94DDB86F1CBA673D005E6B99 /* op_def_util.h */,
+				94DDB8721CBA673D005E6B99 /* op_gen_lib.h */,
+				94DDB8741CBA673D005E6B99 /* op_kernel.h */,
+				94DDB8771CBA673D005E6B99 /* op_segment.h */,
+				94DDB8681CBA673D005E6B99 /* op.h */,
+				94DDB87A1CBA673D005E6B99 /* partial_tensor_shape.h */,
+				94DDB87C1CBA673D005E6B99 /* queue_interface.h */,
+				94DDB87D1CBA673D005E6B99 /* reader_interface.h */,
+				94DDB87F1CBA673D005E6B99 /* reader_op_kernel.h */,
+				94DDB8801CBA673D005E6B99 /* register_types.h */,
+				94DDB8821CBA673D005E6B99 /* rendezvous.h */,
+				94DDB8851CBA673D005E6B99 /* resource_mgr.h */,
+				94DDB8871CBA673D005E6B99 /* selective_registration.h */,
+				94DDB88F1CBA673D005E6B99 /* tensor_reference.h */,
+				94DDB8911CBA673D005E6B99 /* tensor_shape.h */,
+				94DDB8951CBA673D005E6B99 /* tensor_slice.h */,
+				94DDB89A1CBA673D005E6B99 /* tensor_testutil.h */,
+				94DDB89B1CBA673D005E6B99 /* tensor_types.h */,
+				94DDB89D1CBA673D005E6B99 /* tensor_util.h */,
+				94DDB88B1CBA673D005E6B99 /* tensor.h */,
+				94DDB8A01CBA673D005E6B99 /* tracking_allocator.h */,
+				94DDB8A21CBA673D005E6B99 /* type_index.h */,
+				94DDB8A31CBA673D005E6B99 /* type_traits.h */,
+				94DDB8A51CBA673D005E6B99 /* types.h */,
+				94DDB8A91CBA673D005E6B99 /* unique_tensor_references.h */,
+				94DDB8AD1CBA673D005E6B99 /* versions.h */,
+			);
+			name = framework;
+			path = ../../../core/framework;
+			sourceTree = "<group>";
+		};
+		94DDB8AF1CBA673D005E6B99 /* graph */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB8B01CBA673D005E6B99 /* algorithm.cc */,
+				94DDB8B11CBA673D005E6B99 /* algorithm.h */,
+				94DDB8B31CBA673D005E6B99 /* colors.cc */,
+				94DDB8B41CBA673D005E6B99 /* colors.h */,
+				94DDB8B51CBA673D005E6B99 /* costmodel.cc */,
+				94DDB8B61CBA673D005E6B99 /* costmodel.h */,
+				94DDB8B71CBA673D005E6B99 /* default_device.h */,
+				94DDB8B81CBA673D005E6B99 /* dot.cc */,
+				94DDB8B91CBA673D005E6B99 /* dot.h */,
+				94DDB8BA1CBA673D005E6B99 /* edgeset.cc */,
+				94DDB8BB1CBA673D005E6B99 /* edgeset.h */,
+				94DDB8BD1CBA673D005E6B99 /* equal_graph_def.cc */,
+				94DDB8BE1CBA673D005E6B99 /* equal_graph_def.h */,
+				94DDB8C01CBA673D005E6B99 /* gradients.cc */,
+				94DDB8C11CBA673D005E6B99 /* gradients.h */,
+				94DDB8C21CBA673D005E6B99 /* graph.cc */,
+				94DDB8C31CBA673D005E6B99 /* graph.h */,
+				94DDB8C41CBA673D005E6B99 /* graph_constructor.cc */,
+				94DDB8C51CBA673D005E6B99 /* graph_constructor.h */,
+				94DDB8C71CBA673D005E6B99 /* graph_def_builder.cc */,
+				94DDB8C81CBA673D005E6B99 /* graph_def_builder.h */,
+				94DDB8CA1CBA673D005E6B99 /* graph_partition.cc */,
+				94DDB8CB1CBA673D005E6B99 /* graph_partition.h */,
+				94DDB8CE1CBA673D005E6B99 /* node_builder.cc */,
+				94DDB8CF1CBA673D005E6B99 /* node_builder.h */,
+				94DDB8D11CBA673D005E6B99 /* optimizer_cse.cc */,
+				94DDB8D21CBA673D005E6B99 /* optimizer_cse.h */,
+				94DDB8D41CBA673D005E6B99 /* subgraph.cc */,
+				94DDB8D51CBA673D005E6B99 /* subgraph.h */,
+				94DDB8D71CBA673D005E6B99 /* tensor_id.cc */,
+				94DDB8D81CBA673D005E6B99 /* tensor_id.h */,
+				94DDB8DA1CBA673D005E6B99 /* testlib.cc */,
+				94DDB8DB1CBA673D005E6B99 /* testlib.h */,
+				94DDB8DC1CBA673D005E6B99 /* types.h */,
+				94DDB8DD1CBA673D005E6B99 /* validate.cc */,
+				94DDB8DE1CBA673D005E6B99 /* validate.h */,
+			);
+			name = graph;
+			path = ../../../core/graph;
+			sourceTree = "<group>";
+		};
+		94DDB8E01CBA673D005E6B99 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB8E11CBA673D005E6B99 /* core */,
+				94DDB9001CBA673D005E6B99 /* gtl */,
+				94DDB9131CBA673D005E6B99 /* hash */,
+				94DDB91A1CBA673D005E6B99 /* histogram */,
+				94DDB91E1CBA673D005E6B99 /* io */,
+				94DDB9521CBA673D005E6B99 /* random */,
+				94DDB9651CBA673D005E6B99 /* strings */,
+			);
+			name = lib;
+			path = ../../../core/lib;
+			sourceTree = "<group>";
+		};
+		94DDB8E11CBA673D005E6B99 /* core */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB8E21CBA673D005E6B99 /* arena.cc */,
+				94DDB8E31CBA673D005E6B99 /* arena.h */,
+				94DDB8E61CBA673D005E6B99 /* bits.h */,
+				94DDB8E71CBA673D005E6B99 /* blocking_counter.h */,
+				94DDB8E91CBA673D005E6B99 /* casts.h */,
+				94DDB8EA1CBA673D005E6B99 /* coding.cc */,
+				94DDB8EB1CBA673D005E6B99 /* coding.h */,
+				94DDB8ED1CBA673D005E6B99 /* command_line_flags.cc */,
+				94DDB8EE1CBA673D005E6B99 /* command_line_flags.h */,
+				94DDB8F01CBA673D005E6B99 /* errors.h */,
+				94DDB8F11CBA673D005E6B99 /* notification.h */,
+				94DDB8F31CBA673D005E6B99 /* raw_coding.h */,
+				94DDB8F41CBA673D005E6B99 /* refcount.h */,
+				94DDB8F61CBA673D005E6B99 /* status.cc */,
+				94DDB8F71CBA673D005E6B99 /* status.h */,
+				94DDB8FA1CBA673D005E6B99 /* stringpiece.cc */,
+				94DDB8FB1CBA673D005E6B99 /* stringpiece.h */,
+				94DDB8FD1CBA673D005E6B99 /* threadpool.cc */,
+				94DDB8FE1CBA673D005E6B99 /* threadpool.h */,
+			);
+			path = core;
+			sourceTree = "<group>";
+		};
+		94DDB9001CBA673D005E6B99 /* gtl */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9011CBA673D005E6B99 /* array_slice.h */,
+				94DDB9021CBA673D005E6B99 /* array_slice_internal.h */,
+				94DDB9041CBA673D005E6B99 /* edit_distance.h */,
+				94DDB9061CBA673D005E6B99 /* inlined_vector.h */,
+				94DDB9081CBA673D005E6B99 /* int_type.h */,
+				94DDB90A1CBA673D005E6B99 /* iterator_range.h */,
+				94DDB90C1CBA673D005E6B99 /* manual_constructor.h */,
+				94DDB90E1CBA673D005E6B99 /* map_util.h */,
+				94DDB9101CBA673D005E6B99 /* stl_util.h */,
+				94DDB9111CBA673D005E6B99 /* top_n.h */,
+			);
+			path = gtl;
+			sourceTree = "<group>";
+		};
+		94DDB9131CBA673D005E6B99 /* hash */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9141CBA673D005E6B99 /* crc32c.cc */,
+				94DDB9151CBA673D005E6B99 /* crc32c.h */,
+				94DDB9171CBA673D005E6B99 /* hash.cc */,
+				94DDB9181CBA673D005E6B99 /* hash.h */,
+			);
+			path = hash;
+			sourceTree = "<group>";
+		};
+		94DDB91A1CBA673D005E6B99 /* histogram */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB91B1CBA673D005E6B99 /* histogram.cc */,
+				94DDB91C1CBA673D005E6B99 /* histogram.h */,
+			);
+			path = histogram;
+			sourceTree = "<group>";
+		};
+		94DDB91E1CBA673D005E6B99 /* io */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB91F1CBA673D005E6B99 /* block.cc */,
+				94DDB9201CBA673D005E6B99 /* block.h */,
+				94DDB9211CBA673D005E6B99 /* block_builder.cc */,
+				94DDB9221CBA673D005E6B99 /* block_builder.h */,
+				94DDB9231CBA673D005E6B99 /* format.cc */,
+				94DDB9241CBA673D005E6B99 /* format.h */,
+				94DDB9251CBA673D005E6B99 /* inputbuffer.cc */,
+				94DDB9261CBA673D005E6B99 /* inputbuffer.h */,
+				94DDB9281CBA673D005E6B99 /* iterator.cc */,
+				94DDB9291CBA673D005E6B99 /* iterator.h */,
+				94DDB92A1CBA673D005E6B99 /* match.cc */,
+				94DDB92B1CBA673D005E6B99 /* match.h */,
+				94DDB92D1CBA673D005E6B99 /* path.cc */,
+				94DDB92E1CBA673D005E6B99 /* path.h */,
+				94DDB9301CBA673D005E6B99 /* record_reader.cc */,
+				94DDB9311CBA673D005E6B99 /* record_reader.h */,
+				94DDB9321CBA673D005E6B99 /* record_writer.cc */,
+				94DDB9331CBA673D005E6B99 /* record_writer.h */,
+				94DDB9351CBA673D005E6B99 /* table.cc */,
+				94DDB9361CBA673D005E6B99 /* table.h */,
+				94DDB9371CBA673D005E6B99 /* table_builder.cc */,
+				94DDB9381CBA673D005E6B99 /* table_builder.h */,
+				94DDB9391CBA673D005E6B99 /* table_format.txt */,
+				94DDB93A1CBA673D005E6B99 /* table_options.h */,
+				94DDB93C1CBA673D005E6B99 /* two_level_iterator.cc */,
+				94DDB93D1CBA673D005E6B99 /* two_level_iterator.h */,
+			);
+			path = io;
+			sourceTree = "<group>";
+		};
+		94DDB9521CBA673D005E6B99 /* random */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9531CBA673D005E6B99 /* distribution_sampler.cc */,
+				94DDB9541CBA673D005E6B99 /* distribution_sampler.h */,
+				94DDB9561CBA673D005E6B99 /* exact_uniform_int.h */,
+				94DDB9571CBA673D005E6B99 /* philox_random.h */,
+				94DDB95A1CBA673D005E6B99 /* random.cc */,
+				94DDB95B1CBA673D005E6B99 /* random.h */,
+				94DDB95C1CBA673D005E6B99 /* random_distributions.h */,
+				94DDB95F1CBA673D005E6B99 /* simple_philox.cc */,
+				94DDB9601CBA673D005E6B99 /* simple_philox.h */,
+				94DDB9621CBA673D005E6B99 /* weighted_picker.cc */,
+				94DDB9631CBA673D005E6B99 /* weighted_picker.h */,
+			);
+			path = random;
+			sourceTree = "<group>";
+		};
+		94DDB9651CBA673D005E6B99 /* strings */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9661CBA673D005E6B99 /* numbers.cc */,
+				94DDB9671CBA673D005E6B99 /* numbers.h */,
+				94DDB9691CBA673D005E6B99 /* ordered_code.cc */,
+				94DDB96A1CBA673D005E6B99 /* ordered_code.h */,
+				94DDB96C1CBA673D005E6B99 /* regexp.h */,
+				94DDB96D1CBA673D005E6B99 /* scanner.cc */,
+				94DDB96E1CBA673D005E6B99 /* scanner.h */,
+				94DDB9701CBA673D005E6B99 /* str_util.cc */,
+				94DDB9711CBA673D005E6B99 /* str_util.h */,
+				94DDB9731CBA673D005E6B99 /* strcat.cc */,
+				94DDB9741CBA673D005E6B99 /* strcat.h */,
+				94DDB9761CBA673D005E6B99 /* stringprintf.cc */,
+				94DDB9771CBA673D005E6B99 /* stringprintf.h */,
+			);
+			path = strings;
+			sourceTree = "<group>";
+		};
+		94DDB9791CBA673D005E6B99 /* platform */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB97A1CBA673D005E6B99 /* cuda.h */,
+				94DDB97B1CBA673D005E6B99 /* default */,
+				94DDB98C1CBA673D005E6B99 /* denormal.cc */,
+				94DDB98D1CBA673D005E6B99 /* denormal.h */,
+				94DDB98E1CBA673D005E6B99 /* env.cc */,
+				94DDB7491CB9ABBA005E6B99 /* env.h */,
+				94DDB9911CBA673D005E6B99 /* host_info.h */,
+				94DDB9921CBA673D005E6B99 /* init_main.h */,
+				94DDB9941CBA673D005E6B99 /* jpeg.h */,
+				94DDB9951CBA673D005E6B99 /* load_library.cc */,
+				94DDB9961CBA673D005E6B99 /* load_library.h */,
+				94DDB7511CB9ACFC005E6B99 /* logging.h */,
+				94DDB9991CBA673D005E6B99 /* macros.h */,
+				94DDB99A1CBA673D005E6B99 /* mem.h */,
+				94DDB99B1CBA673D005E6B99 /* mutex.h */,
+				94DDB7521CB9ACFC005E6B99 /* platform.h */,
+				94DDB99D1CBA673D005E6B99 /* png.h */,
+				94DDB99F1CBA673D005E6B99 /* posix */,
+				94DDB9A41CBA673D005E6B99 /* protobuf_util.cc */,
+				94DDB9A31CBA673D005E6B99 /* protobuf.h */,
+				94DDB9A51CBA673D005E6B99 /* regexp.h */,
+				94DDB9A61CBA673D005E6B99 /* snappy.h */,
+				94DDB9A71CBA673D005E6B99 /* stream_executor.h */,
+				94DDB9A81CBA673D005E6B99 /* tensor_coding.cc */,
+				94DDB9A91CBA673D005E6B99 /* tensor_coding.h */,
+				94DDB9AE1CBA673D005E6B99 /* thread_annotations.h */,
+				94DDB9AF1CBA673D005E6B99 /* tracing.cc */,
+				94DDB9B01CBA673D005E6B99 /* tracing.h */,
+				94DDB7531CB9ACFC005E6B99 /* types.h */,
+			);
+			name = platform;
+			path = ../../../core/platform;
+			sourceTree = "<group>";
+		};
+		94DDB97B1CBA673D005E6B99 /* default */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9811CBA673D005E6B99 /* dynamic_annotations.h */,
+				94DDB9821CBA673D005E6B99 /* integral_types.h */,
+				94DDB9831CBA673D005E6B99 /* logging.cc */,
+				94DDB9841CBA673D005E6B99 /* logging.h */,
+				94DDB9851CBA673D005E6B99 /* mutex.h */,
+				94DDB9861CBA673D005E6B99 /* protobuf.h */,
+				94DDB9871CBA673D005E6B99 /* stream_executor.h */,
+				94DDB9881CBA673D005E6B99 /* test_benchmark.cc */,
+				94DDB9891CBA673D005E6B99 /* thread_annotations.h */,
+				94DDB98A1CBA673D005E6B99 /* tracing.cc */,
+				94DDB98B1CBA673D005E6B99 /* tracing_impl.h */,
+			);
+			path = default;
+			sourceTree = "<group>";
+		};
+		94DDB99F1CBA673D005E6B99 /* posix */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9A01CBA673D005E6B99 /* env.cc */,
+				94DDB9A11CBA673D005E6B99 /* port.cc */,
+			);
+			path = posix;
+			sourceTree = "<group>";
+		};
+		94DDB9B21CBA673D005E6B99 /* public */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9B41CBA673D005E6B99 /* session.h */,
+				94DDB9B51CBA673D005E6B99 /* session_options.h */,
+				94DDB9B61CBA673D005E6B99 /* tensor_c_api.h */,
+				94DDB9B71CBA673D005E6B99 /* version.h */,
+			);
+			name = public;
+			path = ../../../core/public;
+			sourceTree = "<group>";
+		};
+		94DDB9B81CBA673D005E6B99 /* util */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9B91CBA673D005E6B99 /* bcast.cc */,
+				94DDB9BC1CBA673D005E6B99 /* checkpoint_reader.cc */,
+				94DDB9BE1CBA673D005E6B99 /* command_line_flags.cc */,
+				94DDB9CC1CBA673D005E6B99 /* device_name_utils.cc */,
+				94DDB9D01CBA673D005E6B99 /* events_writer.cc */,
+				94DDB9D31CBA673D005E6B99 /* guarded_philox_random.cc */,
+				94DDB9D51CBA673D005E6B99 /* mirror_pad_mode.cc */,
+				94DDB9D71CBA673D005E6B99 /* padding.cc */,
+				94DDB9D91CBA673D005E6B99 /* port.cc */,
+				94DDB9DB1CBA673D005E6B99 /* reporter.cc */,
+				94DDB9DF1CBA673D005E6B99 /* saved_tensor_slice_util.cc */,
+				94DDB9E91CBA673D005E6B99 /* stat_summarizer.cc */,
+				94DDB9EB1CBA673D005E6B99 /* tensor_format.cc */,
+				94DDB9EF1CBA673D005E6B99 /* tensor_slice_reader_cache.cc */,
+				94DDB9ED1CBA673D005E6B99 /* tensor_slice_reader.cc */,
+				94DDB9F21CBA673D005E6B99 /* tensor_slice_set.cc */,
+				94DDB9F71CBA673D005E6B99 /* tensor_slice_writer.cc */,
+				94DDB9FB1CBA673D005E6B99 /* use_cudnn.cc */,
+				94DDB9FD1CBA673D005E6B99 /* util.cc */,
+				94DDB9FF1CBA673D005E6B99 /* work_sharder.cc */,
+				94DDB9BA1CBA673D005E6B99 /* bcast.h */,
+				94DDB9BD1CBA673D005E6B99 /* checkpoint_reader.h */,
+				94DDB9BF1CBA673D005E6B99 /* command_line_flags.h */,
+				94DDB9CB1CBA673D005E6B99 /* cuda_kernel_helper.h */,
+				94DDB9CD1CBA673D005E6B99 /* device_name_utils.h */,
+				94DDB9D11CBA673D005E6B99 /* events_writer.h */,
+				94DDB9D41CBA673D005E6B99 /* guarded_philox_random.h */,
+				94DDB9D61CBA673D005E6B99 /* mirror_pad_mode.h */,
+				94DDB9D81CBA673D005E6B99 /* padding.h */,
+				94DDB9DA1CBA673D005E6B99 /* port.h */,
+				94DDB9DC1CBA673D005E6B99 /* reporter.h */,
+				94DDB9E01CBA673D005E6B99 /* saved_tensor_slice_util.h */,
+				94DDB9EA1CBA673D005E6B99 /* stat_summarizer.h */,
+				94DDB9EC1CBA673D005E6B99 /* tensor_format.h */,
+				94DDB9F01CBA673D005E6B99 /* tensor_slice_reader_cache.h */,
+				94DDB9EE1CBA673D005E6B99 /* tensor_slice_reader.h */,
+				94DDB9F31CBA673D005E6B99 /* tensor_slice_set.h */,
+				94DDB9F51CBA673D005E6B99 /* tensor_slice_util.h */,
+				94DDB9F81CBA673D005E6B99 /* tensor_slice_writer.h */,
+				94DDB9FC1CBA673D005E6B99 /* use_cudnn.h */,
+				94DDB9FE1CBA673D005E6B99 /* util.h */,
+				94DDBA001CBA673D005E6B99 /* work_sharder.h */,
+				94DDB9C11CBA673D005E6B99 /* ctc */,
+				94DDB9E21CBA673D005E6B99 /* sparse */,
+			);
+			name = util;
+			path = ../../../core/util;
+			sourceTree = "<group>";
+		};
+		94DDB9C11CBA673D005E6B99 /* ctc */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9C31CBA673D005E6B99 /* ctc_beam_entry.h */,
+				94DDB9C41CBA673D005E6B99 /* ctc_beam_scorer.h */,
+				94DDB9C51CBA673D005E6B99 /* ctc_beam_search.h */,
+				94DDB9C71CBA673D005E6B99 /* ctc_decoder.h */,
+				94DDB9C81CBA673D005E6B99 /* ctc_loss_calculator.cc */,
+				94DDB9C91CBA673D005E6B99 /* ctc_loss_calculator.h */,
+				94DDB9CA1CBA673D005E6B99 /* ctc_loss_util.h */,
+			);
+			path = ctc;
+			sourceTree = "<group>";
+		};
+		94DDB9E21CBA673D005E6B99 /* sparse */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9E31CBA673D005E6B99 /* dim_comparator.h */,
+				94DDB9E41CBA673D005E6B99 /* group_iterator.cc */,
+				94DDB9E51CBA673D005E6B99 /* group_iterator.h */,
+				94DDB9E71CBA673D005E6B99 /* sparse_tensor.h */,
+			);
+			path = sparse;
+			sourceTree = "<group>";
+		};
+		94DDBD2A1CC3900B005E6B99 /* protos */ = {
+			isa = PBXGroup;
+			children = (
+				94DDBD2B1CC3904A005E6B99 /* core */,
+			);
+			name = protos;
+			sourceTree = "<group>";
+		};
+		94DDBD2B1CC3904A005E6B99 /* core */ = {
+			isa = PBXGroup;
+			children = (
+				94DDBD321CC3CD97005E6B99 /* example */,
+				94DDBD2F1CC392BF005E6B99 /* framework */,
+				94DDBD461CC3CED3005E6B99 /* kernels */,
+				94DDBD481CC3CF43005E6B99 /* lib */,
+				94DDBD4B1CC3CFA0005E6B99 /* protobuf */,
+				94DDBD2C1CC39120005E6B99 /* util */,
+			);
+			name = core;
+			sourceTree = "<group>";
+		};
+		94DDBD2C1CC39120005E6B99 /* util */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB9CF1CBA673D005E6B99 /* event.proto */,
+				94DDB9DE1CBA673D005E6B99 /* saved_tensor_slice.proto */,
+				94DDB9FA1CBA673D005E6B99 /* test_log.proto */,
+			);
+			name = util;
+			sourceTree = "<group>";
+		};
+		94DDBD2F1CC392BF005E6B99 /* framework */ = {
+			isa = PBXGroup;
+			children = (
+				94DDB8341CBA673D005E6B99 /* allocation_description.proto */,
+				94DDB8381CBA673D005E6B99 /* attr_value.proto */,
+				94DDB8431CBA673D005E6B99 /* device_attributes.proto */,
+				94DDB84A1CBA673D005E6B99 /* function.proto */,
+				94DDB84E1CBA673D005E6B99 /* graph.proto */,
+				94DDB8521CBA673D005E6B99 /* kernel_def.proto */,
+				94DDB8591CBA673D005E6B99 /* log_memory.proto */,
+				94DDB86A1CBA673D005E6B99 /* op_def.proto */,
+				94DDB8881CBA673D005E6B99 /* step_stats.proto */,
+				94DDB8891CBA673D005E6B99 /* summary.proto */,
+				94DDB88D1CBA673D005E6B99 /* tensor_description.proto */,
+				94DDB8921CBA673D005E6B99 /* tensor_shape.proto */,
+				94DDB8961CBA673D005E6B99 /* tensor_slice.proto */,
+				94DDB88C1CBA673D005E6B99 /* tensor.proto */,
+				94DDB8A61CBA673D005E6B99 /* types.proto */,
+				94DDB8AB1CBA673D005E6B99 /* variable.proto */,
+				94DDB8AE1CBA673D005E6B99 /* versions.proto */,
+			);
+			name = framework;
+			sourceTree = "<group>";
+		};
+		94DDBD321CC3CD97005E6B99 /* example */ = {
+			isa = PBXGroup;
+			children = (
+				94DDBD331CC3CDCD005E6B99 /* example.proto */,
+				94DDBD341CC3CDCD005E6B99 /* feature.proto */,
+			);
+			name = example;
+			sourceTree = "<group>";
+		};
+		94DDBD461CC3CED3005E6B99 /* kernels */ = {
+			isa = PBXGroup;
+			children = (
+				94DDBD471CC3CF38005E6B99 /* reader_base.proto */,
+			);
+			name = kernels;
+			sourceTree = "<group>";
+		};
+		94DDBD481CC3CF43005E6B99 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				94DDBD4A1CC3CF6D005E6B99 /* core */,
+			);
+			name = lib;
+			sourceTree = "<group>";
+		};
+		94DDBD4A1CC3CF6D005E6B99 /* core */ = {
+			isa = PBXGroup;
+			children = (
+				94DDBD491CC3CF67005E6B99 /* error_codes.proto */,
+			);
+			name = core;
+			sourceTree = "<group>";
+		};
+		94DDBD4B1CC3CFA0005E6B99 /* protobuf */ = {
+			isa = PBXGroup;
+			children = (
+				94DDBD4C1CC3D01F005E6B99 /* config.proto */,
+				94DDBD4D1CC3D01F005E6B99 /* meta_graph.proto */,
+				94DDBD4E1CC3D01F005E6B99 /* queue_runner.proto */,
+				94DDBD4F1CC3D01F005E6B99 /* saver.proto */,
+				94DDBD501CC3D01F005E6B99 /* tensorflow_server.proto */,
+			);
+			name = protobuf;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		94DDB73E1CB9A9F8005E6B99 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94DDBB201CBA673D005E6B99 /* integral_types.h in Headers */,
+				94DDBA4F1CBA673D005E6B99 /* tensor.h in Headers */,
+				94DDBAD51CBA673D005E6B99 /* block.h in Headers */,
+				94DDBB721CBA673D005E6B99 /* port.h in Headers */,
+				94DDB7E61CBA6648005E6B99 /* constant_folding.h in Headers */,
+				94DDBA621CBA673D005E6B99 /* type_index.h in Headers */,
+				94DDBA061CBA673D005E6B99 /* attr_value_util.h in Headers */,
+				94DDBB6E1CBA673D005E6B99 /* mirror_pad_mode.h in Headers */,
+				94DDBB5E1CBA673D005E6B99 /* ctc_beam_search.h in Headers */,
+				94DDBB191CBA673D005E6B99 /* strcat.h in Headers */,
+				94DDBA2D1CBA673D005E6B99 /* numeric_types.h in Headers */,
+				94DDBB111CBA673D005E6B99 /* regexp.h in Headers */,
+				94DDBA431CBA673D005E6B99 /* reader_interface.h in Headers */,
+				94DDBA9A1CBA673D005E6B99 /* validate.h in Headers */,
+				94DDBAA31CBA673D005E6B99 /* casts.h in Headers */,
+				94DDBB5D1CBA673D005E6B99 /* ctc_beam_scorer.h in Headers */,
+				94DDBAC01CBA673D005E6B99 /* int_type.h in Headers */,
+				94DDBADB1CBA673D005E6B99 /* inputbuffer.h in Headers */,
+				94DDB8161CBA664A005E6B99 /* process_state.h in Headers */,
+				94DDBB511CBA673D005E6B99 /* session_options.h in Headers */,
+				94DDB74A1CB9ABBA005E6B99 /* env.h in Headers */,
+				94DDBAB01CBA673D005E6B99 /* status.h in Headers */,
+				94DDBA3A1CBA673D005E6B99 /* op_kernel.h in Headers */,
+				94DDBA0C1CBA673D005E6B99 /* cancellation.h in Headers */,
+				94DDBA7A1CBA673D005E6B99 /* equal_graph_def.h in Headers */,
+				94DDBB7D1CBA673D005E6B99 /* sparse_tensor.h in Headers */,
+				94DDBAA51CBA673D005E6B99 /* coding.h in Headers */,
+				94DDBA271CBA673D005E6B99 /* node_def_builder.h in Headers */,
+				94DDBB691CBA673D005E6B99 /* events_writer.h in Headers */,
+				94DDBAE61CBA673D005E6B99 /* record_reader.h in Headers */,
+				94DDB7F41CBA6648005E6B99 /* direct_session.h in Headers */,
+				94DDBAFD1CBA673D005E6B99 /* philox_random.h in Headers */,
+				94DDBA031CBA673D005E6B99 /* allocator.h in Headers */,
+				94DDBB8E1CBA673E005E6B99 /* tensor_slice_writer.h in Headers */,
+				94DDBB0C1CBA673D005E6B99 /* numbers.h in Headers */,
+				94DDBAC41CBA673D005E6B99 /* manual_constructor.h in Headers */,
+				94DDBA121CBA673D005E6B99 /* fake_input.h in Headers */,
+				94DDBABA1CBA673D005E6B99 /* array_slice_internal.h in Headers */,
+				94DDB8211CBA664B005E6B99 /* pending_counts.h in Headers */,
+				94DDB7541CB9ACFC005E6B99 /* logging.h in Headers */,
+				94DDBA381CBA673D005E6B99 /* op_gen_lib.h in Headers */,
+				94DDBAB41CBA673D005E6B99 /* stringpiece.h in Headers */,
+				94DDBA5B1CBA673D005E6B99 /* tensor_types.h in Headers */,
+				94DDBB021CBA673D005E6B99 /* random_distributions.h in Headers */,
+				94DDBA101CBA673D005E6B99 /* device_base.h in Headers */,
+				94DDB8171CBA664A005E6B99 /* gpu_device_context.h in Headers */,
+				94DDBA351CBA673D005E6B99 /* op_def_util.h in Headers */,
+				94DDB7F61CBA6648005E6B99 /* dma_helper.h in Headers */,
+				94DDBB3B1CBA673D005E6B99 /* png.h in Headers */,
+				94DDB7E41CBA6648005E6B99 /* bfc_allocator.h in Headers */,
+				94DDBB421CBA673D005E6B99 /* regexp.h in Headers */,
+				94DDBA451CBA673D005E6B99 /* reader_op_kernel.h in Headers */,
+				94DDBB271CBA673D005E6B99 /* thread_annotations.h in Headers */,
+				94DDBB251CBA673D005E6B99 /* stream_executor.h in Headers */,
+				94DDBB741CBA673D005E6B99 /* reporter.h in Headers */,
+				94DDBA4B1CBA673D005E6B99 /* resource_mgr.h in Headers */,
+				94DDBA701CBA673D005E6B99 /* colors.h in Headers */,
+				94DDBB5A1CBA673D005E6B99 /* command_line_flags.h in Headers */,
+				94DDBA7D1CBA673D005E6B99 /* gradients.h in Headers */,
+				94DDBA601CBA673D005E6B99 /* tracking_allocator.h in Headers */,
+				94DDBAFC1CBA673D005E6B99 /* exact_uniform_int.h in Headers */,
+				94DDBAAA1CBA673D005E6B99 /* notification.h in Headers */,
+				94DDB7E91CBA6648005E6B99 /* copy_tensor.h in Headers */,
+				94DDBA6D1CBA673D005E6B99 /* algorithm.h in Headers */,
+				94DDBB771CBA673D005E6B99 /* saved_tensor_slice_util.h in Headers */,
+				94DDBABC1CBA673D005E6B99 /* edit_distance.h in Headers */,
+				94DDB7FF1CBA6649005E6B99 /* gpu_bfc_allocator.h in Headers */,
+				94DDB7FB1CBA6648005E6B99 /* function.h in Headers */,
+				94DDBA681CBA673D005E6B99 /* unique_tensor_references.h in Headers */,
+				94DDBA201CBA673D005E6B99 /* log_memory.h in Headers */,
+				94DDBA2C1CBA673D005E6B99 /* numeric_op.h in Headers */,
+				94DDBA141CBA673D005E6B99 /* function.h in Headers */,
+				94DDB7551CB9ACFC005E6B99 /* platform.h in Headers */,
+				94DDBB821CBA673D005E6B99 /* tensor_format.h in Headers */,
+				94DDBB431CBA673D005E6B99 /* snappy.h in Headers */,
+				94DDB7771CBA5D21005E6B99 /* avgpooling_op.h in Headers */,
+				94DDBA631CBA673D005E6B99 /* type_traits.h in Headers */,
+				94DDB8131CBA664A005E6B99 /* pool_allocator.h in Headers */,
+				94DDB7561CB9ACFC005E6B99 /* types.h in Headers */,
+				94DDBA721CBA673D005E6B99 /* costmodel.h in Headers */,
+				94DDBB801CBA673D005E6B99 /* stat_summarizer.h in Headers */,
+				94DDBAC61CBA673D005E6B99 /* map_util.h in Headers */,
+				94DDBA191CBA673D005E6B99 /* graph_def_util.h in Headers */,
+				94DDBA8E1CBA673D005E6B99 /* optimizer_cse.h in Headers */,
+				94DDBAAD1CBA673D005E6B99 /* refcount.h in Headers */,
+				94DDBAE31CBA673D005E6B99 /* path.h in Headers */,
+				94DDBB1C1CBA673D005E6B99 /* stringprintf.h in Headers */,
+				94DDB8051CBA6649005E6B99 /* gpu_device.h in Headers */,
+				94DDBB2B1CBA673D005E6B99 /* denormal.h in Headers */,
+				94DDBAB71CBA673D005E6B99 /* threadpool.h in Headers */,
+				94DDBB011CBA673D005E6B99 /* random.h in Headers */,
+				94DDB8301CBA664D005E6B99 /* threadpool_device.h in Headers */,
+				94DDBA811CBA673D005E6B99 /* graph_constructor.h in Headers */,
+				94DDBA5A1CBA673D005E6B99 /* tensor_testutil.h in Headers */,
+				94DDBB4B1CBA673D005E6B99 /* thread_annotations.h in Headers */,
+				94DDBB391CBA673D005E6B99 /* mutex.h in Headers */,
+				94DDBAF11CBA673D005E6B99 /* two_level_iterator.h in Headers */,
+				94DDBA461CBA673D005E6B99 /* register_types.h in Headers */,
+				94DDBA8B1CBA673D005E6B99 /* node_builder.h in Headers */,
+				94DDBA6B1CBA673D005E6B99 /* versions.h in Headers */,
+				94DDBB401CBA673D005E6B99 /* protobuf.h in Headers */,
+				94DDBA871CBA673D005E6B99 /* graph_partition.h in Headers */,
+				94DDBA2F1CBA673D005E6B99 /* op.h in Headers */,
+				94DDBB861CBA673D005E6B99 /* tensor_slice_reader_cache.h in Headers */,
+				94DDBB701CBA673D005E6B99 /* padding.h in Headers */,
+				94DDBB1F1CBA673D005E6B99 /* dynamic_annotations.h in Headers */,
+				94DDBA241CBA673D005E6B99 /* memory_types.h in Headers */,
+				94DDBA971CBA673D005E6B99 /* testlib.h in Headers */,
+				94DDBACC1CBA673D005E6B99 /* crc32c.h in Headers */,
+				94DDBAA11CBA673D005E6B99 /* blocking_counter.h in Headers */,
+				94DDBAED1CBA673D005E6B99 /* table_builder.h in Headers */,
+				94DDB76C1CBA5B69005E6B99 /* eigen_backward_spatial_convolutions.h in Headers */,
+				94DDBAC91CBA673D005E6B99 /* top_n.h in Headers */,
+				94DDB7791CBA5D21005E6B99 /* maxpooling_op.h in Headers */,
+				94DDBB0F1CBA673D005E6B99 /* ordered_code.h in Headers */,
+				94DDBB951CBA673E005E6B99 /* work_sharder.h in Headers */,
+				94DDB7E21CBA6648005E6B99 /* allocator_retry.h in Headers */,
+				94DDBAE01CBA673D005E6B99 /* match.h in Headers */,
+				94DDBB4D1CBA673D005E6B99 /* tracing.h in Headers */,
+				94DDBA651CBA673D005E6B99 /* types.h in Headers */,
+				94DDBB2F1CBA673D005E6B99 /* host_info.h in Headers */,
+				94DDB7ED1CBA6648005E6B99 /* device_factory.h in Headers */,
+				94DDB82B1CBA664C005E6B99 /* simple_placer.h in Headers */,
+				94DDB81D1CBA664B005E6B99 /* local_device.h in Headers */,
+				94DDBB521CBA673D005E6B99 /* tensor_c_api.h in Headers */,
+				94DDBB241CBA673D005E6B99 /* protobuf.h in Headers */,
+				94DDBAD21CBA673D005E6B99 /* histogram.h in Headers */,
+				94DDBA4D1CBA673D005E6B99 /* selective_registration.h in Headers */,
+				94DDBB441CBA673D005E6B99 /* stream_executor.h in Headers */,
+				94DDBA531CBA673D005E6B99 /* tensor_shape.h in Headers */,
+				94DDBB091CBA673D005E6B99 /* weighted_picker.h in Headers */,
+				94DDBAC81CBA673D005E6B99 /* stl_util.h in Headers */,
+				94DDBB841CBA673D005E6B99 /* tensor_slice_reader.h in Headers */,
+				94DDBA221CBA673D005E6B99 /* lookup_interface.h in Headers */,
+				94DDB8271CBA664C005E6B99 /* session_factory.h in Headers */,
+				94DDBB7B1CBA673D005E6B99 /* group_iterator.h in Headers */,
+				94DDBA771CBA673D005E6B99 /* edgeset.h in Headers */,
+				94DDB7F71CBA6648005E6B99 /* eigen_thread_pool.h in Headers */,
+				94DDBA561CBA673D005E6B99 /* tensor_slice.h in Headers */,
+				94DDBB891CBA673E005E6B99 /* tensor_slice_set.h in Headers */,
+				94DDBB791CBA673D005E6B99 /* dim_comparator.h in Headers */,
+				94DDBAAC1CBA673D005E6B99 /* raw_coding.h in Headers */,
+				94DDB8081CBA6649005E6B99 /* gpu_event_mgr.h in Headers */,
+				94DDB76B1CBA5B69005E6B99 /* eigen_backward_cuboid_convolutions.h in Headers */,
+				94DDB76D1CBA5B69005E6B99 /* eigen_patch_3d.h in Headers */,
+				94DDB81F1CBA664B005E6B99 /* memory_types.h in Headers */,
+				94DDB7F11CBA6648005E6B99 /* device_set.h in Headers */,
+				94DDBA9D1CBA673D005E6B99 /* arena.h in Headers */,
+				94DDBB601CBA673D005E6B99 /* ctc_decoder.h in Headers */,
+				94DDBB131CBA673D005E6B99 /* scanner.h in Headers */,
+				94DDBB291CBA673D005E6B99 /* tracing_impl.h in Headers */,
+				94DDBB381CBA673D005E6B99 /* mem.h in Headers */,
+				94DDB8241CBA664C005E6B99 /* rendezvous_mgr.h in Headers */,
+				94DDBA7F1CBA673D005E6B99 /* graph.h in Headers */,
+				94DDBAFA1CBA673D005E6B99 /* distribution_sampler.h in Headers */,
+				94DDBABE1CBA673D005E6B99 /* inlined_vector.h in Headers */,
+				94DDBA0E1CBA673D005E6B99 /* control_flow.h in Headers */,
+				94DDB7721CBA5B69005E6B99 /* pooling_ops_common.h in Headers */,
+				94DDBA751CBA673D005E6B99 /* dot.h in Headers */,
+				94DDB8321CBA664D005E6B99 /* visitable_allocator.h in Headers */,
+				94DDBA481CBA673D005E6B99 /* rendezvous.h in Headers */,
+				94DDB80D1CBA6649005E6B99 /* gpu_stream_util.h in Headers */,
+				94DDBAA01CBA673D005E6B99 /* bits.h in Headers */,
+				94DDB8021CBA6649005E6B99 /* gpu_debug_allocator.h in Headers */,
+				94DDBB661CBA673D005E6B99 /* device_name_utils.h in Headers */,
+				94DDBAEE1CBA673D005E6B99 /* table_options.h in Headers */,
+				94DDBA841CBA673D005E6B99 /* graph_def_builder.h in Headers */,
+				94DDBACF1CBA673D005E6B99 /* hash.h in Headers */,
+				94DDBA1C1CBA673D005E6B99 /* kernel_def_builder.h in Headers */,
+				94DDBB5C1CBA673D005E6B99 /* ctc_beam_entry.h in Headers */,
+				94DDBAA91CBA673D005E6B99 /* errors.h in Headers */,
+				94DDB7EF1CBA6648005E6B99 /* device_mgr.h in Headers */,
+				94DDBA981CBA673D005E6B99 /* types.h in Headers */,
+				94DDBB371CBA673D005E6B99 /* macros.h in Headers */,
+				94DDBB621CBA673D005E6B99 /* ctc_loss_calculator.h in Headers */,
+				94DDB7EB1CBA6648005E6B99 /* device.h in Headers */,
+				94DDB76F1CBA5B69005E6B99 /* eigen_softmax.h in Headers */,
+				94DDBA941CBA673D005E6B99 /* tensor_id.h in Headers */,
+				94DDB7691CBA5B69005E6B99 /* eigen_activations.h in Headers */,
+				94DDBA321CBA673D005E6B99 /* op_def_builder.h in Headers */,
+				94DDBAEB1CBA673D005E6B99 /* table.h in Headers */,
+				94DDBA3D1CBA673D005E6B99 /* op_segment.h in Headers */,
+				94DDB8101CBA664A005E6B99 /* gpu_util.h in Headers */,
+				94DDB80B1CBA6649005E6B99 /* gpu_init.h in Headers */,
+				94DDB76E1CBA5B69005E6B99 /* eigen_pooling.h in Headers */,
+				94DDB82E1CBA664D005E6B99 /* step_stats_collector.h in Headers */,
+				94DDBB1E1CBA673D005E6B99 /* cuda.h in Headers */,
+				94DDBB231CBA673D005E6B99 /* mutex.h in Headers */,
+				94DDBA511CBA673D005E6B99 /* tensor_reference.h in Headers */,
+				94DDBB501CBA673D005E6B99 /* session.h in Headers */,
+				94DDBB551CBA673D005E6B99 /* bcast.h in Headers */,
+				94DDBB911CBA673E005E6B99 /* use_cudnn.h in Headers */,
+				94DDBAB91CBA673D005E6B99 /* array_slice.h in Headers */,
+				94DDBB6C1CBA673D005E6B99 /* guarded_philox_random.h in Headers */,
+				94DDBB461CBA673D005E6B99 /* tensor_coding.h in Headers */,
+				94DDBA2A1CBA673D005E6B99 /* node_def_util.h in Headers */,
+				94DDBAE81CBA673D005E6B99 /* record_writer.h in Headers */,
+				94DDBB931CBA673E005E6B99 /* util.h in Headers */,
+				94DDBB531CBA673D005E6B99 /* version.h in Headers */,
+				94DDBB061CBA673D005E6B99 /* simple_philox.h in Headers */,
+				94DDBB581CBA673D005E6B99 /* checkpoint_reader.h in Headers */,
+				94DDBB321CBA673D005E6B99 /* jpeg.h in Headers */,
+				94DDBA911CBA673D005E6B99 /* subgraph.h in Headers */,
+				94DDBB221CBA673D005E6B99 /* logging.h in Headers */,
+				94DDBA401CBA673D005E6B99 /* partial_tensor_shape.h in Headers */,
+				94DDBA421CBA673D005E6B99 /* queue_interface.h in Headers */,
+				94DDB7F91CBA6648005E6B99 /* executor.h in Headers */,
+				94DDBB301CBA673D005E6B99 /* init_main.h in Headers */,
+				94DDB76A1CBA5B69005E6B99 /* eigen_attention.h in Headers */,
+				94DDBB641CBA673D005E6B99 /* cuda_kernel_helper.h in Headers */,
+				94DDBADE1CBA673D005E6B99 /* iterator.h in Headers */,
+				94DDBB341CBA673D005E6B99 /* load_library.h in Headers */,
+				94DDBB161CBA673D005E6B99 /* str_util.h in Headers */,
+				94DDBA5D1CBA673D005E6B99 /* tensor_util.h in Headers */,
+				94DDBAD71CBA673D005E6B99 /* block_builder.h in Headers */,
+				94DDBAC21CBA673D005E6B99 /* iterator_range.h in Headers */,
+				94DDB8191CBA664A005E6B99 /* graph_optimizer.h in Headers */,
+				94DDBB8B1CBA673E005E6B99 /* tensor_slice_util.h in Headers */,
+				94DDB7701CBA5B69005E6B99 /* eigen_spatial_convolutions.h in Headers */,
+				94DDB7781CBA5D21005E6B99 /* bounds_check.h in Headers */,
+				94DDBAA81CBA673D005E6B99 /* command_line_flags.h in Headers */,
+				94DDBA731CBA673D005E6B99 /* default_device.h in Headers */,
+				94DDB7711CBA5B69005E6B99 /* ops_util.h in Headers */,
+				94DDBB631CBA673D005E6B99 /* ctc_loss_util.h in Headers */,
+				94DDBA091CBA673D005E6B99 /* bfloat16.h in Headers */,
+				94DDBAD91CBA673D005E6B99 /* format.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		94DDB73F1CB9A9F8005E6B99 /* tensorflow_lite */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 94DDB7441CB9A9F8005E6B99 /* Build configuration list for PBXNativeTarget "tensorflow_lite" */;
+			buildPhases = (
+				94DDB73C1CB9A9F8005E6B99 /* Sources */,
+				94DDB73D1CB9A9F8005E6B99 /* Frameworks */,
+				94DDB73E1CB9A9F8005E6B99 /* Headers */,
+			);
+			buildRules = (
+				94DDBD2D1CC3921B005E6B99 /* PBXBuildRule */,
+			);
+			dependencies = (
+			);
+			name = tensorflow_lite;
+			productName = tensorflow_re_lite;
+			productReference = 94DDB7401CB9A9F8005E6B99 /* libtensorflow_lite.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		94DDB7381CB9A9F8005E6B99 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0720;
+				ORGANIZATIONNAME = "Stephen Oman";
+				TargetAttributes = {
+					94DDB73F1CB9A9F8005E6B99 = {
+						CreatedOnToolsVersion = 7.2.1;
+					};
+				};
+			};
+			buildConfigurationList = 94DDB73B1CB9A9F8005E6B99 /* Build configuration list for PBXProject "tensorflow_lite" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 94DDB7371CB9A9F8005E6B99;
+			productRefGroup = 94DDB7411CB9A9F8005E6B99 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				94DDB73F1CB9A9F8005E6B99 /* tensorflow_lite */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		94DDB73C1CB9A9F8005E6B99 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94DDBD401CC3CE98005E6B99 /* tensor_shape.proto in Sources */,
+				94DDBD431CC3CE98005E6B99 /* types.proto in Sources */,
+				94DDBD421CC3CE98005E6B99 /* tensor.proto in Sources */,
+				94DDBD371CC3CE31005E6B99 /* allocation_description.proto in Sources */,
+				94DDBD311CC3CAD3005E6B99 /* attr_value.proto in Sources */,
+				94DDBD381CC3CE88005E6B99 /* device_attributes.proto in Sources */,
+				94DDBD391CC3CE88005E6B99 /* function.proto in Sources */,
+				94DDBD301CC392ED005E6B99 /* graph.proto in Sources */,
+				94DDBD3A1CC3CE98005E6B99 /* kernel_def.proto in Sources */,
+				94DDBD3B1CC3CE98005E6B99 /* log_memory.proto in Sources */,
+				94DDBD3C1CC3CE98005E6B99 /* op_def.proto in Sources */,
+				94DDBD3D1CC3CE98005E6B99 /* step_stats.proto in Sources */,
+				94DDBD3E1CC3CE98005E6B99 /* summary.proto in Sources */,
+				94DDBD3F1CC3CE98005E6B99 /* tensor_description.proto in Sources */,
+				94DDBD411CC3CE98005E6B99 /* tensor_slice.proto in Sources */,
+				94DDBD441CC3CE98005E6B99 /* variable.proto in Sources */,
+				94DDBD451CC3CE98005E6B99 /* versions.proto in Sources */,
+				94DDBD511CC3D0B5005E6B99 /* reader_base.proto in Sources */,
+				94DDBD521CC3D0D3005E6B99 /* error_codes.proto in Sources */,
+				94DDBD531CC3D0ED005E6B99 /* config.proto in Sources */,
+				94DDBD541CC3D0ED005E6B99 /* meta_graph.proto in Sources */,
+				94DDBD551CC3D0ED005E6B99 /* queue_runner.proto in Sources */,
+				94DDBD561CC3D0ED005E6B99 /* saver.proto in Sources */,
+				94DDBD571CC3D0ED005E6B99 /* tensorflow_server.proto in Sources */,
+				94DDBD581CC3D0FD005E6B99 /* event.proto in Sources */,
+				94DDBD591CC3D0FD005E6B99 /* saved_tensor_slice.proto in Sources */,
+				94DDBD2E1CC392A7005E6B99 /* test_log.proto in Sources */,
+				94DDBD351CC3CDDA005E6B99 /* example.proto in Sources */,
+				94DDBD361CC3CDDA005E6B99 /* feature.proto in Sources */,
+				94DDB8151CBA664A005E6B99 /* process_state.cc in Sources */,
+				94DDBA861CBA673D005E6B99 /* graph_partition.cc in Sources */,
+				94DDBA961CBA673D005E6B99 /* testlib.cc in Sources */,
+				94DDBA5F1CBA673D005E6B99 /* tracking_allocator.cc in Sources */,
+				94DDBB921CBA673E005E6B99 /* util.cc in Sources */,
+				94DDBB851CBA673D005E6B99 /* tensor_slice_reader_cache.cc in Sources */,
+				94DDBAE21CBA673D005E6B99 /* path.cc in Sources */,
+				94DDBA7C1CBA673D005E6B99 /* gradients.cc in Sources */,
+				94DDB80F1CBA664A005E6B99 /* gpu_util.cc in Sources */,
+				94DDBB901CBA673E005E6B99 /* use_cudnn.cc in Sources */,
+				94DDB8231CBA664B005E6B99 /* rendezvous_mgr.cc in Sources */,
+				94DDBB0B1CBA673D005E6B99 /* numbers.cc in Sources */,
+				94DDBB941CBA673E005E6B99 /* work_sharder.cc in Sources */,
+				94DDBB4C1CBA673D005E6B99 /* tracing.cc in Sources */,
+				94DDBB121CBA673D005E6B99 /* scanner.cc in Sources */,
+				94DDBA901CBA673D005E6B99 /* subgraph.cc in Sources */,
+				94DDB7F01CBA6648005E6B99 /* device_set.cc in Sources */,
+				94DDBA761CBA673D005E6B99 /* edgeset.cc in Sources */,
+				94DDBA391CBA673D005E6B99 /* op_kernel.cc in Sources */,
+				94DDB8111CBA664A005E6B99 /* gpu_util_platform_specific.cc in Sources */,
+				94DDB8181CBA664A005E6B99 /* graph_optimizer.cc in Sources */,
+				94DDB7E11CBA6648005E6B99 /* allocator_retry.cc in Sources */,
+				94DDBA8D1CBA673D005E6B99 /* optimizer_cse.cc in Sources */,
+				94DDBA521CBA673D005E6B99 /* tensor_shape.cc in Sources */,
+				94DDBA0F1CBA673D005E6B99 /* device_base.cc in Sources */,
+				94DDBA261CBA673D005E6B99 /* node_def_builder.cc in Sources */,
+				94DDB8061CBA6649005E6B99 /* gpu_device_factory.cc in Sources */,
+				94DDB82F1CBA664D005E6B99 /* threadpool_device.cc in Sources */,
+				94DDBA711CBA673D005E6B99 /* costmodel.cc in Sources */,
+				94DDBB7F1CBA673D005E6B99 /* stat_summarizer.cc in Sources */,
+				94DDBA181CBA673D005E6B99 /* graph_def_util.cc in Sources */,
+				94DDBB6F1CBA673D005E6B99 /* padding.cc in Sources */,
+				94DDBB7A1CBA673D005E6B99 /* group_iterator.cc in Sources */,
+				94DDB7731CBA5B69005E6B99 /* ops_util.cc in Sources */,
+				94DDBB181CBA673D005E6B99 /* strcat.cc in Sources */,
+				94DDBA441CBA673D005E6B99 /* reader_op_kernel.cc in Sources */,
+				94DDB7E31CBA6648005E6B99 /* bfc_allocator.cc in Sources */,
+				94DDBA3F1CBA673D005E6B99 /* partial_tensor_shape.cc in Sources */,
+				94DDBA6A1CBA673D005E6B99 /* versions.cc in Sources */,
+				94DDBB611CBA673D005E6B99 /* ctc_loss_calculator.cc in Sources */,
+				94DDBA291CBA673D005E6B99 /* node_def_util.cc in Sources */,
+				94DDB78B1CBA65FD005E6B99 /* tensor_c_api.cc in Sources */,
+				94DDBA6F1CBA673D005E6B99 /* colors.cc in Sources */,
+				94DDBB001CBA673D005E6B99 /* random.cc in Sources */,
+				94DDBADD1CBA673D005E6B99 /* iterator.cc in Sources */,
+				94DDBAF91CBA673D005E6B99 /* distribution_sampler.cc in Sources */,
+				94DDBA231CBA673D005E6B99 /* memory_types.cc in Sources */,
+				94DDBA551CBA673D005E6B99 /* tensor_slice.cc in Sources */,
+				94DDBA5C1CBA673D005E6B99 /* tensor_util.cc in Sources */,
+				94DDBB6D1CBA673D005E6B99 /* mirror_pad_mode.cc in Sources */,
+				94DDBAA41CBA673D005E6B99 /* coding.cc in Sources */,
+				94DDBB0E1CBA673D005E6B99 /* ordered_code.cc in Sources */,
+				94DDBAAF1CBA673D005E6B99 /* status.cc in Sources */,
+				94DDB7EE1CBA6648005E6B99 /* device_mgr.cc in Sources */,
+				94DDB8011CBA6649005E6B99 /* gpu_debug_allocator.cc in Sources */,
+				94DDB8121CBA664A005E6B99 /* pool_allocator.cc in Sources */,
+				94DDBA741CBA673D005E6B99 /* dot.cc in Sources */,
+				94DDBAB61CBA673D005E6B99 /* threadpool.cc in Sources */,
+				94DDBB261CBA673D005E6B99 /* test_benchmark.cc in Sources */,
+				94DDBB451CBA673D005E6B99 /* tensor_coding.cc in Sources */,
+				94DDB7E51CBA6648005E6B99 /* constant_folding.cc in Sources */,
+				94DDB80C1CBA6649005E6B99 /* gpu_stream_util.cc in Sources */,
+				94DDBA1F1CBA673D005E6B99 /* log_memory.cc in Sources */,
+				94DDBA671CBA673D005E6B99 /* unique_tensor_references.cc in Sources */,
+				94DDB8041CBA6649005E6B99 /* gpu_device.cc in Sources */,
+				94DDBB711CBA673D005E6B99 /* port.cc in Sources */,
+				94DDBA8A1CBA673D005E6B99 /* node_builder.cc in Sources */,
+				94DDBA931CBA673D005E6B99 /* tensor_id.cc in Sources */,
+				94DDB8281CBA664C005E6B99 /* session_options.cc in Sources */,
+				94DDBA991CBA673D005E6B99 /* validate.cc in Sources */,
+				94DDB8071CBA6649005E6B99 /* gpu_event_mgr.cc in Sources */,
+				94DDBB331CBA673D005E6B99 /* load_library.cc in Sources */,
+				94DDBA051CBA673D005E6B99 /* attr_value_util.cc in Sources */,
+				94DDB8311CBA664D005E6B99 /* threadpool_device_factory.cc in Sources */,
+				94DDBA1B1CBA673D005E6B99 /* kernel_def_builder.cc in Sources */,
+				94DDBA111CBA673D005E6B99 /* fake_input.cc in Sources */,
+				94DDBB051CBA673D005E6B99 /* simple_philox.cc in Sources */,
+				94DDBA6C1CBA673D005E6B99 /* algorithm.cc in Sources */,
+				94DDBB681CBA673D005E6B99 /* events_writer.cc in Sources */,
+				94DDBA4A1CBA673D005E6B99 /* resource_mgr.cc in Sources */,
+				94DDBB3E1CBA673D005E6B99 /* port.cc in Sources */,
+				94DDBA081CBA673D005E6B99 /* bfloat16.cc in Sources */,
+				94DDBAE71CBA673D005E6B99 /* record_writer.cc in Sources */,
+				94DDBA0B1CBA673D005E6B99 /* cancellation.cc in Sources */,
+				94DDBA211CBA673D005E6B99 /* lookup_interface.cc in Sources */,
+				94DDBACE1CBA673D005E6B99 /* hash.cc in Sources */,
+				94DDBA831CBA673D005E6B99 /* graph_def_builder.cc in Sources */,
+				94DDBB541CBA673D005E6B99 /* bcast.cc in Sources */,
+				94DDBB151CBA673D005E6B99 /* str_util.cc in Sources */,
+				94DDBB211CBA673D005E6B99 /* logging.cc in Sources */,
+				94DDBA501CBA673D005E6B99 /* tensor_reference.cc in Sources */,
+				94DDBB6B1CBA673D005E6B99 /* guarded_philox_random.cc in Sources */,
+				94DDBA371CBA673D005E6B99 /* op_gen_lib.cc in Sources */,
+				94DDBB2C1CBA673D005E6B99 /* env.cc in Sources */,
+				94DDBA021CBA673D005E6B99 /* allocator.cc in Sources */,
+				94DDBA131CBA673D005E6B99 /* function.cc in Sources */,
+				94DDB82D1CBA664C005E6B99 /* step_stats_collector.cc in Sources */,
+				94DDBA341CBA673D005E6B99 /* op_def_util.cc in Sources */,
+				94DDBA4E1CBA673D005E6B99 /* tensor.cc in Sources */,
+				94DDB80A1CBA6649005E6B99 /* gpu_init.cc in Sources */,
+				94DDBAD41CBA673D005E6B99 /* block.cc in Sources */,
+				94DDB8251CBA664C005E6B99 /* session.cc in Sources */,
+				94DDB7EA1CBA6648005E6B99 /* device.cc in Sources */,
+				94DDBB281CBA673D005E6B99 /* tracing.cc in Sources */,
+				94DDBA801CBA673D005E6B99 /* graph_constructor.cc in Sources */,
+				94DDB7FE1CBA6649005E6B99 /* gpu_bfc_allocator.cc in Sources */,
+				94DDBA2E1CBA673D005E6B99 /* op.cc in Sources */,
+				94DDBACB1CBA673D005E6B99 /* crc32c.cc in Sources */,
+				94DDB81E1CBA664B005E6B99 /* memory_types.cc in Sources */,
+				94DDBADA1CBA673D005E6B99 /* inputbuffer.cc in Sources */,
+				94DDB7F31CBA6648005E6B99 /* direct_session.cc in Sources */,
+				94DDBA791CBA673D005E6B99 /* equal_graph_def.cc in Sources */,
+				94DDB7EC1CBA6648005E6B99 /* device_factory.cc in Sources */,
+				94DDBA7E1CBA673D005E6B99 /* graph.cc in Sources */,
+				94DDBB811CBA673D005E6B99 /* tensor_format.cc in Sources */,
+				94DDBB1B1CBA673D005E6B99 /* stringprintf.cc in Sources */,
+				94DDBAF01CBA673D005E6B99 /* two_level_iterator.cc in Sources */,
+				94DDB7F81CBA6648005E6B99 /* executor.cc in Sources */,
+				94DDBA311CBA673D005E6B99 /* op_def_builder.cc in Sources */,
+				94DDBB591CBA673D005E6B99 /* command_line_flags.cc in Sources */,
+				94DDBAB31CBA673D005E6B99 /* stringpiece.cc in Sources */,
+				94DDB7E81CBA6648005E6B99 /* copy_tensor.cc in Sources */,
+				94DDBAEA1CBA673D005E6B99 /* table.cc in Sources */,
+				94DDBB881CBA673E005E6B99 /* tensor_slice_set.cc in Sources */,
+				94DDBB2A1CBA673D005E6B99 /* denormal.cc in Sources */,
+				94DDBA641CBA673D005E6B99 /* types.cc in Sources */,
+				94DDBB731CBA673D005E6B99 /* reporter.cc in Sources */,
+				94DDBAD11CBA673D005E6B99 /* histogram.cc in Sources */,
+				94DDBAE51CBA673D005E6B99 /* record_reader.cc in Sources */,
+				94DDBA471CBA673D005E6B99 /* rendezvous.cc in Sources */,
+				94DDBB411CBA673D005E6B99 /* protobuf_util.cc in Sources */,
+				94DDB81C1CBA664B005E6B99 /* local_device.cc in Sources */,
+				94DDB8261CBA664C005E6B99 /* session_factory.cc in Sources */,
+				94DDBB831CBA673D005E6B99 /* tensor_slice_reader.cc in Sources */,
+				94DDBB651CBA673D005E6B99 /* device_name_utils.cc in Sources */,
+				94DDBADF1CBA673D005E6B99 /* match.cc in Sources */,
+				94DDB82A1CBA664C005E6B99 /* simple_placer.cc in Sources */,
+				94DDBAEC1CBA673D005E6B99 /* table_builder.cc in Sources */,
+				94DDBA3C1CBA673D005E6B99 /* op_segment.cc in Sources */,
+				94DDBAD81CBA673D005E6B99 /* format.cc in Sources */,
+				94DDBA9C1CBA673D005E6B99 /* arena.cc in Sources */,
+				94DDBB3D1CBA673D005E6B99 /* env.cc in Sources */,
+				94DDBA1E1CBA673D005E6B99 /* load_library.cc in Sources */,
+				94DDBB761CBA673D005E6B99 /* saved_tensor_slice_util.cc in Sources */,
+				94DDB7FA1CBA6648005E6B99 /* function.cc in Sources */,
+				94DDBB571CBA673D005E6B99 /* checkpoint_reader.cc in Sources */,
+				94DDBB081CBA673D005E6B99 /* weighted_picker.cc in Sources */,
+				94DDBAD61CBA673D005E6B99 /* block_builder.cc in Sources */,
+				94DDBB8D1CBA673E005E6B99 /* tensor_slice_writer.cc in Sources */,
+				94DDBAA71CBA673D005E6B99 /* command_line_flags.cc in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		94DDB7421CB9A9F8005E6B99 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				EIGEN_VERSION = "eigen-eigen-4b9c7d45d069";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(WORKSPACE)google/protobuf/src",
+					"$(WORKSPACE)third_party/eigen3/**",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = "$(WORKSPACE) $(WORKSPACE)third_party/eigen3 $(WORKSPACE)google/protobuf/src";
+				USE_HEADERMAP = NO;
+				WORKSPACE = /Users/stephenoman/development/tensorflow/;
+			};
+			name = Debug;
+		};
+		94DDB7431CB9A9F8005E6B99 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				EIGEN_VERSION = "eigen-eigen-4b9c7d45d069";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(WORKSPACE)google/protobuf/src",
+					"$(WORKSPACE)third_party/eigen3/**",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = "$(WORKSPACE) $(WORKSPACE)third_party/eigen3 $(WORKSPACE)google/protobuf/src";
+				USE_HEADERMAP = NO;
+				WORKSPACE = /Users/stephenoman/development/tensorflow/;
+			};
+			name = Release;
+		};
+		94DDB7451CB9A9F8005E6B99 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				EXECUTABLE_PREFIX = lib;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(WORKSPACE)/google/protobuf/src",
+					"$(WORKSPACE)/third_party/eigen3/**",
+				);
+				PRODUCT_NAME = tensorflow_lite;
+				USER_HEADER_SEARCH_PATHS = "$(WORKSPACE) $(WORKSPACE)/third_party/eigen3 $(WORKSPACE)/google/protobuf/src $(WORKSPACE)/google/re2";
+				WORKSPACE = /Users/stephenoman/development/tensorflow;
+			};
+			name = Debug;
+		};
+		94DDB7461CB9A9F8005E6B99 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				EXECUTABLE_PREFIX = lib;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(WORKSPACE)/google/protobuf/src",
+					"$(WORKSPACE)/third_party/eigen3/**",
+				);
+				PRODUCT_NAME = tensorflow_lite;
+				USER_HEADER_SEARCH_PATHS = "$(WORKSPACE) $(WORKSPACE)/third_party/eigen3 $(WORKSPACE)/google/protobuf/src $(WORKSPACE)/google/re2";
+				WORKSPACE = /Users/stephenoman/development/tensorflow;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		94DDB73B1CB9A9F8005E6B99 /* Build configuration list for PBXProject "tensorflow_lite" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				94DDB7421CB9A9F8005E6B99 /* Debug */,
+				94DDB7431CB9A9F8005E6B99 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		94DDB7441CB9A9F8005E6B99 /* Build configuration list for PBXNativeTarget "tensorflow_lite" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				94DDB7451CB9A9F8005E6B99 /* Debug */,
+				94DDB7461CB9A9F8005E6B99 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 94DDB7381CB9A9F8005E6B99 /* Project object */;
+}

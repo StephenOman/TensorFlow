@@ -45,27 +45,30 @@ feature dimension in `operand`), the operation calculates the gradients with
 respect to `operand`, `offset` and `scale` across all the other dimensions. The
 `feature_index` must be a valid index for the feature dimension in `operand`.
 
-The three gradients are defined by the following formulas:
+The three gradients are defined by the following formulas (Assuming a
+4-dimensional tensor as `operand` and (l) is the index for feature dimension):
 
-\\( \nabla x = \nabla y * \gamma * \sqrt{\sigma^2+\epsilon} \\)
+\\( coef_l = \frac{1}{mwh}\sum_{i=1}^m\sum_{j=1}^w\sum_{k=1}^h (\nabla y_{ijkl} * (x_{ijkl} - \mu_l) / (\sigma^2_{l}+\epsilon)) \\)
 
-\\( \nabla \gamma = sum(\nabla y * (x - \mu) * \sqrt{\sigma^2 + \epsilon}) \\)
+\\( \nabla x_{ijkl} = \gamma_{l} * (1/\sqrt{\sigma^2_{l}+\epsilon}) * [\nabla y_{ijkl} - mean(\nabla y) - (x_{ijkl} - \mu_{l}) * coef_l] \\)
 
-\\( \nabla \beta = sum(\nabla y) \\)
+\\( \nabla \beta_l = \sum_{i=1}^m\sum_{j=1}^w\sum_{k=1}^h \nabla y_{ijkl} \\)
+
+\\( \nabla \gamma_l = \sum_{i=1}^m\sum_{j=1}^w\sum_{k=1}^h \nabla y_{ijkl} * ((x_{ijkl} - \mu_l) / \sqrt{\sigma^2_{l}+\epsilon}) \\)
 
 The inputs `mean` and `variance` represents moments value
 across batch and spatial dimensions.
 
 The output type is a tuple of three handles:
 
-|Outputs       | Type                    | Semantics                           |
-|------------- | ----------------------- | ------------------------------------|
-|`grad_operand`| `ComputationDataHandle` | gradient with respect to input      |
-:              :                         : `operand`                           :
-|`grad_scale`  | `ComputationDataHandle` | gradient with respect to input      |
-:              :                         : `scale`                             :
-|`grad_offset` | `ComputationDataHandle` | gradient with respect to input      |
-:              :                         : `offset`                            :
+|Outputs       | Type                    | Semantics                            |
+|------------- | ----------------------- | ------------------------------------ |
+|`grad_operand`| `ComputationDataHandle` | gradient with respect to input       |
+:              :                         : `operand` (\\( \nabla x\\))          :
+|`grad_scale`  | `ComputationDataHandle` | gradient with respect to input       |
+:              :                         : `scale` (\\( \nabla \gamma\\))       :
+|`grad_offset` | `ComputationDataHandle` | gradient with respect to input       |
+:              :                         : `offset`(\\( \nabla \beta\\))        :
 
 
 ## BatchNormInference
@@ -119,7 +122,7 @@ Normalizes an array across batch and spatial dimensions.
 | Arguments       | Type                    | Semantics                        |
 | --------------- | ----------------------- | -------------------------------- |
 | `operand`       | `ComputationDataHandle` | n dimensional array to be        |
-:                 :                         : normalized                       :
+:                 :                         : normalized (x)                   :
 | `scale`         | `ComputationDataHandle` | 1 dimensional array              |
 :                 :                         : (\\(\gamma\\))                   :
 | `offset`        | `ComputationDataHandle` | 1 dimensional array              |
@@ -238,13 +241,10 @@ See also
 
 Clamps an operand to within the range between a minimum and maximum value.
 
-<b> `Clamp(computation, args...)` </b>
+<b> `Clamp(min, operand, max)` </b>
 
 | Arguments     | Type                    | Semantics                        |
 | ------------- | ----------------------- | -------------------------------- |
-| `computation` | `Computation`           | computation of type `T_0, T_1,   |
-:               :                         : ..., T_N -> S` with N parameters :
-:               :                         : of arbitrary type                :
 | `min`         | `ComputationDataHandle` | array of type T                  |
 | `operand`     | `ComputationDataHandle` | array of type T                  |
 | `max`         | `ComputationDataHandle` | array of type T                  |
@@ -254,7 +254,7 @@ the range between the minimum and maximum, else returns the minimum value if the
 operand is below this range or the maximum value if the operand is above this
 range.  That is, `clamp(a, x, b) =  min(max(a, x), b)`.
 
-All three arrays must be the same shape. Alternately, as a restricted form of
+All three arrays must be the same shape. Alternatively, as a restricted form of
 [broadcasting](broadcasting.md), `min` and/or `max` can be a scalar of type `T`.
 
 Example with scalar `min` and `max`:
@@ -788,9 +788,7 @@ DynamicSlice extracts a sub-array from the input array at dynamic
 dimension: [start, start + size). The shape of `start_indices` must be rank ==
 1, with dimension size equal to the rank of `operand`.
 Note: handling of out-of-bounds slice indices (generated by incorrect runtime
-calculation of 'start_indices') is currently implementation-defined. Currently,
-slice indices are computed modulo input dimension sizes to prevent out-of-bound
-array accesses, but this behavior may change in future implementations.
+calculation of 'start_indices') is currently implementation-defined.
 
 <b> `DynamicSlice(operand, start_indices, size_indices)` </b>
 
@@ -847,9 +845,7 @@ is updated.
 The shape of `start_indices` must be rank == 1, with dimension size equal to
 the rank of `operand`.
 Note: handling of out-of-bounds slice indices (generated by incorrect runtime
-calculation of 'start_indices') is currently implementation-defined. Currently,
-slice indices are computed modulo update dimension sizes to prevent out-of-bound
-array accesses, but this behavior may change in future implementations.
+calculation of 'start_indices') is currently implementation-defined.
 
 <b> `DynamicUpdateSlice(operand, update, start_indices)` </b>
 

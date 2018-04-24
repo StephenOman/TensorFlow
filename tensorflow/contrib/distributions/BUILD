@@ -350,6 +350,7 @@ cuda_py_test(
         "//tensorflow/python:nn_ops",
         "//tensorflow/python:platform_test",
     ],
+    tags = ["nomsan"],
 )
 
 cuda_py_test(
@@ -456,6 +457,20 @@ cuda_py_test(
 )
 
 cuda_py_test(
+    name = "batch_reshape_test",
+    size = "small",
+    srcs = ["python/kernel_tests/batch_reshape_test.py"],
+    additional_deps = [
+        ":distributions_py",
+        "//third_party/py/numpy",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:platform_test",
+    ],
+)
+
+cuda_py_test(
     name = "sample_stats_test",
     size = "medium",
     srcs = ["python/kernel_tests/sample_stats_test.py"],
@@ -472,6 +487,26 @@ cuda_py_test(
         "//tensorflow/python:platform_test",
     ],
     tags = ["nomsan"],  # disable to avoid false positives from scipy.
+)
+
+cuda_py_test(
+    name = "statistical_testing_test",
+    size = "medium",
+    srcs = [
+        "python/kernel_tests/statistical_testing_test.py",
+    ],
+    additional_deps = [
+        ":distributions_py",
+        "//third_party/py/numpy",
+        "//tensorflow/python:client_testlib",
+    ],
+    shard_count = 4,
+    tags = [
+        "manual",
+        "noasan",
+        "noguitar",
+        "optonly",
+    ],
 )
 
 cuda_py_test(
@@ -725,18 +760,6 @@ cuda_py_test(
     ],
 )
 
-filegroup(
-    name = "all_files",
-    srcs = glob(
-        ["**/*"],
-        exclude = [
-            "**/METADATA",
-            "**/OWNERS",
-        ],
-    ),
-    visibility = ["//tensorflow:__subpackages__"],
-)
-
 # === Bijector Tests ==========================================================
 
 cuda_py_test(
@@ -798,6 +821,25 @@ cuda_py_test(
 )
 
 cuda_py_test(
+    name = "affine_scalar_test",
+    size = "small",
+    srcs = ["python/kernel_tests/bijectors/affine_scalar_test.py"],
+    additional_deps = [
+        ":bijectors_py",
+        ":distributions_py",
+        "//third_party/py/numpy",
+        "@six_archive//:six",
+        "//tensorflow/contrib/linalg:linalg_py",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:math_ops",
+        "//tensorflow/python:platform_test",
+    ],
+)
+
+cuda_py_test(
     name = "affine_linear_operator_test",
     size = "small",
     srcs = ["python/kernel_tests/bijectors/affine_linear_operator_test.py"],
@@ -812,6 +854,22 @@ cuda_py_test(
         "//tensorflow/python:framework_for_generated_wrappers",
         "//tensorflow/python:framework_test_lib",
         "//tensorflow/python:math_ops",
+        "//tensorflow/python:platform_test",
+    ],
+)
+
+cuda_py_test(
+    name = "batch_normalization_test",
+    size = "small",
+    srcs = ["python/kernel_tests/bijectors/batch_normalization_test.py"],
+    additional_deps = [
+        ":bijectors_py",
+        ":distributions_py",
+        "//third_party/py/numpy",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:framework_test_lib",
         "//tensorflow/python:platform_test",
     ],
 )
@@ -1051,25 +1109,6 @@ cuda_py_test(
     ],
 )
 
-cuda_py_test(
-    name = "sigmoid_centered_test",
-    size = "small",
-    srcs = ["python/kernel_tests/bijectors/sigmoid_centered_test.py"],
-    additional_deps = [
-        ":bijectors_py",
-        ":distributions_py",
-        "//third_party/py/numpy",
-        "@six_archive//:six",
-        "//tensorflow/contrib/linalg:linalg_py",
-        "//tensorflow/python:array_ops",
-        "//tensorflow/python:client_testlib",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:framework_test_lib",
-        "//tensorflow/python:math_ops",
-        "//tensorflow/python:platform_test",
-    ],
-)
-
 # Tests for SinhArcSinh bijector.  The file name has the extra "_bijector" to
 # avoid BUILD rule name conflicts with the distribution by the same name.
 cuda_py_test(
@@ -1114,6 +1153,25 @@ cuda_py_test(
     name = "softplus_test",
     size = "small",
     srcs = ["python/kernel_tests/bijectors/softplus_test.py"],
+    additional_deps = [
+        ":bijectors_py",
+        ":distributions_py",
+        "//third_party/py/numpy",
+        "@six_archive//:six",
+        "//tensorflow/contrib/linalg:linalg_py",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:math_ops",
+        "//tensorflow/python:platform_test",
+    ],
+)
+
+cuda_py_test(
+    name = "square_test",
+    size = "small",
+    srcs = ["python/kernel_tests/bijectors/square_test.py"],
     additional_deps = [
         ":bijectors_py",
         ":distributions_py",

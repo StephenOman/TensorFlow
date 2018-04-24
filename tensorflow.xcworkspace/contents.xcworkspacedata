@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:tensorflow/contrib/xcode/tensorflow_lite/tensorflow_lite.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:tensorflow/contrib/xcode/protobuf_lite/protobuf_lite.xcodeproj">
+   </FileRef>
+</Workspace>
