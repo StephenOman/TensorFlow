@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/common_runtime/graph_runner.h"
+#include "tensorflow/core/common_runtime/renamed_device.h"
 #include "tensorflow/core/common_runtime/threadpool_device.h"
 #include "tensorflow/core/framework/iterator.pb.h"
 #include "tensorflow/core/framework/partial_tensor_shape.h"
@@ -159,6 +160,10 @@ class IteratorResource : public ResourceBase {
       params.runner = *(ctx->runner());
       params.function_library = flib_def;
       params.lib = lib_;
+      DeviceBase* device = lib_->device();
+      params.allocator_getter = [device](AllocatorAttributes attrs) {
+        return device->GetAllocator(attrs);
+      };
       IteratorContext iter_ctx(std::move(params));
 
       TF_RETURN_IF_ERROR(captured_iterator->Restore(&iter_ctx, reader));
@@ -458,7 +463,7 @@ class IteratorHandleOp : public OpKernel {
     {
       mutex_lock l(mu_);
       if (resource_ == nullptr) {
-        FunctionLibraryRuntime* lib = context->function_library();
+        FunctionLibraryRuntime* lib;
         std::unique_ptr<DeviceMgr> device_mgr(nullptr);
         std::unique_ptr<FunctionLibraryDefinition> flib_def(nullptr);
         std::unique_ptr<ProcessFunctionLibraryRuntime> pflr(nullptr);
@@ -468,6 +473,9 @@ class IteratorHandleOp : public OpKernel {
         // is sufficient demand, but it will require a significant refactoring.
         if (!name_.empty()) {
           lib = CreatePrivateFLR(context, &device_mgr, &flib_def, &pflr);
+        } else {
+          OP_REQUIRES_OK(context, context->function_library()->Clone(
+                                      &flib_def, &pflr, &lib));
         }
 
         ResourceMgr* mgr = context->resource_manager();
@@ -516,15 +524,32 @@ class IteratorHandleOp : public OpKernel {
     return Status::OK();
   }
 
+  template <typename To, typename From>  // use like this: down_cast<T*>(foo);
+  static inline To down_cast(From* f) {  // so we only accept pointers
+    static_assert(
+        (std::is_base_of<From, typename std::remove_pointer<To>::type>::value),
+        "target type not derived from source type");
+
+    // We skip the assert and hence the dynamic_cast if RTTI is disabled.
+#if !defined(__GNUC__) || defined(__GXX_RTTI)
+    // Uses RTTI in dbg and fastbuild. asserts are disabled in opt builds.
+    assert(f == nullptr || dynamic_cast<To>(f) != nullptr);
+#endif  // !defined(__GNUC__) || defined(__GXX_RTTI)
+    return static_cast<To>(f);
+  }
+
   FunctionLibraryRuntime* CreatePrivateFLR(
       OpKernelContext* ctx, std::unique_ptr<DeviceMgr>* device_mgr,
       std::unique_ptr<FunctionLibraryDefinition>* flib_def,
       std::unique_ptr<ProcessFunctionLibraryRuntime>* pflr) {
-    Device* device = new ThreadPoolDevice(
-        SessionOptions(), ctx->device()->attributes().name(), Bytes(256 << 20),
-        DeviceLocality(), cpu_allocator());
-
-    device_mgr->reset(new DeviceMgr({device}));
+    // Wrap the existing device in order to see any captured resources
+    // in its resource manager. The existing device will outlive the
+    // IteratorResource, because we are storing the IteratorResource
+    // in that device's resource manager.
+    Device* wrapped_device = RenamedDevice::NewRenamedDevice(
+        ctx->device()->name(), down_cast<Device*>(ctx->device()),
+        false /* owns_underlying */, false /* isolate_session_state */);
+    device_mgr->reset(new DeviceMgr({wrapped_device}));
     flib_def->reset(new FunctionLibraryDefinition(
         *ctx->function_library()->GetFunctionLibraryDefinition()));
     pflr->reset(new ProcessFunctionLibraryRuntime(
@@ -532,7 +557,7 @@ class IteratorHandleOp : public OpKernel {
         {} /* TODO(mrry): OptimizerOptions? */,
         nullptr /* TODO(mrry): ClusterFLR */));
 
-    return (*pflr)->GetFLR(device->name());
+    return (*pflr)->GetFLR(ctx->device()->name());
   }
 
   mutex mu_;
@@ -584,6 +609,11 @@ class ToSingleElementOp : public AsyncOpKernel {
       params.env = ctx->env();
       params.runner = *(ctx->runner());
       params.lib = ctx->function_library();
+      DeviceBase* device = ctx->function_library()->device();
+      params.allocator_getter = [device](AllocatorAttributes attrs) {
+        return device->GetAllocator(attrs);
+      };
+
       IteratorContext iter_ctx(std::move(params));
 
       std::vector<Tensor> components;
@@ -704,18 +734,23 @@ class OneShotIteratorOp : public AsyncOpKernel {
   Status TryInit(OpKernelContext* ctx, IteratorResource** iterator,
                  ContainerInfo* cinfo) {
     TF_RETURN_IF_ERROR(cinfo->Init(ctx->resource_manager(), def()));
-    FunctionLibraryRuntime* lib = ctx->function_library();
+
+    FunctionLibraryRuntime* lib;
+    std::unique_ptr<FunctionLibraryDefinition> flib_def(nullptr);
+    std::unique_ptr<ProcessFunctionLibraryRuntime> pflr(nullptr);
+    TF_RETURN_IF_ERROR(ctx->function_library()->Clone(&flib_def, &pflr, &lib));
 
     // Create an IteratorResource that will hold the iterator for this op.
     TF_RETURN_IF_ERROR(
         ctx->resource_manager()->LookupOrCreate<IteratorResource>(
             cinfo->container(), cinfo->name(), iterator,
-            [lib, this](IteratorResource** ret) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
-              *ret = new IteratorResource(output_dtypes_, output_shapes_,
-                                          graph_def_version_, nullptr, nullptr,
-                                          nullptr, lib);
-              return Status::OK();
-            }));
+            [lib, this, &flib_def, &pflr](IteratorResource** ret)
+                EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+                  *ret = new IteratorResource(
+                      output_dtypes_, output_shapes_, graph_def_version_,
+                      nullptr, std::move(flib_def), std::move(pflr), lib);
+                  return Status::OK();
+                }));
 
     core::ScopedUnref unref_iterator(*iterator);
 
@@ -837,6 +872,10 @@ class IteratorGetNextOp : public AsyncOpKernel {
           };
           params.runner = *(ctx->runner());
           params.function_library = iterator->function_library();
+          DeviceBase* device = ctx->function_library()->device();
+          params.allocator_getter = [device](AllocatorAttributes attrs) {
+            return device->GetAllocator(attrs);
+          };
           IteratorContext iter_ctx(std::move(params));
 
           OP_REQUIRES_OK_ASYNC(
@@ -879,6 +918,10 @@ class IteratorGetNextSyncOp : public OpKernel {
     };
     params.runner = *(ctx->runner());
     params.function_library = iterator->function_library();
+    DeviceBase* device = ctx->function_library()->device();
+    params.allocator_getter = [device](AllocatorAttributes attrs) {
+      return device->GetAllocator(attrs);
+    };
     IteratorContext iter_ctx(std::move(params));
 
     OP_REQUIRES_OK(ctx,

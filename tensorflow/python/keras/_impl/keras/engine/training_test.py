@@ -26,6 +26,7 @@ import numpy as np
 from tensorflow.python.keras._impl import keras
 from tensorflow.python.keras._impl.keras import testing_utils
 from tensorflow.python.keras._impl.keras.engine.training import _weighted_masked_objective
+from tensorflow.python.keras._impl.keras.utils.generic_utils import slice_arrays
 from tensorflow.python.platform import test
 
 try:
@@ -77,6 +78,14 @@ class TrainingTest(test.TestCase):
           batch_size=5,
           verbose=2)
       model.train_on_batch([input_a_np, input_b_np], [output_d_np, output_e_np])
+
+      # Test model with input data as a list of lists
+      model.fit(
+          [np.ndarray.tolist(input_a_np), np.ndarray.tolist(input_b_np)],
+          [output_d_np, output_e_np],
+          epochs=2,
+          batch_size=5,
+          verbose=2)
 
       # Test with validation data
       model.fit(
@@ -204,6 +213,16 @@ class TrainingTest(test.TestCase):
       model.fit([input_a_np], output_d_np, epochs=1)
       with self.assertRaises(ValueError):
         model.fit([input_a_np, input_a_np], output_d_np, epochs=1)
+
+      # Test model on a list of floats
+      input_a_np = np.random.random((10, 3))
+      input_b_np = np.random.random((10, 4))
+
+      model.fit([np.ndarray.tolist(input_a_np)],
+                [np.ndarray.tolist(input_b_np)],
+                epochs=2,
+                batch_size=5,
+                verbose=2)
 
   def test_evaluate_predict_on_arrays(self):
     with self.test_session():
@@ -1027,34 +1046,26 @@ class TestTrainingUtils(test.TestCase):
 
     b_np = np.random.random((3, 4))
     with self.assertRaises(ValueError):
-      keras.engine.training._check_array_lengths(a_np, None, None)
-    with self.assertRaises(ValueError):
-      keras.engine.training._check_array_lengths(a_np, a_np, None)
-    with self.assertRaises(ValueError):
-      keras.engine.training._check_array_lengths([a_np], [None], None)
-    with self.assertRaises(ValueError):
       keras.engine.training._check_array_lengths([a_np], [b_np], None)
-    with self.assertRaises(ValueError):
-      keras.engine.training._check_array_lengths([a_np], None, [b_np])
 
   def test_slice_arrays(self):
     input_a = np.random.random((10, 3))
-    keras.engine.training._slice_arrays(None)
-    keras.engine.training._slice_arrays(input_a, 0)
-    keras.engine.training._slice_arrays(input_a, 0, 1)
-    keras.engine.training._slice_arrays(input_a, stop=2)
+    slice_arrays(input_a, 0)
+    slice_arrays(None)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
     input_a = [None, [1, 1], None, [1, 1]]
-    keras.engine.training._slice_arrays(input_a, 0)
-    keras.engine.training._slice_arrays(input_a, 0, 1)
-    keras.engine.training._slice_arrays(input_a, stop=2)
+    slice_arrays(input_a, 0)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
     input_a = [None]
-    keras.engine.training._slice_arrays(input_a, 0)
-    keras.engine.training._slice_arrays(input_a, 0, 1)
-    keras.engine.training._slice_arrays(input_a, stop=2)
+    slice_arrays(input_a, 0)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
     input_a = None
-    keras.engine.training._slice_arrays(input_a, 0)
-    keras.engine.training._slice_arrays(input_a, 0, 1)
-    keras.engine.training._slice_arrays(input_a, stop=2)
+    slice_arrays(input_a, 0)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
 
 
 class TestTrainingWithDataTensors(test.TestCase):

@@ -367,11 +367,20 @@ def find_cuda_define(repository_ctx, header_dir, header_file, define):
   if result.stdout.find(define) == -1:
     auto_configure_fail("Cannot find line containing '%s' in %s" %
                         (define, h_path))
-  version = result.stdout
-  # Remove the new line and '\' character if any.
-  version = version.replace("\\", " ")
-  version = version.replace("\n", " ")
-  version = version.replace(define, "").lstrip()
+  # Split results to lines
+  lines = result.stdout.split('\n')
+  num_lines = len(lines)
+  for l in range(num_lines):
+    line = lines[l]
+    if define in line:  # Find the line with define
+      version = line
+      if l != num_lines-1 and line[-1] == '\\':  # Add next line, if multiline
+        version = version[:-1] + lines[l+1]
+      break
+  # Remove any comments
+  version = version.split("//")[0]
+  # Remove define name
+  version = version.replace(define, "").strip()
   # Remove the code after the version number.
   version_end = version.find(" ")
   if version_end != -1:
@@ -826,7 +835,7 @@ def symlink_genrule_for_dir(repository_ctx, src_dir, dest_dir, genrule_name,
   if src_dir != None:
     src_dir = _norm_path(src_dir)
     dest_dir = _norm_path(dest_dir)
-    files = _read_dir(repository_ctx, src_dir)
+    files = '\n'.join(sorted(_read_dir(repository_ctx, src_dir).splitlines()))
     # Create a list with the src_dir stripped to use for outputs.
     dest_files = files.replace(src_dir, '').splitlines()
     src_files = files.splitlines()

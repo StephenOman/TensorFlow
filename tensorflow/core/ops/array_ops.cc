@@ -708,10 +708,11 @@ REGISTER_OP("MatrixDiagPart")
 // --------------------------------------------------------------------------
 REGISTER_OP("MatrixBandPart")
     .Input("input: T")
-    .Input("num_lower: int64")
-    .Input("num_upper: int64")
+    .Input("num_lower: Tindex")
+    .Input("num_upper: Tindex")
     .Output("band: T")
     .Attr("T: type")
+    .Attr("Tindex: {int32, int64} = DT_INT64")
     .SetShapeFn(shape_inference::UnchangedShape);
 
 // --------------------------------------------------------------------------
@@ -1191,6 +1192,23 @@ REGISTER_OP("UniqueWithCounts")
     .Output("idx: out_idx")
     .Output("count: out_idx")
     .Attr("T: type")
+    .Attr("out_idx: {int32, int64} = DT_INT32")
+    .SetShapeFn([](InferenceContext* c) {
+      auto uniq = c->Vector(InferenceContext::kUnknownDim);
+      c->set_output(0, uniq);
+      c->set_output(1, c->input(0));
+      c->set_output(2, uniq);
+      return Status::OK();
+    });
+
+REGISTER_OP("UniqueWithCountsV2")
+    .Input("x: T")
+    .Input("axis: Taxis")
+    .Output("y: T")
+    .Output("idx: out_idx")
+    .Output("count: out_idx")
+    .Attr("T: type")
+    .Attr("Taxis: {int32,int64} = DT_INT64")
     .Attr("out_idx: {int32, int64} = DT_INT32")
     .SetShapeFn([](InferenceContext* c) {
       auto uniq = c->Vector(InferenceContext::kUnknownDim);

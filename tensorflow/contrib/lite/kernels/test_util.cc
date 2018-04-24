@@ -172,11 +172,14 @@ void SingleOpModel::BuildInterpreter(
 
   auto* model = GetModel(builder_.GetBufferPointer());
 
-  ops::builtin::BuiltinOpResolver builtins;
-  for (const auto& reg : custom_registrations_) {
-    builtins.AddCustom(reg.first.data(), reg.second());
+  if (!resolver_) {
+    auto resolver = new ops::builtin::BuiltinOpResolver();
+    for (const auto& reg : custom_registrations_) {
+      resolver->AddCustom(reg.first.data(), reg.second());
+    }
+    resolver_ = std::unique_ptr<OpResolver>(resolver);
   }
-  InterpreterBuilder(model, builtins)(&interpreter_);
+  InterpreterBuilder(model, *resolver_)(&interpreter_);
 
   CHECK(interpreter_ != nullptr);
 
@@ -184,6 +187,7 @@ void SingleOpModel::BuildInterpreter(
   for (const auto& shape : input_shapes) {
     int input_idx = interpreter_->inputs()[i++];
     if (input_idx == kOptionalTensor) continue;
+    if (shape.empty()) continue;
     CHECK(interpreter_->ResizeInputTensor(input_idx, shape) == kTfLiteOk);
   }
   CHECK(interpreter_->AllocateTensors() == kTfLiteOk)

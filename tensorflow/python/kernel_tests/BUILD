@@ -1294,7 +1294,7 @@ cuda_py_test(
 
 cuda_py_test(
     name = "control_flow_ops_py_test",
-    # TOOD(b/70473603): change this back to "small" once the C API is
+    # TODO(b/70473603): change this back to "small" once the C API is
     # permanently enabled
     size = "medium",
     srcs = ["control_flow_ops_py_test.py"],
@@ -2889,6 +2889,40 @@ tf_py_test(
         "//tensorflow/python:dtypes",
         "//tensorflow/python:tensor_array_ops",
         "//tensorflow/python:client_testlib",
+    ],
+)
+
+tf_py_test(
+    name = "accumulate_n_test",
+    size = "small",
+    srcs = ["accumulate_n_test.py"],
+    additional_deps = [
+        "//third_party/py/numpy",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:gradients",
+        "//tensorflow/python:math_ops",
+        "//tensorflow/python:platform_test",
+        "//tensorflow/python:variables",
+    ],
+)
+
+tf_py_test(
+    name = "accumulate_n_eager_test",
+    size = "small",
+    srcs = ["accumulate_n_eager_test.py"],
+    additional_deps = [
+        "//third_party/py/numpy",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:gradients",
+        "//tensorflow/python:math_ops",
+        "//tensorflow/python:resource_variable_ops",
+        "//tensorflow/python/eager:backprop",
+        "//tensorflow/python/eager:context",
+        "//tensorflow/python/eager:tape",
     ],
 )
 

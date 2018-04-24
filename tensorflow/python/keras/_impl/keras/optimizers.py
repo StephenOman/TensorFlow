@@ -32,6 +32,7 @@ from tensorflow.python.keras._impl.keras.utils.generic_utils import serialize_ke
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer as tf_optimizer_module
+from tensorflow.python.util.tf_export import tf_export
 
 
 def clip_norm(g, c, n):
@@ -65,6 +66,7 @@ def clip_norm(g, c, n):
   return g
 
 
+@tf_export('keras.optimizers.Optimizer')
 class Optimizer(object):
   """Abstract optimizer base class.
 
@@ -149,6 +151,7 @@ class Optimizer(object):
     return cls(**config)
 
 
+@tf_export('keras.optimizers.SGD')
 class SGD(Optimizer):
   """Stochastic gradient descent optimizer.
 
@@ -179,8 +182,9 @@ class SGD(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr *= (1. /
-             (1. + self.decay * K.cast(self.iterations, K.dtype(self.decay))))
+      lr = lr * (1. /  # pylint: disable=g-no-augmented-assignment
+                 (1. + self.decay * K.cast(self.iterations,
+                                           K.dtype(self.decay))))
     # momentum
     shapes = [K.int_shape(p) for p in params]
     moments = [K.zeros(shape) for shape in shapes]
@@ -212,6 +216,7 @@ class SGD(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@tf_export('keras.optimizers.RMSprop')
 class RMSprop(Optimizer):
   """RMSProp optimizer.
 
@@ -250,8 +255,9 @@ class RMSprop(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr *= (1. /
-             (1. + self.decay * K.cast(self.iterations, K.dtype(self.decay))))
+      lr = lr * (1. /  # pylint: disable=g-no-augmented-assignment
+                 (1. + self.decay * K.cast(self.iterations,
+                                           K.dtype(self.decay))))
 
     for p, g, a in zip(params, grads, accumulators):
       # update accumulator
@@ -277,6 +283,7 @@ class RMSprop(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@tf_export('keras.optimizers.Adagrad')
 class Adagrad(Optimizer):
   """Adagrad optimizer.
 
@@ -310,8 +317,9 @@ class Adagrad(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr *= (1. /
-             (1. + self.decay * K.cast(self.iterations, K.dtype(self.decay))))
+      lr = lr * (1. /  # pylint: disable=g-no-augmented-assignment
+                 (1. + self.decay * K.cast(self.iterations,
+                                           K.dtype(self.decay))))
 
     for p, g, a in zip(params, grads, accumulators):
       new_a = a + K.square(g)  # update accumulator
@@ -335,6 +343,7 @@ class Adagrad(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@tf_export('keras.optimizers.Adadelta')
 class Adadelta(Optimizer):
   """Adadelta optimizer.
 
@@ -372,8 +381,9 @@ class Adadelta(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr *= (1. /
-             (1. + self.decay * K.cast(self.iterations, K.dtype(self.decay))))
+      lr = lr * (1. /  # pylint: disable=g-no-augmented-assignment
+                 (1. + self.decay * K.cast(self.iterations,
+                                           K.dtype(self.decay))))
 
     for p, g, a, d_a in zip(params, grads, accumulators, delta_accumulators):
       # update accumulator
@@ -406,6 +416,7 @@ class Adadelta(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@tf_export('keras.optimizers.Adam')
 class Adam(Optimizer):
   """Adam optimizer.
 
@@ -450,8 +461,9 @@ class Adam(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr *= (1. /
-             (1. + self.decay * K.cast(self.iterations, K.dtype(self.decay))))
+      lr = lr * (1. /  # pylint: disable=g-no-augmented-assignment
+                 (1. + self.decay * K.cast(self.iterations,
+                                           K.dtype(self.decay))))
 
     t = K.cast(self.iterations, K.floatx()) + 1
     lr_t = lr * (
@@ -499,6 +511,7 @@ class Adam(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@tf_export('keras.optimizers.Adamax')
 class Adamax(Optimizer):
   """Adamax optimizer from Adam paper's Section 7.
 
@@ -538,8 +551,9 @@ class Adamax(Optimizer):
 
     lr = self.lr
     if self.initial_decay > 0:
-      lr *= (1. /
-             (1. + self.decay * K.cast(self.iterations, K.dtype(self.decay))))
+      lr = lr * (1. /  # pylint: disable=g-no-augmented-assignment
+                 (1. + self.decay * K.cast(self.iterations,
+                                           K.dtype(self.decay))))
 
     t = K.cast(self.iterations, K.floatx()) + 1
     lr_t = lr / (1. - K.pow(self.beta_1, t))
@@ -580,6 +594,7 @@ class Adamax(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@tf_export('keras.optimizers.Nadam')
 class Nadam(Optimizer):
   """Nesterov Adam optimizer.
 
@@ -682,9 +697,17 @@ class TFOptimizer(Optimizer):
     with K.name_scope(self.__class__.__name__):
       self.iterations = K.variable(0, dtype='int64', name='iterations')
 
+  def apply_gradients(self, grads):
+    self.optimizer.apply_gradients(grads)
+
+  def get_grads(self, loss, params):
+    return self.optimizer.compute_gradients(loss, params)
+
   def get_updates(self, loss, params):
-    grads = self.optimizer.compute_gradients(loss, params)
     self.updates = [K.update_add(self.iterations, 1)]
+    if not params:
+      return self.updates
+    grads = self.optimizer.compute_gradients(loss, params)
     opt_update = self.optimizer.apply_gradients(
         grads, global_step=self.iterations)
     self.updates.append(opt_update)
@@ -712,10 +735,12 @@ adamax = Adamax
 nadam = Nadam
 
 
+@tf_export('keras.optimizers.serialize')
 def serialize(optimizer):
   return serialize_keras_object(optimizer)
 
 
+@tf_export('keras.optimizers.deserialize')
 def deserialize(config, custom_objects=None):
   """Inverse of the `serialize` function.
 
@@ -749,6 +774,7 @@ def deserialize(config, custom_objects=None):
       printable_module_name='optimizer')
 
 
+@tf_export('keras.optimizers.get')
 def get(identifier):
   """Retrieves a Keras Optimizer instance.
 

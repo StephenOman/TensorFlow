@@ -104,6 +104,7 @@ cc_library(
         "add.cc",
         "basic_rnn.cc",
         "batch_to_space_nd.cc",
+        "bidirectional_sequence_lstm.cc",
         "bidirectional_sequence_rnn.cc",
         "concatenation.cc",
         "conv.cc",
@@ -111,6 +112,7 @@ cc_library(
         "div.cc",
         "embedding_lookup.cc",
         "embedding_lookup_sparse.cc",
+        "exp.cc",
         "fully_connected.cc",
         "gather.cc",
         "hashtable_lookup.cc",
@@ -128,10 +130,12 @@ cc_library(
         "skip_gram.cc",
         "space_to_batch_nd.cc",
         "space_to_depth.cc",
+        "split.cc",
         "squeeze.cc",
         "strided_slice.cc",
         "sub.cc",
         "svdf.cc",
+        "topk_v2.cc",
         "transpose.cc",
         "unidirectional_sequence_lstm.cc",
         "unidirectional_sequence_rnn.cc",
@@ -156,6 +160,7 @@ cc_library(
         "//tensorflow/contrib/lite:framework",
         "//tensorflow/contrib/lite:string_util",
         "//tensorflow/contrib/lite/kernels:gemm_support",
+        "//tensorflow/contrib/lite/kernels/internal:kernel_utils",
         "//tensorflow/contrib/lite/kernels/internal:optimized",
         "//tensorflow/contrib/lite/kernels/internal:optimized_base",
         "//tensorflow/contrib/lite/kernels/internal:quantization_util",
@@ -249,6 +254,7 @@ tf_cc_test(
         ":builtin_ops",
         "//tensorflow/contrib/lite:framework",
         "//tensorflow/contrib/lite/kernels:test_util",
+        "@com_google_absl//absl/memory",
         "@com_google_googletest//:gtest",
     ],
 )
@@ -269,6 +275,18 @@ tf_cc_test(
     name = "basic_rnn_test",
     size = "small",
     srcs = ["basic_rnn_test.cc"],
+    deps = [
+        ":builtin_ops",
+        "//tensorflow/contrib/lite:framework",
+        "//tensorflow/contrib/lite/kernels:test_util",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+tf_cc_test(
+    name = "bidirectional_sequence_lstm_test",
+    size = "small",
+    srcs = ["bidirectional_sequence_lstm_test.cc"],
     deps = [
         ":builtin_ops",
         "//tensorflow/contrib/lite:framework",
@@ -317,6 +335,18 @@ tf_cc_test(
     name = "l2norm_test",
     size = "small",
     srcs = ["l2norm_test.cc"],
+    deps = [
+        ":builtin_ops",
+        "//tensorflow/contrib/lite:framework",
+        "//tensorflow/contrib/lite/kernels:test_util",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+tf_cc_test(
+    name = "exp_test",
+    size = "small",
+    srcs = ["exp_test.cc"],
     deps = [
         ":builtin_ops",
         "//tensorflow/contrib/lite:framework",
@@ -377,6 +407,19 @@ tf_cc_test(
     name = "gather_test",
     size = "small",
     srcs = ["gather_test.cc"],
+    deps = [
+        ":builtin_ops",
+        "//tensorflow/contrib/lite:builtin_op_data",
+        "//tensorflow/contrib/lite:framework",
+        "//tensorflow/contrib/lite/kernels:test_util",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+tf_cc_test(
+    name = "topk_v2_test",
+    size = "small",
+    srcs = ["topk_v2_test.cc"],
     deps = [
         ":builtin_ops",
         "//tensorflow/contrib/lite:builtin_op_data",
@@ -484,6 +527,19 @@ tf_cc_test(
 )
 
 tf_cc_test(
+    name = "log_softmax_test",
+    size = "small",
+    srcs = ["log_softmax_test.cc"],
+    deps = [
+        ":builtin_ops",
+        "//tensorflow/contrib/lite:framework",
+        "//tensorflow/contrib/lite/kernels:test_util",
+        "//tensorflow/contrib/lite/kernels/internal:reference_base",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+tf_cc_test(
     name = "lsh_projection_test",
     size = "small",
     srcs = ["lsh_projection_test.cc"],
@@ -537,6 +593,18 @@ tf_cc_test(
     name = "space_to_depth_test",
     size = "small",
     srcs = ["space_to_depth_test.cc"],
+    deps = [
+        ":builtin_ops",
+        "//tensorflow/contrib/lite:framework",
+        "//tensorflow/contrib/lite/kernels:test_util",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+tf_cc_test(
+    name = "split_test",
+    size = "small",
+    srcs = ["split_test.cc"],
     deps = [
         ":builtin_ops",
         "//tensorflow/contrib/lite:framework",

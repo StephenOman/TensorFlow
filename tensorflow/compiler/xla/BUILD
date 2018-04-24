@@ -88,7 +88,6 @@ cc_library(
     visibility = [":friends"],
     deps = [
         "//tensorflow/core:framework_lite",
-        "//tensorflow/core:lib",
         "//third_party/eigen3",
     ],
 )
@@ -373,7 +372,6 @@ tf_cc_test(
 
 cc_library(
     name = "array2d",
-    srcs = ["array2d.cc"],
     hdrs = ["array2d.h"],
     visibility = ["//visibility:public"],
     deps = [

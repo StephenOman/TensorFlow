@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+# Tests for this file live in python/kernel_tests/array_ops_test.py
 """Support for manipulating tensors.
 
 See the @{$python/array_ops} guide.
@@ -133,7 +134,10 @@ def identity(input, name=None):  # pylint: disable=redefined-builtin
     input = ops.convert_to_tensor(input)
     in_device = input.device
     # TODO(ashankar): Does 'identity' need to invoke execution callbacks?
-    if context.context().device_name != in_device:
+    context_device = context.context().device_name
+    if not context_device:
+      context_device = "/job:localhost/replica:0/task:0/device:CPU:0"
+    if context_device != in_device:
       return input._copy()  # pylint: disable=protected-access
     return input
 
@@ -385,6 +389,13 @@ def size_internal(input, name=None, optimize=True, out_type=dtypes.int32):
   Returns:
     A `Tensor` of type `out_type`. Defaults to `tf.int32`.
   """
+  if context.in_eager_mode() and not isinstance(
+      input, (sparse_tensor.SparseTensor,
+              sparse_tensor.SparseTensorValue)):
+    size_ = 1
+    for dim in ops.convert_to_tensor(input)._shape_tuple():  # pylint: disable=protected-access
+      size_ *= dim
+    return size_
   with ops.name_scope(name, "Size", [input]) as name:
     if isinstance(input, (sparse_tensor.SparseTensor,
                           sparse_tensor.SparseTensorValue)):
@@ -393,8 +404,11 @@ def size_internal(input, name=None, optimize=True, out_type=dtypes.int32):
     else:
       input_tensor = ops.convert_to_tensor(input)
       input_shape = input_tensor.get_shape()
-      if optimize and input_shape.is_fully_defined():
-        return constant(input_shape.num_elements(), out_type, name=name)
+      if optimize:
+        if input_shape.is_fully_defined():
+          return constant(input_shape.num_elements(), out_type, name=name)
+        if input_shape.dims and any(dim == 0 for dim in input_shape.dims):
+          return constant(0, out_type, name=name)
       return gen_array_ops.size(input, name=name, out_type=out_type)
 
 
@@ -604,7 +618,7 @@ def slice(input_, begin, size, name=None):
 
   Note that @{tf.Tensor.__getitem__} is typically a more pythonic way to
   perform slices, as it allows you to write `foo[3:7, :-2]` instead of
-  `tf.slice([3, 0], [4, foo.get_shape()[1]-2])`.
+  `tf.slice(foo, [3, 0], [4, foo.get_shape()[1]-2])`.
 
   `begin` is zero-based; `size` is one-based. If `size[i]` is -1,
   all remaining elements in dimension i are included in the
@@ -1311,6 +1325,18 @@ def unique(x, out_idx=dtypes.int32, name=None):
 unique.__doc__ = gen_array_ops._unique.__doc__
 
 
+@tf_export("unique_with_counts")
+def unique_with_counts(x, out_idx=dtypes.int32, name=None):
+  # TODO(yongtang): switch to v2 once API deprecation
+  # period (3 weeks) pass.
+  # TODO(yongtang): The documentation should also
+  # be updated when switch  to v2.
+  return gen_array_ops._unique_with_counts(x, out_idx, name)
+
+
+unique_with_counts.__doc__ = gen_array_ops._unique_with_counts.__doc__
+
+
 @tf_export("split")
 def split(value, num_or_size_splits, axis=0, num=None, name="split"):
   """Splits a tensor into sub tensors.
@@ -1388,6 +1414,14 @@ def transpose(a, perm=None, name="transpose", conjugate=False):
   regular matrix transpose on 2-D input Tensors. If conjugate is True and
   `a.dtype` is either `complex64` or `complex128` then the values of `a`
   are conjugated and transposed.
+
+  @compatibility(numpy)
+  In `numpy` transposes are memory-efficient constant time operations as they
+  simply return a new view of the same data with adjusted `strides`.
+
+  TensorFlow does not support strides, so `transpose` returns a new tensor with
+  the items permuted.
+  @end_compatibility
 
   For example:
 
@@ -1488,6 +1522,14 @@ def matrix_transpose(a, name="matrix_transpose", conjugate=False):
   # Inefficient!
   tf.matmul(matrix, tf.matrix_transpose(b))
   ```
+
+  @compatibility(numpy)
+  In `numpy` transposes are memory-efficient constant time operations as they
+  simply return a new view of the same data with adjusted `strides`.
+
+  TensorFlow does not support strides, `matrix_transposes` return a new tensor
+  with the items permuted.
+  @end_compatibility
 
   Args:
     a: A `Tensor` with `rank >= 2`.
@@ -2451,8 +2493,8 @@ def _all_dimensions(x):
     r = x.dense_shape.get_shape()[0].value  # sparse.dense_shape is 1-D.
     return constant_op.constant(np.arange(r), dtype=dtypes.int32)
 
-  # Otherwise, we rely on Range and Rank to do the right thing at run-time.
-  return range(0, rank(x))
+  # Otherwise, we rely on `range` and `rank` to do the right thing at runtime.
+  return gen_math_ops._range(0, rank(x), 1)
 
 
 @tf_export("sequence_mask")
@@ -2497,7 +2539,7 @@ def sequence_mask(lengths, maxlen=None, dtype=dtypes.bool, name=None):
       maxlen = gen_math_ops._max(lengths, _all_dimensions(lengths))
     else:
       maxlen = ops.convert_to_tensor(maxlen)
-    if maxlen.get_shape().ndims != 0:
+    if maxlen.get_shape().ndims is not None and maxlen.get_shape().ndims != 0:
       raise ValueError("maxlen must be scalar for sequence_mask")
 
     # The basic idea is to compare a range row vector of size maxlen:
