@@ -19,25 +19,20 @@ logits of the DNN. The input layer of the DNN (including the embeddings learned
 over sparse features) can optionally be provided to the boosted trees as
 an additional input feature.
 """
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import six
 from tensorflow.contrib import layers
+from tensorflow.contrib.boosted_trees.estimator_batch import estimator_utils
 from tensorflow.contrib.boosted_trees.estimator_batch import trainer_hooks
 from tensorflow.contrib.boosted_trees.python.ops import model_ops
 from tensorflow.contrib.boosted_trees.python.training.functions import gbdt_batch
 from tensorflow.contrib.layers.python.layers import optimizers
-from tensorflow.contrib.learn.python.learn.estimators import constants
 from tensorflow.contrib.learn.python.learn.estimators import estimator
 from tensorflow.contrib.learn.python.learn.estimators import head as head_lib
 from tensorflow.contrib.learn.python.learn.estimators import model_fn
-from tensorflow.contrib.learn.python.learn.estimators import model_fn as contrib_model_fn_lib
-from tensorflow.contrib.learn.python.learn.estimators import prediction_key
-from tensorflow.python.estimator import model_fn as model_fn_lib
-from tensorflow.python.estimator.export import export_output
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
@@ -48,54 +43,7 @@ from tensorflow.python.ops import variable_scope
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
 
-
 _DNN_LEARNING_RATE = 0.001
-
-_CORE_MODE_TO_CONTRIB_MODE_ = {
-    model_fn_lib.ModeKeys.TRAIN: contrib_model_fn_lib.ModeKeys.TRAIN,
-    model_fn_lib.ModeKeys.EVAL: contrib_model_fn_lib.ModeKeys.EVAL,
-    model_fn_lib.ModeKeys.PREDICT: contrib_model_fn_lib.ModeKeys.INFER
-}
-
-
-def _core_mode_to_contrib_mode(mode):
-  return _CORE_MODE_TO_CONTRIB_MODE_[mode]
-
-
-def _export_outputs_to_output_alternatives(export_outputs):
-  """Converts EstimatorSpec.export_outputs to output_alternatives.
-
-  Args:
-    export_outputs: export_outputs created by create_estimator_spec.
-  Returns:
-    converted output_alternatives.
-  """
-  output = dict()
-  if export_outputs is not None:
-    for key, value in export_outputs.items():
-      if isinstance(value, export_output.ClassificationOutput):
-        exported_predictions = {
-            prediction_key.PredictionKey.SCORES: value.scores,
-            prediction_key.PredictionKey.CLASSES: value.classes
-        }
-        output[key] = (constants.ProblemType.CLASSIFICATION,
-                       exported_predictions)
-    return output
-  return None
-
-
-def _estimator_spec_to_model_fn_ops(estimator_spec, is_regression):
-  alternatives = []
-  if not is_regression:
-    _export_outputs_to_output_alternatives(estimator_spec.export_outputs)
-
-  return model_fn.ModelFnOps(
-      mode=_core_mode_to_contrib_mode(estimator_spec.mode),
-      predictions=estimator_spec.predictions,
-      loss=estimator_spec.loss,
-      train_op=estimator_spec.train_op,
-      eval_metric_ops=estimator_spec.eval_metric_ops,
-      output_alternatives=alternatives)
 
 
 def _get_optimizer(optimizer):
@@ -126,10 +74,10 @@ def _dnn_tree_combined_model_fn(features,
                                 dnn_input_layer_partitioner=None,
                                 dnn_input_layer_to_tree=True,
                                 dnn_steps_to_train=10000,
+                                predict_with_tree_only=False,
                                 tree_feature_columns=None,
                                 tree_center_bias=False,
-                                use_core_versions=False,
-                                is_regression=False):
+                                use_core_versions=False):
   """DNN and GBDT combined model_fn.
 
   Args:
@@ -162,6 +110,8 @@ def _dnn_tree_combined_model_fn(features,
     as a feature to the tree.
     dnn_steps_to_train: Number of steps to train dnn for before switching
       to gbdt.
+    predict_with_tree_only: Whether to use only the tree model output as the
+      final prediction.
     tree_feature_columns: An iterable containing all the feature columns
       used by the model's boosted trees. If dnn_input_layer_to_tree is
       set to True, these features are in addition to dnn_feature_columns.
@@ -169,7 +119,6 @@ def _dnn_tree_combined_model_fn(features,
       first fitting the bias.
     use_core_versions: Whether feature columns and loss are from the core (as
       opposed to contrib) version of tensorflow.
-    is_regression: Whether the problem is regression or not.
 
   Returns:
     A `ModelFnOps` object.
@@ -187,8 +136,7 @@ def _dnn_tree_combined_model_fn(features,
   dnn_parent_scope = "dnn"
   dnn_partitioner = dnn_input_layer_partitioner or (
       partitioned_variables.min_max_variable_partitioner(
-          max_partitions=config.num_ps_replicas,
-          min_slice_size=64 << 20))
+          max_partitions=config.num_ps_replicas, min_slice_size=64 << 20))
 
   with variable_scope.variable_scope(
       dnn_parent_scope,
@@ -226,8 +174,7 @@ def _dnn_tree_combined_model_fn(features,
       _add_hidden_layer_summary(net, hidden_layer_scope.name)
       previous_layer = net
     with variable_scope.variable_scope(
-        "logits",
-        values=(previous_layer,)) as logits_scope:
+        "logits", values=(previous_layer,)) as logits_scope:
       dnn_logits = layers.fully_connected(
           previous_layer,
           head.logits_dimension,
@@ -245,8 +192,7 @@ def _dnn_tree_combined_model_fn(features,
           optimizer=_get_optimizer(dnn_optimizer),
           name=dnn_parent_scope,
           variables=ops.get_collection(
-              ops.GraphKeys.TRAINABLE_VARIABLES,
-              scope=dnn_parent_scope),
+              ops.GraphKeys.TRAINABLE_VARIABLES, scope=dnn_parent_scope),
           # Empty summaries to prevent optimizers from logging training_loss.
           summaries=[])
 
@@ -285,7 +231,16 @@ def _dnn_tree_combined_model_fn(features,
         update_op = state_ops.assign_add(global_step, 1).op
         return update_op
 
-  tree_train_logits = dnn_logits + tree_logits
+  if predict_with_tree_only:
+    if mode == model_fn.ModeKeys.TRAIN or mode == model_fn.ModeKeys.PREDICT:
+      tree_train_logits = tree_logits
+    else:
+      tree_train_logits = control_flow_ops.cond(
+          global_step > dnn_steps_to_train,
+          lambda: tree_logits,
+          lambda: dnn_logits)
+  else:
+    tree_train_logits = dnn_logits + tree_logits
 
   def _no_train_op_fn(loss):
     """Returns a no-op."""
@@ -305,8 +260,8 @@ def _dnn_tree_combined_model_fn(features,
         labels=labels,
         train_op_fn=_dnn_train_op_fn,
         logits=dnn_logits)
-    dnn_train_op = _estimator_spec_to_model_fn_ops(dnn_train_op,
-                                                   is_regression).train_op
+    dnn_train_op = estimator_utils.estimator_spec_to_model_fn_ops(
+        dnn_train_op).train_op
 
     tree_train_op = head.create_estimator_spec(
         features=tree_features,
@@ -314,10 +269,10 @@ def _dnn_tree_combined_model_fn(features,
         labels=labels,
         train_op_fn=_tree_train_op_fn,
         logits=tree_train_logits)
-    tree_train_op = _estimator_spec_to_model_fn_ops(tree_train_op,
-                                                    is_regression).train_op
+    tree_train_op = estimator_utils.estimator_spec_to_model_fn_ops(
+        tree_train_op).train_op
 
-    model_fn_ops = _estimator_spec_to_model_fn_ops(model_fn_ops, is_regression)
+    model_fn_ops = estimator_utils.estimator_spec_to_model_fn_ops(model_fn_ops)
   else:
     model_fn_ops = head.create_model_fn_ops(
         features=features,
@@ -343,10 +298,10 @@ def _dnn_tree_combined_model_fn(features,
   finalized_trees, attempted_trees = gbdt_model.get_number_of_trees_tensor()
 
   model_fn_ops.training_hooks.extend([
-      trainer_hooks.SwitchTrainOp(
-          dnn_train_op, dnn_steps_to_train, tree_train_op),
-      trainer_hooks.StopAfterNTrees(
-          num_trees, attempted_trees, finalized_trees)])
+      trainer_hooks.SwitchTrainOp(dnn_train_op, dnn_steps_to_train,
+                                  tree_train_op),
+      trainer_hooks.StopAfterNTrees(num_trees, attempted_trees, finalized_trees)
+  ])
 
   return model_fn_ops
 
@@ -373,6 +328,7 @@ class DNNBoostedTreeCombinedClassifier(estimator.Estimator):
                dnn_input_layer_partitioner=None,
                dnn_input_layer_to_tree=True,
                dnn_steps_to_train=10000,
+               predict_with_tree_only=False,
                tree_feature_columns=None,
                tree_center_bias=False,
                use_core_versions=False):
@@ -415,6 +371,8 @@ class DNNBoostedTreeCombinedClassifier(estimator.Estimator):
       as a feature to the tree.
       dnn_steps_to_train: Number of steps to train dnn for before switching
         to gbdt.
+      predict_with_tree_only: Whether to use only the tree model output as the
+        final prediction.
       tree_feature_columns: An iterable containing all the feature columns
         used by the model's boosted trees. If dnn_input_layer_to_tree is
         set to True, these features are in addition to dnn_feature_columns.
@@ -432,16 +390,32 @@ class DNNBoostedTreeCombinedClassifier(estimator.Estimator):
 
     def _model_fn(features, labels, mode, config):
       return _dnn_tree_combined_model_fn(
-          features, labels, mode, head, dnn_hidden_units, dnn_feature_columns,
-          tree_learner_config, num_trees, tree_examples_per_layer, config,
-          dnn_optimizer, dnn_activation_fn, dnn_dropout,
-          dnn_input_layer_partitioner, dnn_input_layer_to_tree,
-          dnn_steps_to_train, tree_feature_columns, tree_center_bias,
-          use_core_versions)
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          dnn_hidden_units=dnn_hidden_units,
+          dnn_feature_columns=dnn_feature_columns,
+          tree_learner_config=tree_learner_config,
+          num_trees=num_trees,
+          tree_examples_per_layer=tree_examples_per_layer,
+          config=config,
+          dnn_optimizer=dnn_optimizer,
+          dnn_activation_fn=dnn_activation_fn,
+          dnn_dropout=dnn_dropout,
+          dnn_input_layer_partitioner=dnn_input_layer_partitioner,
+          dnn_input_layer_to_tree=dnn_input_layer_to_tree,
+          dnn_steps_to_train=dnn_steps_to_train,
+          predict_with_tree_only=predict_with_tree_only,
+          tree_feature_columns=tree_feature_columns,
+          tree_center_bias=tree_center_bias,
+          use_core_versions=use_core_versions)
 
     super(DNNBoostedTreeCombinedClassifier, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir,
-        config=config, feature_engineering_fn=feature_engineering_fn)
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
+        feature_engineering_fn=feature_engineering_fn)
 
 
 class DNNBoostedTreeCombinedRegressor(estimator.Estimator):
@@ -465,6 +439,7 @@ class DNNBoostedTreeCombinedRegressor(estimator.Estimator):
                dnn_input_layer_partitioner=None,
                dnn_input_layer_to_tree=True,
                dnn_steps_to_train=10000,
+               predict_with_tree_only=False,
                tree_feature_columns=None,
                tree_center_bias=False,
                use_core_versions=False):
@@ -507,6 +482,8 @@ class DNNBoostedTreeCombinedRegressor(estimator.Estimator):
       as a feature to the tree.
       dnn_steps_to_train: Number of steps to train dnn for before switching
         to gbdt.
+      predict_with_tree_only: Whether to use only the tree model output as the
+        final prediction.
       tree_feature_columns: An iterable containing all the feature columns
         used by the model's boosted trees. If dnn_input_layer_to_tree is
         set to True, these features are in addition to dnn_feature_columns.
@@ -529,30 +506,32 @@ class DNNBoostedTreeCombinedRegressor(estimator.Estimator):
 
     def _model_fn(features, labels, mode, config):
       return _dnn_tree_combined_model_fn(
-          features,
-          labels,
-          mode,
-          head,
-          dnn_hidden_units,
-          dnn_feature_columns,
-          tree_learner_config,
-          num_trees,
-          tree_examples_per_layer,
-          config,
-          dnn_optimizer,
-          dnn_activation_fn,
-          dnn_dropout,
-          dnn_input_layer_partitioner,
-          dnn_input_layer_to_tree,
-          dnn_steps_to_train,
-          tree_feature_columns,
-          tree_center_bias,
-          use_core_versions,
-          is_regression=True)
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          dnn_hidden_units=dnn_hidden_units,
+          dnn_feature_columns=dnn_feature_columns,
+          tree_learner_config=tree_learner_config,
+          num_trees=num_trees,
+          tree_examples_per_layer=tree_examples_per_layer,
+          config=config,
+          dnn_optimizer=dnn_optimizer,
+          dnn_activation_fn=dnn_activation_fn,
+          dnn_dropout=dnn_dropout,
+          dnn_input_layer_partitioner=dnn_input_layer_partitioner,
+          dnn_input_layer_to_tree=dnn_input_layer_to_tree,
+          dnn_steps_to_train=dnn_steps_to_train,
+          predict_with_tree_only=predict_with_tree_only,
+          tree_feature_columns=tree_feature_columns,
+          tree_center_bias=tree_center_bias,
+          use_core_versions=use_core_versions)
 
     super(DNNBoostedTreeCombinedRegressor, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir,
-        config=config, feature_engineering_fn=feature_engineering_fn)
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
+        feature_engineering_fn=feature_engineering_fn)
 
 
 class DNNBoostedTreeCombinedEstimator(estimator.Estimator):
@@ -577,6 +556,7 @@ class DNNBoostedTreeCombinedEstimator(estimator.Estimator):
                dnn_input_layer_partitioner=None,
                dnn_input_layer_to_tree=True,
                dnn_steps_to_train=10000,
+               predict_with_tree_only=False,
                tree_feature_columns=None,
                tree_center_bias=False,
                use_core_versions=False):
@@ -614,6 +594,8 @@ class DNNBoostedTreeCombinedEstimator(estimator.Estimator):
       as a feature to the tree.
       dnn_steps_to_train: Number of steps to train dnn for before switching
         to gbdt.
+      predict_with_tree_only: Whether to use only the tree model output as the
+        final prediction.
       tree_feature_columns: An iterable containing all the feature columns
         used by the model's boosted trees. If dnn_input_layer_to_tree is
         set to True, these features are in addition to dnn_feature_columns.
@@ -622,15 +604,32 @@ class DNNBoostedTreeCombinedEstimator(estimator.Estimator):
       use_core_versions: Whether feature columns and loss are from the core (as
         opposed to contrib) version of tensorflow.
     """
+
     def _model_fn(features, labels, mode, config):
       return _dnn_tree_combined_model_fn(
-          features, labels, mode, head, dnn_hidden_units, dnn_feature_columns,
-          tree_learner_config, num_trees, tree_examples_per_layer, config,
-          dnn_optimizer, dnn_activation_fn, dnn_dropout,
-          dnn_input_layer_partitioner, dnn_input_layer_to_tree,
-          dnn_steps_to_train, tree_feature_columns, tree_center_bias,
-          use_core_versions)
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          dnn_hidden_units=dnn_hidden_units,
+          dnn_feature_columns=dnn_feature_columns,
+          tree_learner_config=tree_learner_config,
+          num_trees=num_trees,
+          tree_examples_per_layer=tree_examples_per_layer,
+          config=config,
+          dnn_optimizer=dnn_optimizer,
+          dnn_activation_fn=dnn_activation_fn,
+          dnn_dropout=dnn_dropout,
+          dnn_input_layer_partitioner=dnn_input_layer_partitioner,
+          dnn_input_layer_to_tree=dnn_input_layer_to_tree,
+          dnn_steps_to_train=dnn_steps_to_train,
+          predict_with_tree_only=predict_with_tree_only,
+          tree_feature_columns=tree_feature_columns,
+          tree_center_bias=tree_center_bias,
+          use_core_versions=use_core_versions)
 
     super(DNNBoostedTreeCombinedEstimator, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir,
-        config=config, feature_engineering_fn=feature_engineering_fn)
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
+        feature_engineering_fn=feature_engineering_fn)

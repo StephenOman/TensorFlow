@@ -32,8 +32,17 @@ constexpr int kOutputTensor = 0;
 TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   TF_LITE_ENSURE_EQ(context, NumInputs(node), 1);
   TF_LITE_ENSURE_EQ(context, NumOutputs(node), 1);
-  TfLiteTensor* input = GetInput(context, node, kInputTensor);
+  const TfLiteTensor* input = GetInput(context, node, kInputTensor);
   TfLiteTensor* output = GetOutput(context, node, kOutputTensor);
+
+  // TODO(ahentz): these two checks would make the new implementation
+  // incompatible with some existing models, where params is not specified. It
+  // is OK not to have them because toco would have set input and output types
+  // to match the parameters.
+  // auto* params = reinterpret_cast<TfLiteCastParams*>(node->builtin_data);
+  // TF_LITE_ENSURE_EQ(context, input->type, params->in_data_type);
+  // TF_LITE_ENSURE_EQ(context, output->type, params->out_data_type);
+
   return context->ResizeTensor(context, output,
                                TfLiteIntArrayCopy(input->dims));
 }
@@ -60,6 +69,9 @@ TfLiteStatus copyToTensor(const FromT* in, TfLiteTensor* out,
     case kTfLiteFloat32:
       copyCast(in, out->data.f, num_elements);
       break;
+    case kTfLiteBool:
+      copyCast(in, out->data.b, num_elements);
+      break;
     default:
       // Unsupported type.
       return kTfLiteError;
@@ -68,7 +80,7 @@ TfLiteStatus copyToTensor(const FromT* in, TfLiteTensor* out,
 }
 
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
-  TfLiteTensor* input = GetInput(context, node, kInputTensor);
+  const TfLiteTensor* input = GetInput(context, node, kInputTensor);
   TfLiteTensor* output = GetOutput(context, node, kOutputTensor);
   const int num_elements = NumElements(input);
   TF_LITE_ENSURE_EQ(context, num_elements, NumElements(output));
@@ -81,6 +93,8 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
       return copyToTensor(input->data.uint8, output, num_elements);
     case kTfLiteFloat32:
       return copyToTensor(input->data.f, output, num_elements);
+    case kTfLiteBool:
+      return copyToTensor(input->data.b, output, num_elements);
     default:
       // Unsupported type.
       return kTfLiteError;

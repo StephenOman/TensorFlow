@@ -14,9 +14,7 @@
 # ==============================================================================
 """Arithmetic Operations that don't fit into math_ops due to dependencies.
 
-To avoid circular dependencies, some math_ops should go here.  Documentation
-callouts, e.g. "@@my_op" should go in math_ops.  To the user, these are just
-normal math_ops.
+To avoid circular dependencies, some math_ops should go here.
 """
 
 from __future__ import absolute_import
@@ -82,6 +80,54 @@ def lbeta(x, name='lbeta'):
     result = log_prod_gamma_x - log_gamma_sum_x
 
     return result
+
+
+@tf_export('math.bessel_i0')
+def bessel_i0(x, name='bessel_i0'):
+  """Computes the Bessel i0 function of `x` element-wise.
+
+  Modified Bessel function of order 0.
+
+  It is preferable to use the numerically stabler function `i0e(x)` instead.
+
+  Args:
+    x: A `Tensor` or `SparseTensor`. Must be one of the following types: `half`,
+      `float32`, `float64`.
+    name: A name for the operation (optional).
+
+  Returns:
+    A `Tensor` or `SparseTensor`, respectively. Has the same type as `x`.
+
+  @compatibility(scipy)
+  Equivalent to scipy.special.i0
+  @end_compatibility
+  """
+  with ops.name_scope(name, [x]):
+    return math_ops.exp(math_ops.abs(x)) * math_ops.bessel_i0e(x)
+
+
+@tf_export('math.bessel_i1')
+def bessel_i1(x, name='bessel_i1'):
+  """Computes the Bessel i1 function of `x` element-wise.
+
+  Modified Bessel function of order 1.
+
+  It is preferable to use the numerically stabler function `i1e(x)` instead.
+
+  Args:
+    x: A `Tensor` or `SparseTensor`. Must be one of the following types: `half`,
+      `float32`, `float64`.
+    name: A name for the operation (optional).
+
+  Returns:
+    A `Tensor` or `SparseTensor`, respectively. Has the same type as `x`.
+
+  @compatibility(scipy)
+  Equivalent to scipy.special.i1
+  @end_compatibility
+  """
+  with ops.name_scope(name, [x]):
+    return math_ops.exp(math_ops.abs(x)) * math_ops.bessel_i1e(x)
 
 
 @tf_export('einsum', 'linalg.einsum')
@@ -155,6 +201,8 @@ def einsum(equation, *inputs, **kwargs):
         indices in its subscript, or
       - the input shapes are inconsistent along a particular axis.
   """
+  equation = equation.replace(" ", "")
+  
   name = kwargs.pop('name', None)
   if kwargs:
     raise TypeError('invalid keyword arguments for this function: ' + ', '.join(

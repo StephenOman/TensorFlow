@@ -150,12 +150,19 @@ class ProcessFunctionLibraryRuntime {
   class FunctionData {
    public:
     FunctionData(const string& target_device,
-                 FunctionLibraryRuntime::LocalHandle local_handle)
-        : target_device_(target_device), local_handle_(local_handle) {}
+                 FunctionLibraryRuntime::LocalHandle local_handle,
+                 const string& function_key)
+        : target_device_(target_device),
+          local_handle_(local_handle),
+          function_key_(function_key) {}
 
     string target_device() { return target_device_; }
+    const string& function_key() { return function_key_; }
 
-    FunctionLibraryRuntime::LocalHandle local_handle() { return local_handle_; }
+    FunctionLibraryRuntime::LocalHandle local_handle() {
+      mutex_lock l(mu_);
+      return local_handle_;
+    }
 
     // Initializes the FunctionData object by potentially making an Initialize
     // call to the DistributedFunctionLibraryRuntime.
@@ -169,6 +176,7 @@ class ProcessFunctionLibraryRuntime {
 
     const string target_device_;
     FunctionLibraryRuntime::LocalHandle local_handle_ GUARDED_BY(mu_);
+    const string function_key_;
     bool init_started_ GUARDED_BY(mu_) = false;
     Status init_result_ GUARDED_BY(mu_);
     Notification init_done_;

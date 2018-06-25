@@ -66,8 +66,7 @@ limitations under the License.
 extern bool FLAGS_check_gpu_leaks;
 bool FLAGS_prefer_cubin_to_ptx = true;
 
-namespace perftools {
-namespace gputools {
+namespace stream_executor {
 namespace cuda {
 
 // Hook that can be used to CUBIN-ate PTX before it is loaded into the driver.
@@ -181,11 +180,11 @@ bool CUDAExecutor::FindOnDiskForComputeCapability(
 static string GetBinaryDir(bool strip_exe) {
   char exe_path[PATH_MAX] = {0};
 #if defined(__APPLE__)
-    uint32_t buffer_size = 0U;
-    _NSGetExecutablePath(nullptr, &buffer_size);
-    char unresolved_path[buffer_size];
-    _NSGetExecutablePath(unresolved_path, &buffer_size);
-    CHECK_ERR(realpath(unresolved_path, exe_path) ? 1 : -1);
+  uint32_t buffer_size = 0U;
+  _NSGetExecutablePath(nullptr, &buffer_size);
+  char unresolved_path[buffer_size];
+  _NSGetExecutablePath(unresolved_path, &buffer_size);
+  CHECK_ERR(realpath(unresolved_path, exe_path) ? 1 : -1);
 #else
 #if defined(PLATFORM_WINDOWS)
   HMODULE hModule = GetModuleHandle(NULL);
@@ -610,10 +609,10 @@ port::Status CUDAExecutor::WaitForEvent(Stream *stream, Event *event) {
                                     AsCUDAEvent(event)->cuda_event())) {
     return port::Status::OK();
   } else {
-    return port::Status{
+    return port::Status(
         port::error::INTERNAL,
         port::Printf("error recording waiting for CUDA event on stream %p",
-                     stream)};
+                     stream));
   }
 }
 
@@ -1127,7 +1126,7 @@ DeviceDescription *CUDAExecutor::PopulateDeviceDescription() const {
     builder.set_name(device_name);
   }
 
-  for (size_t i = 0; i < ARRAYSIZE(kAllUnqueryableDeviceParams); i++) {
+  for (size_t i = 0; i < TF_ARRAYSIZE(kAllUnqueryableDeviceParams); i++) {
     const auto &params = kAllUnqueryableDeviceParams[i];
     if (params.cc_major == cc_major_ && params.cc_minor == cc_minor_) {
       builder.set_blocks_per_core_limit(params.blocks_per_core_limit);
@@ -1168,17 +1167,14 @@ DeviceDescription *CUDAExecutor::PopulateDeviceDescription() const {
 
 }  // namespace cuda
 
-namespace gpu = ::perftools::gputools;
-
 void initialize_cuda_gpu_executor() {
-  *gpu::internal::MakeCUDAExecutorImplementation() = [](
-      const gpu::PluginConfig &config) {
-    return new gpu::cuda::CUDAExecutor{config};
+  *internal::MakeCUDAExecutorImplementation() = [](const PluginConfig &config) {
+    return new cuda::CUDAExecutor{config};
   };
 }
 
-}  // namespace gputools
-}  // namespace perftools
+}  // namespace stream_executor
 
-REGISTER_MODULE_INITIALIZER(
-    cuda_gpu_executor, {perftools::gputools::initialize_cuda_gpu_executor();});
+REGISTER_MODULE_INITIALIZER(cuda_gpu_executor, {
+  stream_executor::initialize_cuda_gpu_executor();
+});

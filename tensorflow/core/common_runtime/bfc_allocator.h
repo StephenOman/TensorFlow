@@ -23,7 +23,7 @@ limitations under the License.
 #include <vector>
 
 #include "tensorflow/core/common_runtime/allocator_retry.h"
-#include "tensorflow/core/framework/visitable_allocator.h"
+#include "tensorflow/core/common_runtime/visitable_allocator.h"
 #include "tensorflow/core/lib/gtl/stl_util.h"
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/macros.h"
@@ -305,7 +305,8 @@ class BFCAllocator : public VisitableAllocator {
   // Try to add a new memory region that can satisfy an allocation of
   // 'rounded_bytes' bytes.  Returns true on success and false on
   // failure.
-  bool Extend(size_t rounded_bytes) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  bool Extend(size_t alignment, size_t rounded_bytes)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Returns a pointer to an underlying allocated chunk of size
   // 'rounded_bytes'.
@@ -378,7 +379,7 @@ class BFCAllocator : public VisitableAllocator {
   inline int Log2FloorNonZero(uint64 n) {
 #if defined(__GNUC__)
     return 63 ^ __builtin_clzll(n);
-#elif defined(PLATFORM_WINDOWS)
+#elif defined(PLATFORM_WINDOWS) && (_WIN64)
     unsigned long index;
     _BitScanReverse64(&index, n);
     return index;

@@ -1,12 +1,10 @@
-index.md
+### Learn and use ML
+basic_classification.md
+basic_text_classification.md
+basic_regression.md
+overfit_and_underfit.md
+save_and_restore_models.md
+next_steps.md
 
-### Beginners
+### Research and experimentation
 eager.md
-get_started_for_beginners.md
-premade_estimators.md
-
-### Details
-checkpoints.md
-feature_columns.md
-datasets_quickstart.md
-custom_estimators.md

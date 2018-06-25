@@ -26,7 +26,7 @@ namespace toco {
 
 bool ResolveTensorFlowMatMul::Run(Model* model, std::size_t op_index) {
   auto matmul_it = model->operators.begin() + op_index;
-  if (matmul_it->get()->type != OperatorType::kTensorFlowMatMul) {
+  if (matmul_it->get()->type != OperatorType::kMatMul) {
     return false;
   }
   const auto* matmul_op =
@@ -60,6 +60,13 @@ bool ResolveTensorFlowMatMul::Run(Model* model, std::size_t op_index) {
   string input_lhs = matmul_op->inputs[0];
   string input_rhs = transpose_op->outputs[0];
 
+  // Construct the new FullyConnectedOperator.
+  auto* fc_op = new FullyConnectedOperator;
+  fc_op->outputs = matmul_op->outputs;
+
+  // Insert the newly constructed FullyConnectedOperator.
+  model->operators.emplace(matmul_it, fc_op) + 1;
+
   // Find the op producing the array passed to this MatMul
   auto previous_op_it = model->operators.begin();
   bool found = false;
@@ -76,13 +83,6 @@ bool ResolveTensorFlowMatMul::Run(Model* model, std::size_t op_index) {
   }
   Operator* previous_op = (found) ? previous_op_it->get() : nullptr;
 
-  // Construct the new FullyConnectedOperator.
-  auto* fc_op = new FullyConnectedOperator;
-  fc_op->outputs = matmul_op->outputs;
-
-  // Insert the newly constructed FullyConnectedOperator.
-  model->operators.emplace(matmul_it, fc_op) + 1;
-
   // Refresh iterator.
   matmul_it = model->operators.begin();
   for (; matmul_it != model->operators.end(); ++matmul_it) {
@@ -97,7 +97,7 @@ bool ResolveTensorFlowMatMul::Run(Model* model, std::size_t op_index) {
   // MatMul op as a FullyConnected. However, TensorFlow skips the Reshape ops if
   // the input doesn't need reshaping, so we can't just match (Reshape, MatMul)
   // pairs.
-  if (previous_op && previous_op->type == OperatorType::kTensorFlowReshape) {
+  if (previous_op && previous_op->type == OperatorType::kReshape) {
     AddMessageF("Combining %s and %s into %s", LogName(*previous_op),
                 LogName(*matmul_op), LogName(*fc_op));
     const auto& previous_op_output = previous_op->outputs[0];

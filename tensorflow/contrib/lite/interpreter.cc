@@ -14,10 +14,12 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/contrib/lite/interpreter.h"
+
 #include <cassert>
 #include <cstdarg>
 #include <cstdint>
 #include <cstring>
+
 #include "tensorflow/contrib/lite/arena_planner.h"
 #include "tensorflow/contrib/lite/context.h"
 #include "tensorflow/contrib/lite/error_reporter.h"
@@ -26,6 +28,7 @@ limitations under the License.
 #include "tensorflow/contrib/lite/kernels/gemm_support.h"
 #include "tensorflow/contrib/lite/memory_planner.h"
 #include "tensorflow/contrib/lite/nnapi_delegate.h"
+#include "tensorflow/contrib/lite/profiling/profiler.h"
 #include "tensorflow/contrib/lite/schema/schema_generated.h"
 #include "tensorflow/contrib/lite/util.h"
 
@@ -79,6 +82,9 @@ class InterpreterInfo : public GraphInfo {
   const std::vector<int>& outputs() const override {
     return interpreter_->outputs();
   }
+  const std::vector<int>& variables() const override {
+    return interpreter_->variables();
+  }
 
  public:
   Interpreter* interpreter_;
@@ -122,7 +128,8 @@ Interpreter::~Interpreter() {
 
   for (int i = 0; i < context_.tensors_size; i++) {
     TfLiteTensor* tensor = &context_.tensors[i];
-    if (tensor->buffer_handle != kTfLiteNullBufferHandle) {
+    if (tensor->buffer_handle != kTfLiteNullBufferHandle &&
+        tensor->delegate->FreeBufferHandle != nullptr) {
       tensor->delegate->FreeBufferHandle(tensor->delegate,
                                          &tensor->buffer_handle);
     }
@@ -245,11 +252,8 @@ TfLiteStatus Interpreter::ReplaceSubgraphsWithDelegateKernels(
         // Initialize the output tensors's delegate-related fields.
         for (int tensor_index : subgraph.output_tensors) {
           TfLiteTensor* tensor = &tensors_[tensor_index];
-          TF_LITE_ENSURE_EQ(&context_, tensor->delegate, nullptr);
-          TF_LITE_ENSURE_EQ(&context_, tensor->buffer_handle,
-                            kTfLiteNullBufferHandle);
-          // buffer_handle will be filled in delegate's `Prepare`
-          // function.
+          TF_LITE_ENSURE(&context_, tensor->delegate == nullptr ||
+                                        tensor->delegate == delegate);
           tensor->delegate = delegate;
         }
 
@@ -301,6 +305,13 @@ TfLiteStatus Interpreter::SetOutputs(std::vector<int> outputs) {
   return kTfLiteOk;
 }
 
+TfLiteStatus Interpreter::SetVariables(std::vector<int> variables) {
+  TF_LITE_ENSURE_OK(&context_, CheckTensorIndices("variables", variables.data(),
+                                                  variables.size()));
+  variables_ = std::move(variables);
+  return kTfLiteOk;
+}
+
 TfLiteStatus Interpreter::CheckTensorIndices(const char* label,
                                              const int* indices, int length) {
   // Making sure kOptionalTensor is not re-defined to something other than -1.
@@ -308,7 +319,12 @@ TfLiteStatus Interpreter::CheckTensorIndices(const char* label,
 
   for (int i = 0; i < length; i++) {
     int index = indices[i];
-    if (index < kOptionalTensor || index >= context_.tensors_size) {
+    // Continue if index == kOptionalTensor before additional comparisons below,
+    // size_t(-1) is always >= context_tensors_size.
+    if (index == kOptionalTensor) {
+      continue;
+    }
+    if (index < 0 || static_cast<size_t>(index) >= context_.tensors_size) {
       ReportError(&context_, "Invalid tensor index %d in %s\n", index, label);
       consistent_ = false;
       return kTfLiteError;
@@ -318,7 +334,7 @@ TfLiteStatus Interpreter::CheckTensorIndices(const char* label,
 }
 
 TfLiteStatus Interpreter::BytesRequired(TfLiteType type, const int* dims,
-                                        int dims_size, size_t* bytes) {
+                                        size_t dims_size, size_t* bytes) {
   // TODO(aselle): Check for overflow here using overflow.h in TensorFlow
   // MultiplyWithoutOverflow.
   TF_LITE_ENSURE(&context_, bytes != nullptr);
@@ -327,6 +343,9 @@ TfLiteStatus Interpreter::BytesRequired(TfLiteType type, const int* dims,
   switch (type) {
     case kTfLiteFloat32:
       *bytes = sizeof(float) * count;
+      break;
+    case kTfLiteInt16:
+      *bytes = sizeof(int16_t) * count;
       break;
     case kTfLiteInt32:
       *bytes = sizeof(int32_t) * count;
@@ -337,9 +356,13 @@ TfLiteStatus Interpreter::BytesRequired(TfLiteType type, const int* dims,
     case kTfLiteInt64:
       *bytes = sizeof(int64_t) * count;
       break;
+    case kTfLiteBool:
+      *bytes = sizeof(bool) * count;
+      break;
     default:
       ReportError(&context_,
-                  "Only float32, int32, int64, uint8 supported currently.");
+                  "Only float32, int16, int32, int64, uint8, bool supported "
+                  "currently.");
       return kTfLiteError;
   }
   return kTfLiteOk;
@@ -357,11 +380,31 @@ TfLiteStatus Interpreter::AllocateTensors() {
   }
 
   TF_LITE_ENSURE_STATUS(PrepareOpsAndTensors());
+
   if (state_ == kStateUninvokable) {
     state_ = kStateInvokable;
   }
   TF_LITE_ENSURE(&context_, state_ == kStateInvokable ||
                                 state_ == kStateInvokableAndImmutable);
+  return kTfLiteOk;
+}
+
+// TODO(ycling): Consider to provide other functions to initialize variable
+// tensors to non-zero values.
+TfLiteStatus Interpreter::ResetVariableTensorsToZero() {
+  for (auto& tensor : tensors_) {
+    if (!tensor.is_variable) {
+      continue;
+    }
+
+    // Variable tensors have to be `kTfLiteArenaRwPersistent`, and must be
+    // allocated after the initial `PrepareOpsAndTensors()` is called.
+    TF_LITE_ENSURE_EQ(&context_, tensor.allocation_type,
+                      kTfLiteArenaRwPersistent);
+    TF_LITE_ENSURE(&context_, tensor.data.raw != nullptr);
+
+    memset(tensor.data.raw, 0, tensor.bytes);
+  }
   return kTfLiteOk;
 }
 
@@ -543,6 +586,7 @@ TfLiteStatus Interpreter::Invoke() {
     TfLiteNode& node = nodes_and_registration_[node_index].first;
     const TfLiteRegistration& registration =
         nodes_and_registration_[node_index].second;
+    SCOPED_OPERATOR_PROFILE(profiler_, node_index);
 
     // TODO(ycling): This is an extra loop through inputs to check if the data
     // need to be copied from Delegate buffer to raw memory, which is often not
@@ -561,8 +605,22 @@ TfLiteStatus Interpreter::Invoke() {
     }
 
     EnsureTensorsVectorCapacity();
+    tensor_resized_since_op_invoke_ = false;
     if (OpInvoke(registration, &node) == kTfLiteError) {
       status = kTfLiteError;
+    }
+
+    // Force execution prep for downstream ops if the latest op triggered the
+    // resize of a dynamic tensor.
+    if (tensor_resized_since_op_invoke_ &&
+        HasDynamicTensor(context_, node.outputs)) {
+      next_execution_plan_index_to_prepare_ = execution_plan_index + 1;
+    }
+  }
+
+  if (!allow_buffer_handle_output_) {
+    for (int tensor_index : outputs_) {
+      EnsureTensorDataIsReadable(tensor_index);
     }
   }
 
@@ -634,7 +692,7 @@ TfLiteStatus Interpreter::GetNodeAndRegistration(
 }
 
 TfLiteStatus Interpreter::SetTensorParametersReadOnly(
-    int tensor_index, TfLiteType type, const char* name, const int rank,
+    int tensor_index, TfLiteType type, const char* name, const size_t rank,
     const int* dims, TfLiteQuantizationParams quantization, const char* buffer,
     size_t bytes, const Allocation* allocation) {
   if (state_ == kStateInvokableAndImmutable) {
@@ -670,7 +728,7 @@ TfLiteStatus Interpreter::SetTensorParametersReadOnly(
     state_ = kStateUninvokable;
     TfLiteTensorReset(type, name, ConvertArrayToTfLiteIntArray(rank, dims),
                       quantization, const_cast<char*>(buffer), bytes,
-                      kTfLiteMmapRo, allocation, &tensor);
+                      kTfLiteMmapRo, allocation, false, &tensor);
   }
   return kTfLiteOk;
 }
@@ -680,8 +738,8 @@ TfLiteStatus Interpreter::SetTensorParametersReadOnly(
 // bytes. The lifetime of buffer must be ensured to be greater or equal
 // to Interpreter.
 TfLiteStatus Interpreter::SetTensorParametersReadWrite(
-    int tensor_index, TfLiteType type, const char* name, const int rank,
-    const int* dims, TfLiteQuantizationParams quantization) {
+    int tensor_index, TfLiteType type, const char* name, const size_t rank,
+    const int* dims, TfLiteQuantizationParams quantization, bool is_variable) {
   if (state_ == kStateInvokableAndImmutable) {
     ReportError(
         &context_,
@@ -699,11 +757,23 @@ TfLiteStatus Interpreter::SetTensorParametersReadWrite(
     TF_LITE_ENSURE_OK(&context_,
                       BytesRequired(type, dims, rank, &required_bytes));
   }
+
+  TfLiteAllocationType allocation_type = kTfLiteArenaRw;
+  if (type == kTfLiteString) {
+    if (is_variable) {
+      // We don't have a real use case for string variable tensor.
+      ReportError(&context_, "String variable tensor isn't supported.");
+      return kTfLiteError;
+    }
+    allocation_type = kTfLiteDynamic;
+  } else if (is_variable) {
+    allocation_type = kTfLiteArenaRwPersistent;
+  }
+
   TfLiteTensorReset(type, name, ConvertArrayToTfLiteIntArray(rank, dims),
                     quantization,
-                    /*buffer=*/nullptr, required_bytes,
-                    type == kTfLiteString ? kTfLiteDynamic : kTfLiteArenaRw,
-                    nullptr, &context_.tensors[tensor_index]);
+                    /*buffer=*/nullptr, required_bytes, allocation_type,
+                    nullptr, is_variable, &context_.tensors[tensor_index]);
   return kTfLiteOk;
 }
 
@@ -719,7 +789,10 @@ TfLiteStatus Interpreter::ResizeTensorImpl(TfLiteTensor* tensor,
                                            TfLiteIntArray* new_size) {
   // Note that in theory we could resize kTfLiteArenaRwPersistent tensors too.
   if (tensor->allocation_type == kTfLiteArenaRw ||
-      tensor->allocation_type == kTfLiteDynamic) {
+      tensor->allocation_type == kTfLiteDynamic ||
+      tensor->allocation_type == kTfLiteArenaRwPersistent) {
+    tensor_resized_since_op_invoke_ |=
+        TfLiteIntArrayEqual(tensor->dims, new_size) == 0;
     if (tensor->type != kTfLiteString) {
       size_t bytesRequired;
       TfLiteStatus status = BytesRequired(tensor->type, new_size->data,

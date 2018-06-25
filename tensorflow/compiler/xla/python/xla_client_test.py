@@ -164,6 +164,16 @@ class ComputationsWithConstantsTest(LocalComputationTest):
         c.Constant(NumpyArrayF32([[1, -1, 1], [-1, 1, -1]])))
     self._ExecuteAndCompareClose(c, expected=[[2, 1, 4], [3, 6, 5]])
 
+  def testGetProto(self):
+    c = self._NewComputation()
+    c.Add(
+        c.Constant(NumpyArrayF32([[1, 2, 3], [4, 5, 6]])),
+        c.Constant(NumpyArrayF32([[1, -1, 1], [-1, 1, -1]])))
+    built = c.Build()
+    proto = built.GetProto()  # HloModuleProto
+    self.assertTrue(len(proto.computations) == 1)
+    self.assertTrue(len(proto.computations[0].instructions) == 3)
+
   def testSum2DF64(self):
     c = self._NewComputation()
     c.Add(
@@ -319,7 +329,7 @@ class LocalBufferTest(LocalComputationTest):
 
   def _Execute(self, c, arguments):
     compiled_c = c.Build().CompileWithExampleArguments(arguments)
-    arg_buffers = [xla_client.LocalBuffer.from_py(arg) for arg in arguments]
+    arg_buffers = [xla_client.LocalBuffer.from_pyval(arg) for arg in arguments]
     result_buffer = compiled_c.ExecuteWithLocalBuffers(arg_buffers)
     return result_buffer.to_py()
 
@@ -350,10 +360,59 @@ class LocalBufferTest(LocalComputationTest):
     c.Add(c.ParameterFromNumpy(NumpyArrayF32(0.)), c.ConstantF32Scalar(3.14))
     arg = NumpyArrayF32(1.11)
     compiled_c = c.Build().CompileWithExampleArguments([arg])
-    arg_buffer = xla_client.LocalBuffer.from_py(arg)
+    arg_buffer = xla_client.LocalBuffer.from_pyval(arg)
     arg_buffer.delete()
     with self.assertRaises(ValueError):
       compiled_c.ExecuteWithLocalBuffers([arg_buffer])
+
+  def testDestructureTupleEmpty(self):
+    t = ()
+    local_buffer = xla_client.LocalBuffer.from_pyval(t)
+    pieces = local_buffer.destructure()
+    self.assertTrue(local_buffer.is_deleted())
+    self.assertEqual(len(pieces), 0)
+
+  def testDestructureTupleOneArrayElement(self):
+    t = (np.array([1, 2, 3, 4], dtype=np.int32),)
+    local_buffer = xla_client.LocalBuffer.from_pyval(t)
+    pieces = local_buffer.destructure()
+    self.assertTrue(local_buffer.is_deleted())
+    self.assertEqual(len(pieces), 1)
+    array = pieces[0]
+    got = array.to_py()
+    want = NumpyArrayS32([1, 2, 3, 4])
+    np.testing.assert_equal(want, got)
+
+  def testDestructureTupleTwoArrayElementDifferentType(self):
+    t = (np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32),
+         np.array([2, 3, 4, 5], dtype=np.int32))
+    local_buffer = xla_client.LocalBuffer.from_pyval(t)
+    pieces = local_buffer.destructure()
+    self.assertTrue(local_buffer.is_deleted())
+    self.assertEqual(len(pieces), 2)
+    array0, array1 = pieces
+    got = array0.to_py()
+    want = NumpyArrayF32([1.0, 2.0, 3.0, 4.0])
+    np.testing.assert_equal(want, got)
+    got = array1.to_py()
+    want = NumpyArrayS32([2, 3, 4, 5])
+    np.testing.assert_equal(want, got)
+
+  def testDestructureTupleNested(self):
+    t = ((NumpyArrayF32([1.0, 2.0]), NumpyArrayS32([3, 4])), NumpyArrayS32([5]))
+    local_buffer = xla_client.LocalBuffer.from_pyval(t)
+    pieces = local_buffer.destructure()
+    self.assertTrue(local_buffer.is_deleted())
+    self.assertEqual(len(pieces), 2)
+    tuple0, array1 = pieces
+    got = array1.to_py()
+    want = NumpyArrayS32([5])
+    np.testing.assert_equal(want, got)
+    got = tuple0.to_py()
+    self.assertEqual(type(got), tuple)
+    self.assertEqual(len(got), 2)
+    np.testing.assert_equal(NumpyArrayF32([1.0, 2.0]), got[0])
+    np.testing.assert_equal(NumpyArrayS32([3, 4]), got[1])
 
 
 class SingleOpTest(LocalComputationTest):
@@ -509,6 +568,46 @@ class SingleOpTest(LocalComputationTest):
                          [40., 50., 0.]]]])
     self._ExecuteAndCompareClose(c, expected=result)
 
+  def testConvGeneralDilatedF32(self):
+    c = self._NewComputation()
+    a = lambda *dims: np.arange(np.prod(dims)).reshape(dims).astype("float32")
+    lhs = a(1, 1, 2, 3)
+    rhs = a(1, 1, 1, 2) * 10
+    strides = [1, 1]
+    pads = [(1, 0), (0, 1)]
+    lhs_dilation = (2, 1)
+    rhs_dilation = (1, 1)
+    dimension_numbers = ("NCHW", "OIHW", "NCHW")
+    c.ConvGeneralDilated(c.Constant(lhs), c.Constant(rhs),
+                         strides, pads, lhs_dilation, rhs_dilation,
+                         dimension_numbers)
+    result = np.array([[[[0., 0., 0.],
+                         [10., 20., 0.],
+                         [0., 0., 0.],
+                         [40., 50., 0.]]]])
+    self._ExecuteAndCompareClose(c, expected=result)
+
+  def testConvGeneralDilatedPermutedF32(self):
+    c = self._NewComputation()
+    a = lambda *dims: np.arange(np.prod(dims)).reshape(dims).astype("float32")
+    lhs = a(1, 1, 2, 3)
+    rhs = a(1, 1, 1, 2) * 10
+    strides = [1, 1]
+    pads = [(1, 0), (0, 1)]
+    lhs_dilation = (2, 1)
+    rhs_dilation = (1, 1)
+
+    dimension_numbers = ("NHWC", "OIHW", "CWNH")
+    c.ConvGeneralDilated(c.Constant(np.transpose(lhs, (0, 2, 3, 1))),
+                         c.Constant(rhs),
+                         strides, pads, lhs_dilation, rhs_dilation,
+                         dimension_numbers)
+    result = np.array([[[[0., 0., 0.],
+                         [10., 20., 0.],
+                         [0., 0., 0.],
+                         [40., 50., 0.]]]])
+    self._ExecuteAndCompareClose(c, expected=np.transpose(result, (1, 3, 0, 2)))
+
   def testBooleanNot(self):
     c = self._NewComputation()
     arr = NumpyArrayBool([True, False, True])
@@ -521,6 +620,12 @@ class SingleOpTest(LocalComputationTest):
     c.Exp(c.Constant(arr))
     self._ExecuteAndCompareClose(c, expected=np.exp(arr))
 
+  def testExpm1(self):
+    c = self._NewComputation()
+    arr = NumpyArrayF32([3.3, 12.1])
+    c.Expm1(c.Constant(arr))
+    self._ExecuteAndCompareClose(c, expected=np.expm1(arr))
+
   def testRound(self):
     c = self._NewComputation()
     arr = NumpyArrayF32([3.3, 12.1])
@@ -532,6 +637,12 @@ class SingleOpTest(LocalComputationTest):
     arr = NumpyArrayF32([3.3, 12.1])
     c.Log(c.Constant(arr))
     self._ExecuteAndCompareClose(c, expected=np.log(arr))
+
+  def testLog1p(self):
+    c = self._NewComputation()
+    arr = NumpyArrayF32([3.3, 12.1])
+    c.Log1p(c.Constant(arr))
+    self._ExecuteAndCompareClose(c, expected=np.log1p(arr))
 
   def testNeg(self):
     c = self._NewComputation()
@@ -855,6 +966,17 @@ class SingleOpTest(LocalComputationTest):
     self.assertTrue(np.all(lo <= result))
     self.assertTrue(np.all(result < hi))
 
+  def testIsConstant(self):
+    c = self._NewComputation()
+    a = c.ConstantS32Scalar(3)
+    b = c.ConstantS32Scalar(1)
+    x = c.ParameterFromNumpy(NumpyArrayS32(0))
+    const_expr = c.Sub(b, a)
+    non_const_expr = c.Mul(const_expr, x)
+    self.assertTrue(c.IsConstant(const_expr))
+    self.assertFalse(c.IsConstant(non_const_expr))
+    # self.assertTrue(c.IsConstant(c.Sub(c.Add(x, a), x)))  # TODO(b/77245564)
+
 
 class EmbeddedComputationsTest(LocalComputationTest):
   """Tests for XLA graphs with embedded computations (such as maps)."""
@@ -1150,7 +1272,6 @@ class EmbeddedComputationsTest(LocalComputationTest):
           c, expected=np.sum(input_array, axis=tuple(dims)))
 
     _ReduceAndTest(0)
-    _ReduceAndTest(0)
     _ReduceAndTest(0, 1)
     _ReduceAndTest(0, 2)
     _ReduceAndTest(1, 2)
@@ -1277,7 +1398,7 @@ class EmbeddedComputationsTest(LocalComputationTest):
   def testInfeedS32Values(self):
     to_infeed = NumpyArrayS32([1, 2, 3, 4])
     c = self._NewComputation()
-    c.Infeed(xla_client.Shape.from_numpy(to_infeed[0]))
+    c.Infeed(xla_client.Shape.from_pyval(to_infeed[0]))
     compiled_c = c.Build().CompileWithExampleArguments()
     for item in to_infeed:
       xla_client.transfer_to_infeed(item)
@@ -1289,7 +1410,7 @@ class EmbeddedComputationsTest(LocalComputationTest):
   def testInfeedThenOutfeedS32(self):
     to_round_trip = NumpyArrayS32([1, 2, 3, 4])
     c = self._NewComputation()
-    x = c.Infeed(xla_client.Shape.from_numpy(to_round_trip[0]))
+    x = c.Infeed(xla_client.Shape.from_pyval(to_round_trip[0]))
     c.Outfeed(x)
 
     compiled_c = c.Build().CompileWithExampleArguments()
@@ -1299,7 +1420,7 @@ class EmbeddedComputationsTest(LocalComputationTest):
       execution.start()
       xla_client.transfer_to_infeed(want)
       got = xla_client.transfer_from_outfeed(
-          xla_client.Shape.from_numpy(to_round_trip[0]))
+          xla_client.Shape.from_pyval(to_round_trip[0]))
       execution.join()
       self.assertEqual(want, got)
 

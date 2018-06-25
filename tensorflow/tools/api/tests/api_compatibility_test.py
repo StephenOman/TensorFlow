@@ -34,8 +34,8 @@ import sys
 import unittest
 
 import tensorflow as tf
-from tensorflow import experimental_api as api
 
+from google.protobuf import message
 from google.protobuf import text_format
 
 from tensorflow.python.lib.io import file_io
@@ -47,8 +47,6 @@ from tensorflow.tools.api.lib import python_object_to_proto_visitor
 from tensorflow.tools.common import public_api
 from tensorflow.tools.common import traverse
 
-if hasattr(tf, 'experimental_api'):
-  del tf.experimental_api
 
 # FLAGS defined at the bottom:
 FLAGS = None
@@ -198,6 +196,25 @@ class ApiCompatibilityTest(test.TestCase):
     else:
       logging.info('No differences found between API and golden.')
 
+  def testNoSubclassOfMessage(self):
+
+    def Visit(path, parent, unused_children):
+      """A Visitor that crashes on subclasses of generated proto classes."""
+      # If the traversed object is a proto Message class
+      if not (isinstance(parent, type) and
+              issubclass(parent, message.Message)):
+        return
+      if parent is message.Message:
+        return
+      # Check that it is a direct subclass of Message.
+      if message.Message not in parent.__bases__:
+        raise NotImplementedError(
+            'Object tf.%s is a subclass of a generated proto Message. '
+            'They are not yet supported by the API tools.' % path)
+    visitor = public_api.PublicAPIVisitor(Visit)
+    visitor.do_not_descend_map['tf'].append('contrib')
+    traverse.traverse(tf, visitor)
+
   @unittest.skipUnless(
       sys.version_info.major == 2,
       'API compabitility test goldens are generated using python2.')
@@ -236,49 +253,6 @@ class ApiCompatibilityTest(test.TestCase):
         proto_dict,
         verbose=FLAGS.verbose_diffs,
         update_goldens=FLAGS.update_goldens)
-
-  @unittest.skipUnless(
-      sys.version_info.major == 2,
-      'API compabitility test goldens are generated using python2.')
-  def testNewAPIBackwardsCompatibility(self):
-    # Extract all API stuff.
-    visitor = python_object_to_proto_visitor.PythonObjectToProtoVisitor()
-
-    public_api_visitor = public_api.PublicAPIVisitor(visitor)
-    public_api_visitor.do_not_descend_map['tf'].append('contrib')
-    public_api_visitor.do_not_descend_map['tf.GPUOptions'] = ['Experimental']
-    # TODO(annarev): Make slide_dataset available in API.
-    public_api_visitor.private_map['tf'] = ['slide_dataset']
-    traverse.traverse(api, public_api_visitor)
-
-    proto_dict = visitor.GetProtos()
-
-    # Read all golden files.
-    expression = os.path.join(
-        resource_loader.get_root_dir_with_all_resources(),
-        _KeyToFilePath('*'))
-    golden_file_list = file_io.get_matching_files(expression)
-
-    def _ReadFileToProto(filename):
-      """Read a filename, create a protobuf from its contents."""
-      ret_val = api_objects_pb2.TFAPIObject()
-      text_format.Merge(file_io.read_file_to_string(filename), ret_val)
-      return ret_val
-
-    golden_proto_dict = {
-        _FileNameToKey(filename): _ReadFileToProto(filename)
-        for filename in golden_file_list
-    }
-
-    # Diff them. Do not fail if called with update.
-    # If the test is run to update goldens, only report diffs but do not fail.
-    self._AssertProtoDictEquals(
-        golden_proto_dict,
-        proto_dict,
-        verbose=FLAGS.verbose_diffs,
-        update_goldens=False,
-        additional_missing_object_message=
-        'Check if tf_export decorator/call is missing for this symbol.')
 
 
 if __name__ == '__main__':

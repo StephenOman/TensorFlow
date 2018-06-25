@@ -23,6 +23,7 @@ import numpy as np
 
 from tensorflow.contrib.compiler import jit
 from tensorflow.core.protobuf import config_pb2
+from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.client import session as session_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -36,6 +37,18 @@ from tensorflow.python.ops import nn_ops
 from tensorflow.python.platform import test
 
 jit_scope = jit.experimental_jit_scope
+
+
+# Disable rewrites to make sure we don't end up having to update this test
+# whenever we implement new ones.
+def NoRewriteSessionConfig():
+  rewriter_config = rewriter_config_pb2.RewriterConfig(
+      disable_model_pruning=True,
+      arithmetic_optimization=rewriter_config_pb2.RewriterConfig.OFF,
+      dependency_optimization=rewriter_config_pb2.RewriterConfig.OFF,
+      function_optimization=rewriter_config_pb2.RewriterConfig.OFF)
+  graph_options = config_pb2.GraphOptions(rewrite_options=rewriter_config)
+  return config_pb2.ConfigProto(graph_options=graph_options)
 
 
 def CompiledKernel(fn, *inputs, **kwargs):
@@ -65,10 +78,10 @@ def InLabels(labels, substr):
 
 
 def MetadataHasXlaLaunch(run_metadata):
-  """Returns true if there is a _XlaLaunch kernel in run_metadata's timeline."""
+  """Returns true if there is a XlaLaunch kernel in run_metadata's timeline."""
 
   # TODO(phawkins): find a less hacky way to test whether a kernel ran.
-  return InLabels(RunMetadataLabels(run_metadata), "_XlaLaunch")
+  return InLabels(RunMetadataLabels(run_metadata), "XlaLaunch")
 
 
 class JitLaunchTest(test.TestCase):
@@ -77,11 +90,11 @@ class JitLaunchTest(test.TestCase):
   # Verifies that the outputs match and that XLA was invoked. 'fn' must take
   # the same number of tensors as arguments that are in 'args', and must return
   # a tuple of output tensors.
-  # If 'require_kernel_launch' is True, then we verify that a _XlaLaunch node
-  # actually ran. However, it is sometimes possible for _XlaLaunch ops to be
+  # If 'require_kernel_launch' is True, then we verify that a XlaLaunch node
+  # actually ran. However, it is sometimes possible for XlaLaunch ops to be
   # constant-folded away, so the check is optional.
   def _compare(self, fn, args, require_kernel_launch=True, noinline=None):
-    with session_lib.Session() as sess:
+    with session_lib.Session(config=NoRewriteSessionConfig()) as sess:
       placeholders = []
       feeds = {}
       for arg in args:
@@ -112,7 +125,7 @@ class JitLaunchTest(test.TestCase):
           for (x, y) in zip(compiled, direct):
             self.assertAllClose(x, y, rtol=1e-1)
         else:
-          self.assertAllClose(compiled, direct)
+          self.assertAllClose(compiled, direct, rtol=1e-2)
 
   def testNoOutputs(self):
     with session_lib.Session() as sess:
@@ -258,7 +271,7 @@ class XlaCompilationTest(test.TestCase):
   def testReshape(self):
     """Tests an operator with compile-time constant and non-constant inputs."""
 
-    with self.test_session() as sess:
+    with self.test_session(config=NoRewriteSessionConfig()) as sess:
       x = array_ops.placeholder(dtypes.float32)
       y = array_ops.placeholder(dtypes.int32)
       with jit_scope():
@@ -282,7 +295,7 @@ class XlaCompilationTest(test.TestCase):
   def testIgnoredArguments(self):
     """Tests that JIT computations can ignore formal parameters."""
 
-    with self.test_session() as sess:
+    with self.test_session(config=NoRewriteSessionConfig()) as sess:
       x = array_ops.placeholder(dtypes.int32)
       y = array_ops.placeholder(dtypes.int32)
       with jit_scope():
@@ -306,7 +319,7 @@ class XlaCompilationTest(test.TestCase):
   def testLoops(self):
     """Tests that compilation accepts computations containing loops."""
 
-    with self.test_session() as session:
+    with self.test_session(config=NoRewriteSessionConfig()) as session:
       x = array_ops.placeholder(dtypes.float32)
       with jit_scope():
         c = lambda i, _: math_ops.less(i, 5)
@@ -324,7 +337,7 @@ class XlaCompilationTest(test.TestCase):
   def testCond(self):
     """Tests that compilation handles switch operators."""
 
-    with self.test_session() as session:
+    with self.test_session(config=NoRewriteSessionConfig()) as session:
       x = array_ops.placeholder(dtypes.float32)
       y = array_ops.placeholder(dtypes.float32)
       c = array_ops.placeholder(dtypes.bool)
@@ -365,7 +378,8 @@ class XlaCompilationTest(test.TestCase):
       inp = array_ops.placeholder(dtypes.float32)
       out = Entry(inp)
 
-    with self.test_session(graph=g, use_gpu=True) as sess:
+    with self.test_session(
+        config=NoRewriteSessionConfig(), graph=g, use_gpu=True) as sess:
       run_metadata = config_pb2.RunMetadata()
       val = sess.run(out,
                      feed_dict={inp: [2., 10.]},
@@ -377,7 +391,7 @@ class XlaCompilationTest(test.TestCase):
   def testLoopDeadlock(self):
     """Regression test for bug that caused deadlocks in graphs with loops."""
 
-    with self.test_session() as session:
+    with self.test_session(config=NoRewriteSessionConfig()) as session:
       x = array_ops.placeholder(dtypes.float32)
       with jit_scope():
         y = x + 1.0
@@ -404,10 +418,10 @@ class XlaCompilationTest(test.TestCase):
         y = Forward(x)
         dx, = gradients_impl.gradients(y, [x], 1.0)
 
-      cfg = config_pb2.ConfigProto(graph_options=config_pb2.GraphOptions(
-          optimizer_options=config_pb2.OptimizerOptions(
-              opt_level=config_pb2.OptimizerOptions.L1,
-              do_function_inlining=True)))
+      cfg = NoRewriteSessionConfig()
+      cfg.graph_options.optimizer_options.opt_level = (
+          config_pb2.OptimizerOptions.L1)
+      cfg.graph_options.optimizer_options.do_function_inlining = True
       with session_lib.Session(graph=g, config=cfg) as sess:
         run_metadata = config_pb2.RunMetadata()
         dx_val = sess.run(dx,
@@ -427,14 +441,14 @@ class XlaCompilationTest(test.TestCase):
     self.assertFalse(InLabels(labels, "Log"))
     self.assertTrue(InLabels(labels, "Reciprocal"))
     self.assertTrue(InLabels(labels, "Mul"))
-    self.assertFalse(InLabels(labels, "_XlaLaunch"))
+    self.assertFalse(InLabels(labels, "XlaLaunch"))
 
-    # Compile the backprop. One _XlaLaunch.
+    # Compile the backprop. One XlaLaunch.
     labels = _Run(compiled=True)
     self.assertFalse(InLabels(labels, "Log"))
     self.assertFalse(InLabels(labels, "Reciprocal"))
     self.assertFalse(InLabels(labels, "Mul"))
-    self.assertTrue(InLabels(labels, "_XlaLaunch"))
+    self.assertTrue(InLabels(labels, "XlaLaunch"))
 
 
 class ElementWiseFusionTest(test.TestCase):
@@ -468,14 +482,15 @@ class ElementWiseFusionTest(test.TestCase):
               trace_level=config_pb2.RunOptions.FULL_TRACE))
 
       labels = RunMetadataLabels(run_metadata)
-      count = sum("_XlaLaunch(" in x for x in labels)
+      count = sum("XlaLaunch(" in x for x in labels)
 
       return output, count
 
   def testElementWiseClustering(self):
     arg0 = np.random.rand(2, 2).astype(np.float32)
     arg1 = np.random.rand(2, 2).astype(np.float32)
-    os.environ["TF_XLA_FLAGS"] = "--tf_xla_fusion_only=true"
+    os.environ["TF_XLA_FLAGS"] = ("--tf_xla_fusion_only=true "
+                                  "--tf_xla_cpu_global_jit")
     tf_op, tf_count = self.simpleTest(arg0, arg1,
                                       config_pb2.OptimizerOptions.OFF)
     self.assertEqual(0, tf_count)

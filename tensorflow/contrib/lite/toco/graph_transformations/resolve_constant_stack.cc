@@ -41,7 +41,7 @@ void Stack(Model* model, StackOperator const& op) {
     const auto& input_array = model->GetArray(op.inputs[i]);
     int input_size = RequiredBufferSizeForShape(input_array.shape());
     memcpy(&output_data[dst_offset], &input_array.GetBuffer<Type>().data[0],
-           input_size * sizeof(Type));
+           input_size * ElementSize(Type));
     dst_offset += input_size;
   }
   CHECK_EQ(dst_offset, output_data.size());
@@ -77,6 +77,13 @@ bool ResolveConstantStack::Run(Model* model, std::size_t op_index) {
     }
   }
 
+  int axis = op->axis;
+  if (axis < 0) {
+    // Handle negative axis
+    axis += model->GetArray(op->inputs[0]).shape().dims().size();
+  }
+  CHECK_EQ(axis, 0) << "Stacking only supported along 0th axis";
+
   CHECK(!output_array.buffer);
   switch (output_array.data_type) {
     case ArrayDataType::kFloat:
@@ -99,10 +106,7 @@ bool ResolveConstantStack::Run(Model* model, std::size_t op_index) {
 
   // Erase input arrays if no longer used
   for (const auto& input : op->inputs) {
-    if (IsDiscardableArray(*model, input) &&
-        CountOpsWithInput(*model, input) == 1) {
-      model->EraseArray(input);
-    }
+    toco::DeleteArrayIfUsedOnce(input, model);
   }
 
   // Erase the operator

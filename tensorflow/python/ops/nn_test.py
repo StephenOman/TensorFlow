@@ -76,7 +76,7 @@ class SoftmaxTest(test_lib.TestCase):
     z = u.sum(1)[:, np.newaxis]
     return u / z
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testSoftmax(self):
     x_shape = [5, 10]
     x_np = np.random.randn(*x_shape).astype(np.float32)
@@ -123,7 +123,7 @@ class LogPoissonLossTest(test_lib.TestCase):
       lpl += np.ma.masked_array(stirling_approx, mask=(z <= 1)).filled(0.)
     return lpl
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testLogPoissonLoss(self):
     x_shape = [5, 10]
     x_np = np.random.randn(*x_shape).astype(np.float32)
@@ -164,7 +164,7 @@ class LogSoftmaxTest(test_lib.TestCase):
     u = x - m
     return u - np.log(np.sum(np.exp(u), 1, keepdims=True))
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testLogSoftmax(self):
     x_shape = [5, 10]
     x_np = np.random.randn(*x_shape).astype(np.float32)
@@ -201,7 +201,7 @@ class LogSoftmaxTest(test_lib.TestCase):
 
 class L2LossTest(test_lib.TestCase):
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testL2Loss(self):
     for dtype in [dtypes.float32, dtypes.float64]:
       x = constant_op.constant(
@@ -235,7 +235,7 @@ class L2NormalizeTest(test_lib.TestCase):
       norm = np.apply_along_axis(np.linalg.norm, dim, x)
       return x / np.expand_dims(norm, dim)
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testL2Normalize(self):
     x_shape = [20, 7, 3]
     np.random.seed(1)
@@ -246,7 +246,7 @@ class L2NormalizeTest(test_lib.TestCase):
       y_tf = nn_impl.l2_normalize(x_tf, dim)
       self.assertAllClose(y_np, self.evaluate(y_tf))
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testL2NormalizeDimArray(self):
     x_shape = [20, 7, 3]
     np.random.seed(1)
@@ -962,6 +962,16 @@ class LeakyReluTest(test_lib.TestCase):
       self.assertAllClose(
           outputs, [-0.4, -0.2, 0.0, 1.0, 2.0], rtol=tol, atol=tol)
 
+  def testName(self):
+    np_values = np.array([-2, -1, 0, 1, 2], dtype=np.float64)
+    outputs_with_name_set = nn_ops.leaky_relu(
+        constant_op.constant(np_values),
+        name='test_relu_op')
+    self.assertEqual(outputs_with_name_set.name, 'test_relu_op:0')
+    outputs_without_name_set = nn_ops.leaky_relu(
+        constant_op.constant(np_values))
+    self.assertEqual(outputs_without_name_set.name, 'LeakyRelu:0')
+
 
 class SwishTest(test_lib.TestCase):
 
@@ -1080,6 +1090,42 @@ class DataFormatDimMapTest(test_lib.TestCase):
     self._test([1, 3, -2], [2, 1, 3])
     self._test([1, -3, -2], [2, 2, 3])
     self._test([[1, -3], [1, -1]], [[2, 2], [2, 1]])
+
+  def testNHWCtoNCHW(self):
+    x_val = [1, -3, -2]
+    y_val_expected = [2, 2, 3]
+    x = constant_op.constant(x_val)
+    y = nn_ops.data_format_dim_map(x, src_format="NHWC", dst_format="NCHW")
+    with self.test_session(use_gpu=test_lib.is_gpu_available()) as sess:
+      y_val = sess.run(y)
+      self.assertAllEqual(y_val, y_val_expected)
+
+  def testNHWCtoHWNC(self):
+    x_val = [-4, -3, -2, -1, 0, 1, 2, 3]
+    y_val_expected = [2, 0, 1, 3, 2, 0, 1, 3]
+    x = constant_op.constant(x_val)
+    y = nn_ops.data_format_dim_map(x, src_format="NHWC", dst_format="HWNC")
+    with self.test_session(use_gpu=test_lib.is_gpu_available()) as sess:
+      y_val = sess.run(y)
+      self.assertAllEqual(y_val, y_val_expected)
+
+  def testNHWCtoWHCN(self):
+    x_val = [-4, -3, -2, -1, 0, 1, 2, 3]
+    y_val_expected = [3, 1, 0, 2, 3, 1, 0, 2]
+    x = constant_op.constant(x_val)
+    y = nn_ops.data_format_dim_map(x, src_format="NHWC", dst_format="WHCN")
+    with self.test_session(use_gpu=test_lib.is_gpu_available()) as sess:
+      y_val = sess.run(y)
+      self.assertAllEqual(y_val, y_val_expected)
+
+  def testArbitraryASCII(self):
+    x_val = [-4, -3, -2, -1, 0, 1, 2, 3]
+    y_val_expected = [3, 2, 1, 0, 3, 2, 1, 0]
+    x = constant_op.constant(x_val)
+    y = nn_ops.data_format_dim_map(x, src_format="qwer", dst_format="rewq")
+    with self.test_session(use_gpu=test_lib.is_gpu_available()) as sess:
+      y_val = sess.run(y)
+      self.assertAllEqual(y_val, y_val_expected)
 
 
 class DataFormatVectorPermuteTest(test_lib.TestCase):

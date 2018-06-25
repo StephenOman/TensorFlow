@@ -19,6 +19,7 @@ limitations under the License.
 #include "tensorflow/core/grappler/costs/graph_properties.h"
 #include "tensorflow/core/grappler/grappler_item.h"
 #include "tensorflow/core/platform/test.h"
+#include "tensorflow/core/protobuf/rewriter_config.pb.h"
 
 namespace tensorflow {
 namespace grappler {
@@ -58,8 +59,9 @@ TEST_F(GraphOptimizerStageTest, ParseNodeNameAndScope_InScope) {
 TEST_F(GraphOptimizerStageTest, OptimizedNodeName) {
   GraphOptimizerContext ctx(/*nodes_to_preserve*/ nullptr,
                             /*optimized_graph*/ nullptr,
-                            /*graph_properties*/ nullptr, /*node_name*/ nullptr,
-                            /*frame_map*/ nullptr);
+                            /*graph_properties*/ nullptr,
+                            /*node_name*/ nullptr,
+                            /*opt_level*/ RewriterConfig::ON);
   FakeOptimizerStage stage("my_opt", "my_stg", ctx);
 
   const auto node = ParseNodeScopeAndName("a/b/c/Add");
@@ -95,7 +97,7 @@ TEST_F(GraphOptimizerStageTest, GetInputNodeAndProperties) {
                             /*optimized_graph*/ &item.graph,
                             /*graph_properties*/ &properties,
                             /*node_name*/ &node_map,
-                            /*frame_map*/ nullptr);
+                            /*opt_level*/ RewriterConfig::ON);
   FakeOptimizerStage stage("my_opt", "my_stg", ctx);
 
   NodeDef* add_node;
@@ -135,7 +137,7 @@ TEST_F(GraphOptimizerStageTest, AddNodes) {
                             /*optimized_graph*/ &item.graph,
                             /*graph_properties*/ &properties,
                             /*node_name*/ &node_map,
-                            /*frame_map*/ nullptr);
+                            /*opt_level*/ RewriterConfig::ON);
   FakeOptimizerStage stage("my_opt", "my_stg", ctx);
 
   NodeDef* add_node;

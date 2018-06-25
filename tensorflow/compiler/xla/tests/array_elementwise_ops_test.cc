@@ -22,7 +22,6 @@ limitations under the License.
 #include "tensorflow/compiler/xla/array2d.h"
 #include "tensorflow/compiler/xla/array3d.h"
 #include "tensorflow/compiler/xla/array4d.h"
-#include "tensorflow/compiler/xla/client/computation_builder.h"
 #include "tensorflow/compiler/xla/client/global_data.h"
 #include "tensorflow/compiler/xla/client/local_client.h"
 #include "tensorflow/compiler/xla/client/xla_client/xla_builder.h"
@@ -214,7 +213,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, AddTwoConstantZeroElementC64s) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, AddTwoConstantU64s) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<uint64> lhs{0xFFFFFFFF,
                           static_cast<uint64>(-1),
@@ -255,7 +254,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, AddTwoConstantU64s) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, SubTwoConstantS64s) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<int64> lhs{static_cast<int64>(0x8000000000000000LL),
                          static_cast<int64>(0x8000000000000000LL),
@@ -877,6 +876,89 @@ XLA_TEST_F(ArrayElementwiseOpTest, OrZeroElementU32R1) {
   ComputeAndCompareR1<uint32>(&builder, {}, {});
 }
 
+XLA_TEST_F(ArrayElementwiseOpTest, XorPredR1) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR1<bool>({false, false, true, true});
+  auto b = builder.ConstantR1<bool>({false, true, false, true});
+  builder.Xor(a, b);
+
+  ComputeAndCompareR1<bool>(&builder, {false, true, true, false}, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorPredR2) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR2<bool>({{false, false}, {true, true}});
+  auto b = builder.ConstantR2<bool>({{false, true}, {false, true}});
+  builder.Xor(a, b);
+
+  Array2D<bool> expected_array({{false, true}, {true, false}});
+  ComputeAndCompareR2<bool>(&builder, expected_array, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorZeroElementPredR1) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR1<bool>({});
+  auto b = builder.ConstantR1<bool>({});
+  builder.Xor(a, b);
+
+  ComputeAndCompareR1<bool>(&builder, {}, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorS32R1) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR1<int32>({0, -1, 8});
+  auto b = builder.ConstantR1<int32>({5, -7, 4});
+  builder.Xor(a, b);
+
+  ComputeAndCompareR1<int32>(&builder, {5, 6, 12}, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorS32R2) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR2<int32>({{0, -1}, {8, 8}});
+  auto b = builder.ConstantR2<int32>({{5, -7}, {4, 1}});
+  builder.Xor(a, b);
+
+  Array2D<int32> expected_array({{5, 6}, {12, 9}});
+  ComputeAndCompareR2<int32>(&builder, expected_array, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorZeroElementS32R1) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR1<int32>({});
+  auto b = builder.ConstantR1<int32>({});
+  builder.Xor(a, b);
+
+  ComputeAndCompareR1<int32>(&builder, {}, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorU32R1) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR1<uint32>({0, 1, 8});
+  auto b = builder.ConstantR1<uint32>({5, 7, 4});
+  builder.Xor(a, b);
+
+  ComputeAndCompareR1<uint32>(&builder, {5, 6, 12}, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorU32R2) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR2<uint32>({{0, 1}, {8, 8}});
+  auto b = builder.ConstantR2<uint32>({{5, 7}, {4, 1}});
+  builder.Xor(a, b);
+
+  Array2D<uint32> expected_array({{5, 6}, {12, 9}});
+  ComputeAndCompareR2<uint32>(&builder, expected_array, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, XorZeroElementU32R1) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR1<uint32>({});
+  auto b = builder.ConstantR1<uint32>({});
+  builder.Xor(a, b);
+
+  ComputeAndCompareR1<uint32>(&builder, {}, {});
+}
 XLA_TEST_F(ArrayElementwiseOpTest, NotPredR1) {
   XlaBuilder builder(TestName());
   auto a = builder.ConstantR1<bool>({false, true, true, false});
@@ -1332,7 +1414,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, PowZeroElementF32s) {
 
 // Some Pow cases that can be implemented more efficiently.
 XLA_TEST_F(ArrayElementwiseOpTest, PowSpecialF32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values = {1.0f, 2.0f, 3.2f, -4.0f};
   std::vector<float> exponents = {0.0f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -1360,7 +1442,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, PowSpecialF32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, PowOfExpF32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, -4.0f, 0.0f, 5.7f};
   std::vector<float> values1 = {0.0f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -1385,7 +1467,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, PowOfExpF32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, LogOfPowerF32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, 4.0f, 0.5f, 5.7f};
   std::vector<float> values1 = {0.0f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -1410,7 +1492,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, LogOfPowerF32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, MulOfExpF32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, -4.0f, 0.0f, 5.7f};
   std::vector<float> values1 = {0.0f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -1435,7 +1517,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, MulOfExpF32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, DivOfExpF32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, -4.0f, 0.0f, 5.7f};
   std::vector<float> values1 = {0.0f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -1460,7 +1542,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, DivOfExpF32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, Div3_lhs_F32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, -4.0f, 0.45f, 5.7f};
   std::vector<float> values1 = {0.1f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -1492,7 +1574,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, Div3_lhs_F32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, Div3_rhs_F32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, -4.0f, 0.45f, 5.7f};
   std::vector<float> values1 = {0.1f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -1525,7 +1607,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, Div3_rhs_F32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, DivOfPowerF32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, -4.0f, 0.45f, 5.7f};
   std::vector<float> values1 = {0.1f, 1.0f, 2.0f, 0.5f, 1.0f, 0.5f};
@@ -1558,7 +1640,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, DivOfPowerF32) {
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, Div4F32) {
-  ComputationBuilder b(client_, TestName());
+  XlaBuilder b(TestName());
 
   std::vector<float> values0 = {1.0f, 2.0f, 3.2f, -4.0f, 0.45f, 5.7f};
   std::vector<float> values1 = {0.1f, 1.0f, 2.0f, 0.5f, -1.0f, -0.5f};
@@ -2217,6 +2299,24 @@ XLA_TEST_F(ArrayElementwiseOpTest, LogF32sVector) {
                              error_spec_);
 }
 
+XLA_TEST_F(ArrayElementwiseOpTest, ClzU32s) {
+  XlaBuilder builder(TestName());
+  auto a = builder.ConstantR1<uint32>(
+      {0, 1, 0x10, 0x10000, 0x700000, 0x12345678, 0xF2345678});
+  builder.Clz(a);
+
+  ComputeAndCompareR1<uint32>(&builder, {32, 31, 27, 15, 9, 3, 0}, {});
+}
+
+XLA_TEST_F(ArrayElementwiseOpTest, ClzS64s) {
+  XlaBuilder builder(TestName());
+  auto a =
+      builder.ConstantR1<int64>({0, 1, 0x80000000, 0x7FFFFFFFF2345678ul, -1});
+  builder.Clz(a);
+
+  ComputeAndCompareR1<int64>(&builder, {64, 63, 32, 1, 0}, {});
+}
+
 XLA_TEST_F(ArrayElementwiseOpTest, AddChainFoldLeft) {
   // a ------ (add) --------- (add)
   //         /               /
@@ -2348,7 +2448,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, Add1DTo2DF32) {
 
 XLA_TEST_F(ArrayElementwiseOpTest, Compare1DTo2DS32Eq) {
   // Test broadcasting in Eq comparison.
-  ComputationBuilder builder(client_, TestName());
+  XlaBuilder builder(TestName());
   auto v = builder.ConstantR1<int32>({42, 73});
   auto m = builder.ConstantR2<int32>({{42, 73}, {42, 52}});
 
@@ -2741,7 +2841,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, CannotAddOpaques) {
   ASSERT_FALSE(computation_status.ok());
   EXPECT_THAT(computation_status.status().ToString(),
               ::testing::ContainsRegex(
-                  "Expected non-opaque argument for lhs of binary operation"));
+                  "Expected array argument for lhs of binary operation"));
 }
 
 XLA_TEST_F(ArrayElementwiseOpTest, IdentityBroadcastOfSameRankIsAllowed) {
@@ -2774,7 +2874,7 @@ XLA_TEST_F(ArrayElementwiseOpTest, NonIdentityBroadcastOfSameRankIsDisallowed) {
 // Regression test for b/31927799. "slice - y" is fused and requires implicit
 // broadcast.
 XLA_TEST_F(ArrayElementwiseOpTest, ImplictBroadcastInFusedExpressions) {
-  ComputationBuilder builder(client_, TestName());
+  XlaBuilder builder(TestName());
   auto x_literal = Literal::CreateR1<float>({1, 2, 3});
   auto y_literal = Literal::CreateR1<float>({4, 5});
   auto x_data = client_->TransferToServer(*x_literal).ConsumeValueOrDie();

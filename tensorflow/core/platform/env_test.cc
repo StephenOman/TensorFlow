@@ -357,7 +357,7 @@ TEST_F(DefaultEnvTest, LocalTempFilename) {
   CHECK_EQ(error::OUT_OF_RANGE,
            file_to_read->Read(0 /* offset */, 1024 /* n */, &content, scratch)
                .code());
-  EXPECT_EQ("Null", content.ToString());
+  EXPECT_EQ("Null", content);
 
   // Delete the temporary file.
   TF_CHECK_OK(env->DeleteFile(filename));
@@ -373,9 +373,8 @@ TEST_F(DefaultEnvTest, CreateUniqueFileName) {
 
   EXPECT_TRUE(env->CreateUniqueFileName(&filename, suffix));
 
-  StringPiece str(filename);
-  EXPECT_TRUE(str.starts_with(prefix));
-  EXPECT_TRUE(str.ends_with(suffix));
+  EXPECT_TRUE(str_util::StartsWith(filename, prefix));
+  EXPECT_TRUE(str_util::EndsWith(filename, suffix));
 }
 
 }  // namespace tensorflow

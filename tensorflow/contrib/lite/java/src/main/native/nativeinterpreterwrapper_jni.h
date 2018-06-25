@@ -61,7 +61,7 @@ Java_org_tensorflow_lite_NativeInterpreterWrapper_getOutputNames(JNIEnv* env,
 /*
  *  Class:     org_tensorflow_lite_NativeInterpreterWrapper
  *  Method:
- *  Signature: (JZ)
+ *  Signature: (JZ)V
  */
 JNIEXPORT void JNICALL
 Java_org_tensorflow_lite_NativeInterpreterWrapper_useNNAPI(JNIEnv* env,
@@ -69,6 +69,16 @@ Java_org_tensorflow_lite_NativeInterpreterWrapper_useNNAPI(JNIEnv* env,
                                                            jlong handle,
                                                            jboolean state);
 
+/*
+ *  Class:     org_tensorflow_lite_NativeInterpreterWrapper
+ *  Method:
+ *  Signature: (JI)V
+ */
+JNIEXPORT void JNICALL
+Java_org_tensorflow_lite_NativeInterpreterWrapper_numThreads(JNIEnv* env,
+                                                           jclass clazz,
+                                                           jlong handle,
+                                                           jint num_threads);
 /*
  *  Class:     org_tensorflow_lite_NativeInterpreterWrapper
  *  Method:
@@ -140,6 +150,28 @@ Java_org_tensorflow_lite_NativeInterpreterWrapper_getInputDims(
  */
 JNIEXPORT jint JNICALL
 Java_org_tensorflow_lite_NativeInterpreterWrapper_getOutputDataType(
+    JNIEnv* env, jclass clazz, jlong handle, jint output_idx);
+
+/*
+ *  Class:     org_tensorflow_lite_NativeInterpreterWrapper
+ *  Method:
+ *  Signature: (JI)I
+ *
+ * Gets output quantization zero point.
+ */
+JNIEXPORT jint JNICALL
+Java_org_tensorflow_lite_NativeInterpreterWrapper_getOutputQuantizationZeroPoint(
+    JNIEnv* env, jclass clazz, jlong handle, jint output_idx);
+
+/*
+ *  Class:     org_tensorflow_lite_NativeInterpreterWrapper
+ *  Method:
+ *  Signature: (JI)F
+ *
+ * Gets output quantization scale.
+ */
+JNIEXPORT jfloat JNICALL
+Java_org_tensorflow_lite_NativeInterpreterWrapper_getOutputQuantizationScale(
     JNIEnv* env, jclass clazz, jlong handle, jint output_idx);
 
 /*

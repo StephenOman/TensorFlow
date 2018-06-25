@@ -18,17 +18,19 @@ py_library(
     name = "impl",
     srcs = [
         "api.py",
-        "config.py",
         "conversion.py",
-        "naming.py",
     ],
     srcs_version = "PY2AND3",
     visibility = ["//tensorflow:__subpackages__"],
     deps = [
         "//tensorflow/contrib/autograph/converters",
+        "//tensorflow/contrib/autograph/core",
+        "//tensorflow/contrib/autograph/operators",
         "//tensorflow/contrib/autograph/pyct",
         "//tensorflow/contrib/autograph/pyct/static_analysis",
         "//tensorflow/contrib/autograph/utils",
+        "//tensorflow/python:platform",
+        "//tensorflow/python:util",
         "@gast_archive//:gast",
         "@six_archive//:six",
     ],
@@ -38,6 +40,7 @@ py_test(
     name = "api_test",
     srcs = ["api_test.py"],
     srcs_version = "PY2AND3",
+    tags = ["no_windows"],
     deps = [
         ":impl",
         "//tensorflow/contrib/autograph/utils",
@@ -50,19 +53,10 @@ py_test(
     name = "conversion_test",
     srcs = ["conversion_test.py"],
     srcs_version = "PY2AND3",
+    tags = ["no_windows"],
     deps = [
         ":impl",
         "//tensorflow/python:client_testlib",
         "@gast_archive//:gast",
-    ],
-)
-
-py_test(
-    name = "naming_test",
-    srcs = ["naming_test.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":impl",
-        "//tensorflow/python:client_testlib",
     ],
 )

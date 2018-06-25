@@ -34,10 +34,11 @@ class FusedBatchNormOp : public XlaOpKernel {
         ctx, FormatFromString(data_format_str, &data_format_),
         errors::InvalidArgument("Invalid data format: ", data_format_str));
     OP_REQUIRES(ctx,
-                (data_format_ == FORMAT_NHWC || data_format_ == FORMAT_NCHW),
+                (data_format_ == FORMAT_NHWC || data_format_ == FORMAT_NCHW ||
+                 data_format_ == FORMAT_HWNC || data_format_ == FORMAT_HWCN),
                 errors::InvalidArgument(
                     "Unsupported data format ", ToString(data_format_),
-                    "; supported formats are NHWC and NCHW"));
+                    "; supported formats are NHWC, NCHW, HWNC and HWCN"));
   }
 
   void Compile(XlaOpKernelContext* ctx) override {
@@ -48,9 +49,9 @@ class FusedBatchNormOp : public XlaOpKernel {
     OP_REQUIRES_OK(ctx,
                    DataTypeToPrimitiveType(ctx->input_type(1), &scale_type));
 
-    xla::ComputationBuilder* builder = ctx->builder();
+    xla::XlaBuilder* builder = ctx->builder();
 
-    xla::ComputationDataHandle input = ctx->Input(0);
+    xla::XlaOp input = ctx->Input(0);
     TensorShape input_shape = ctx->InputShape(0);
 
     int feature_index =
@@ -62,7 +63,7 @@ class FusedBatchNormOp : public XlaOpKernel {
     input = builder->ConvertElementType(input, scale_type);
 
     if (is_training_) {
-      xla::ComputationDataHandle output = builder->BatchNormTraining(
+      xla::XlaOp output = builder->BatchNormTraining(
           input, ctx->Input(1), ctx->Input(2), epsilon_, feature_index);
 
       // In training mode, outputs the normalized value as well as the
@@ -79,7 +80,7 @@ class FusedBatchNormOp : public XlaOpKernel {
       ctx->SetOutput(3, builder->GetTupleElement(output, 1));
       ctx->SetOutput(4, builder->GetTupleElement(output, 2));
     } else {
-      xla::ComputationDataHandle output = builder->BatchNormInference(
+      xla::XlaOp output = builder->BatchNormInference(
           input, ctx->Input(1), ctx->Input(2), ctx->Input(3), ctx->Input(4),
           epsilon_, feature_index);
       ctx->SetOutput(0, builder->ConvertElementType(output, input_type));
@@ -111,14 +112,15 @@ class FusedBatchNormGradOp : public XlaOpKernel {
         ctx, FormatFromString(data_format_str, &data_format_),
         errors::InvalidArgument("Invalid data format: ", data_format_str));
     OP_REQUIRES(ctx,
-                (data_format_ == FORMAT_NHWC || data_format_ == FORMAT_NCHW),
+                (data_format_ == FORMAT_NHWC || data_format_ == FORMAT_NCHW ||
+                 data_format_ == FORMAT_HWNC || data_format_ == FORMAT_HWCN),
                 errors::InvalidArgument(
                     "Unsupported data format ", ToString(data_format_),
-                    "; supported formats are NHWC and NCHW"));
+                    "; supported formats are NHWC, NCHW, HWNC and HWCN"));
   }
 
   void Compile(XlaOpKernelContext* ctx) override {
-    xla::ComputationBuilder* const b = ctx->builder();
+    xla::XlaBuilder* const b = ctx->builder();
     DataType input_dtype = ctx->input_type(0);
     DataType scale_dtype = ctx->input_type(2);
 
@@ -137,11 +139,11 @@ class FusedBatchNormGradOp : public XlaOpKernel {
     const int feature_index =
         GetTensorFeatureDimIndex(input_dims, data_format_);
 
-    xla::ComputationDataHandle x_backprop;
-    xla::ComputationDataHandle scale_backprop;
-    xla::ComputationDataHandle offset_backprop;
+    xla::XlaOp x_backprop;
+    xla::XlaOp scale_backprop;
+    xla::XlaOp offset_backprop;
     if (is_training_) {
-      xla::ComputationDataHandle output =
+      xla::XlaOp output =
           b->BatchNormGrad(activations, scale, mean, var, grad_backprop,
                            epsilon_, feature_index);
 

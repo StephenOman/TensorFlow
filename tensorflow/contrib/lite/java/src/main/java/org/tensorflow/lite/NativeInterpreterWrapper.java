@@ -32,32 +32,42 @@ import java.util.Map;
 final class NativeInterpreterWrapper implements AutoCloseable {
 
   NativeInterpreterWrapper(String modelPath) {
+    this(modelPath, /* numThreads= */ -1);
+  }
+
+  NativeInterpreterWrapper(String modelPath, int numThreads) {
     errorHandle = createErrorReporter(ERROR_BUFFER_SIZE);
     modelHandle = createModel(modelPath, errorHandle);
-    interpreterHandle = createInterpreter(modelHandle, errorHandle, /* numThreads= */ -1);
+    interpreterHandle = createInterpreter(modelHandle, errorHandle, numThreads);
     isMemoryAllocated = true;
   }
 
   /**
-   * Initializes a {@code NativeInterpreterWrapper} with a {@code MappedByteBuffer}. The
-   * MappedByteBuffer should not be modified after the construction of a {@code
-   * NativeInterpreterWrapper}.
+   * Initializes a {@code NativeInterpreterWrapper} with a {@code ByteBuffer}. The ByteBuffer should
+   * not be modified after the construction of a {@code NativeInterpreterWrapper}. The {@code
+   * ByteBuffer} can be either a {@code MappedByteBuffer} that memory-maps a model file, or a direct
+   * {@code ByteBuffer} of nativeOrder() that contains the bytes content of a model.
    */
-  NativeInterpreterWrapper(MappedByteBuffer mappedByteBuffer) {
-    modelByteBuffer = mappedByteBuffer;
-    errorHandle = createErrorReporter(ERROR_BUFFER_SIZE);
-    modelHandle = createModelWithBuffer(modelByteBuffer, errorHandle);
-    interpreterHandle = createInterpreter(modelHandle, errorHandle, /* numThreads= */ -1);
-    isMemoryAllocated = true;
+  NativeInterpreterWrapper(ByteBuffer byteBuffer) {
+    this(byteBuffer, /* numThreads= */ -1);
   }
 
   /**
-   * Initializes a {@code NativeInterpreterWrapper} with a {@code MappedByteBuffer} and specifies
-   * the number of inference threads. The MappedByteBuffer should not be modified after the
-   * construction of a {@code NativeInterpreterWrapper}.
+   * Initializes a {@code NativeInterpreterWrapper} with a {@code ByteBuffer} and specifies the
+   * number of inference threads. The ByteBuffer should not be modified after the construction of a
+   * {@code NativeInterpreterWrapper}. The {@code ByteBuffer} can be either a {@code
+   * MappedByteBuffer} that memory-maps a model file, or a direct {@code ByteBuffer} of
+   * nativeOrder() that contains the bytes content of a model.
    */
-  NativeInterpreterWrapper(MappedByteBuffer mappedByteBuffer, int numThreads) {
-    modelByteBuffer = mappedByteBuffer;
+  NativeInterpreterWrapper(ByteBuffer buffer, int numThreads) {
+    if (buffer == null
+        || (!(buffer instanceof MappedByteBuffer)
+            && (!buffer.isDirect() || buffer.order() != ByteOrder.nativeOrder()))) {
+      throw new IllegalArgumentException(
+          "Model ByteBuffer should be either a MappedByteBuffer of the model file, or a direct "
+              + "ByteBuffer using ByteOrder.nativeOrder() which contains bytes of model content.");
+    }
+    modelByteBuffer = buffer;
     errorHandle = createErrorReporter(ERROR_BUFFER_SIZE);
     modelHandle = createModelWithBuffer(modelByteBuffer, errorHandle);
     interpreterHandle = createInterpreter(modelHandle, errorHandle, numThreads);
@@ -80,7 +90,7 @@ final class NativeInterpreterWrapper implements AutoCloseable {
   /** Sets inputs, runs model inference and returns outputs. */
   Tensor[] run(Object[] inputs) {
     if (inputs == null || inputs.length == 0) {
-      throw new IllegalArgumentException("Invalid inputs. Inputs should not be null or empty.");
+      throw new IllegalArgumentException("Input error: Inputs should not be null or empty.");
     }
     int[] dataTypes = new int[inputs.length];
     Object[] sizes = new Object[inputs.length];
@@ -90,9 +100,10 @@ final class NativeInterpreterWrapper implements AutoCloseable {
       dataTypes[i] = dataType.getNumber();
       if (dataType == DataType.BYTEBUFFER) {
         ByteBuffer buffer = (ByteBuffer) inputs[i];
-        if (buffer.order() != ByteOrder.nativeOrder()) {
+        if (buffer == null || !buffer.isDirect() || buffer.order() != ByteOrder.nativeOrder()) {
           throw new IllegalArgumentException(
-              "Invalid ByteBuffer. It shoud use ByteOrder.nativeOrder().");
+              "Input error: ByteBuffer should be a direct ByteBuffer that uses "
+                  + "ByteOrder.nativeOrder().");
         }
         numsOfBytes[i] = buffer.limit();
         sizes[i] = getInputDims(interpreterHandle, i, numsOfBytes[i]);
@@ -103,7 +114,7 @@ final class NativeInterpreterWrapper implements AutoCloseable {
       } else {
         throw new IllegalArgumentException(
             String.format(
-                "%d-th element of the %d inputs is not an array or a ByteBuffer.",
+                "Input error: %d-th element of the %d inputs is not an array or a ByteBuffer.",
                 i, inputs.length));
       }
     }
@@ -119,7 +130,7 @@ final class NativeInterpreterWrapper implements AutoCloseable {
             this,
             isMemoryAllocated);
     if (outputsHandles == null || outputsHandles.length == 0) {
-      throw new IllegalStateException("Interpreter has no outputs.");
+      throw new IllegalStateException("Internal error: Interpreter has no outputs.");
     }
     isMemoryAllocated = true;
     Tensor[] outputs = new Tensor[outputsHandles.length];
@@ -153,6 +164,10 @@ final class NativeInterpreterWrapper implements AutoCloseable {
     useNNAPI(interpreterHandle, useNNAPI);
   }
 
+  void setNumThreads(int numThreads) {
+    numThreads(interpreterHandle, numThreads);
+  }
+
   /** Gets index of an input given its name. */
   int getInputIndex(String name) {
     if (inputsIndexes == null) {
@@ -169,7 +184,8 @@ final class NativeInterpreterWrapper implements AutoCloseable {
     } else {
       throw new IllegalArgumentException(
           String.format(
-              "%s is not a valid name for any input. The indexes of the inputs are %s",
+              "Input error: '%s' is not a valid name for any input. Names of inputs and their "
+                  + "indexes are %s",
               name, inputsIndexes.toString()));
     }
   }
@@ -190,7 +206,8 @@ final class NativeInterpreterWrapper implements AutoCloseable {
     } else {
       throw new IllegalArgumentException(
           String.format(
-              "%s is not a valid name for any output. The indexes of the outputs are %s",
+              "Input error: '%s' is not a valid name for any output. Names of outputs and their "
+                  + "indexes are %s",
               name, outputsIndexes.toString()));
     }
   }
@@ -229,7 +246,8 @@ final class NativeInterpreterWrapper implements AutoCloseable {
         return DataType.BYTEBUFFER;
       }
     }
-    throw new IllegalArgumentException("cannot resolve DataType of " + o.getClass().getName());
+    throw new IllegalArgumentException(
+        "DataType error: cannot resolve DataType of " + o.getClass().getName());
   }
 
   /** Returns the shape of an object as an int array. */
@@ -245,7 +263,7 @@ final class NativeInterpreterWrapper implements AutoCloseable {
       return 0;
     }
     if (Array.getLength(o) == 0) {
-      throw new IllegalArgumentException("array lengths cannot be 0.");
+      throw new IllegalArgumentException("Array lengths cannot be 0.");
     }
     return 1 + numDimensions(Array.get(o, 0));
   }
@@ -259,7 +277,7 @@ final class NativeInterpreterWrapper implements AutoCloseable {
       shape[dim] = len;
     } else if (shape[dim] != len) {
       throw new IllegalArgumentException(
-          String.format("mismatched lengths (%d and %d) in dimension %d", shape[dim], len, dim));
+          String.format("Mismatched lengths (%d and %d) in dimension %d", shape[dim], len, dim));
     }
     for (int i = 0; i < len; ++i) {
       fillShape(Array.get(o, i), dim + 1, shape);
@@ -293,7 +311,29 @@ final class NativeInterpreterWrapper implements AutoCloseable {
     return DataType.fromNumber(type).toStringName();
   }
 
+  /**
+   * Gets the quantization zero point of an output.
+   *
+   * @throws IllegalArgumentExeption if the output index is invalid.
+   */
+  int getOutputQuantizationZeroPoint(int index) {
+    return getOutputQuantizationZeroPoint(interpreterHandle, index);
+  }
+
+  /**
+   * Gets the quantization scale of an output.
+   *
+   * @throws IllegalArgumentExeption if the output index is invalid.
+   */
+  float getOutputQuantizationScale(int index) {
+    return getOutputQuantizationScale(interpreterHandle, index);
+  }
+
   private static native int getOutputDataType(long interpreterHandle, int outputIdx);
+
+  private static native int getOutputQuantizationZeroPoint(long interpreterHandle, int outputIdx);
+
+  private static native float getOutputQuantizationScale(long interpreterHandle, int outputIdx);
 
   private static final int ERROR_BUFFER_SIZE = 512;
 
@@ -307,7 +347,7 @@ final class NativeInterpreterWrapper implements AutoCloseable {
 
   private long inferenceDurationNanoseconds = -1;
 
-  private MappedByteBuffer modelByteBuffer;
+  private ByteBuffer modelByteBuffer;
 
   private Map<String, Integer> inputsIndexes;
 
@@ -321,11 +361,13 @@ final class NativeInterpreterWrapper implements AutoCloseable {
 
   private static native void useNNAPI(long interpreterHandle, boolean state);
 
+  private static native void numThreads(long interpreterHandle, int numThreads);
+
   private static native long createErrorReporter(int size);
 
   private static native long createModel(String modelPathOrBuffer, long errorHandle);
 
-  private static native long createModelWithBuffer(MappedByteBuffer modelBuffer, long errorHandle);
+  private static native long createModelWithBuffer(ByteBuffer modelBuffer, long errorHandle);
 
   private static native long createInterpreter(long modelHandle, long errorHandle, int numThreads);
 

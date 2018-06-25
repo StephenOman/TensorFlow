@@ -6,8 +6,6 @@ licenses(["notice"])  # Apache 2.0
 
 load("//tensorflow/contrib/lite:build_def.bzl", "tflite_copts", "gen_selected_ops")
 
-exports_files(["LICENSE"])
-
 exports_files(glob([
     "testdata/*.bin",
     "testdata/*.pb",
@@ -89,7 +87,20 @@ cc_library(
     hdrs = [
         "builtin_op_data.h",
     ],
+    deps = [":context"],
 )
+
+cc_library(
+    name = "kernel_api",
+    hdrs = [
+        "builtin_op_data.h",
+        "builtin_ops.h",
+        "context.h",
+        "context_util.h",
+    ],
+)
+
+exports_files(["builtin_ops.h"])
 
 cc_library(
     name = "string",
@@ -111,6 +122,7 @@ cc_library(
         "interpreter.cc",
         "model.cc",
         "nnapi_delegate.cc",
+        "op_resolver.cc",
         "optional_debug_tools.cc",
     ],
     hdrs = [
@@ -121,6 +133,7 @@ cc_library(
         "interpreter.h",
         "model.h",
         "nnapi_delegate.h",
+        "op_resolver.h",
         "optional_debug_tools.h",
     ],
     copts = tflite_copts(),
@@ -136,6 +149,7 @@ cc_library(
         "//tensorflow/contrib/lite/kernels:eigen_support",
         "//tensorflow/contrib/lite/kernels:gemm_support",
         "//tensorflow/contrib/lite/nnapi:nnapi_lib",
+        "//tensorflow/contrib/lite/profiling:profiler",
         "//tensorflow/contrib/lite/schema:schema_fbs",
     ],
 )
@@ -170,6 +184,7 @@ cc_test(
     deps = [
         ":framework",
         ":string_util",
+        "//tensorflow/contrib/lite/kernels:builtin_ops",
         "//tensorflow/contrib/lite/kernels:kernel_util",
         "//tensorflow/contrib/lite/kernels/internal:tensor_utils",
         "//tensorflow/contrib/lite/schema:schema_fbs",
@@ -215,6 +230,18 @@ cc_test(
         "testdata/test_model.bin",
         "testdata/test_model_broken.bin",
     ],
+    deps = [
+        ":framework",
+        "//tensorflow/contrib/lite/testing:util",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+# Test OpResolver.
+cc_test(
+    name = "op_resolver_test",
+    size = "small",
+    srcs = ["op_resolver_test.cc"],
     deps = [
         ":framework",
         "//tensorflow/contrib/lite/testing:util",

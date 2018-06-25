@@ -20,6 +20,7 @@ limitations under the License.
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/stringpiece.h"
+#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/python/lib/core/numpy.h"
 #include "tensorflow/python/lib/core/py_util.h"
@@ -50,6 +51,10 @@ bool IsPyInt(PyObject* obj) {
 #endif
 }
 
+bool IsPyDouble(PyObject* obj) {
+  return PyIsInstance(obj, &PyDoubleArrType_Type);  // NumPy double type.
+}
+
 bool IsPyFloat(PyObject* obj) {
   return PyFloat_Check(obj) ||
          PyIsInstance(obj, &PyFloatingArrType_Type);  // NumPy float types
@@ -77,9 +82,9 @@ string PyRepr(PyObject* obj) {
 bool IsPyDimension(PyObject* obj) {
   const char* tp_name = obj->ob_type->tp_name;
   if (strcmp(tp_name, "Dimension") != 0) return false;
-  bool ret =
-      StringPiece(PyRepr(PyType(obj)))
-          .ends_with("tensorflow.python.framework.tensor_shape.Dimension'>");
+  bool ret = str_util::EndsWith(
+      PyRepr(PyType(obj)),
+      "tensorflow.python.framework.tensor_shape.Dimension'>");
   return ret;
 }
 
@@ -112,8 +117,10 @@ Status InferShapeAndType(PyObject* obj, TensorShape* shape, DataType* dtype) {
               "Attempted to convert an invalid sequence to a Tensor.");
         }
       }
-    } else if (IsPyFloat(obj)) {
+    } else if (IsPyDouble(obj)) {
       *dtype = DT_DOUBLE;
+    } else if (IsPyFloat(obj)) {
+      *dtype = DT_FLOAT;
     } else if (PyBool_Check(obj) || PyIsInstance(obj, &PyBoolArrType_Type)) {
       // Have to test for bool before int, since IsInt(True/False) == true.
       *dtype = DT_BOOL;
@@ -432,7 +439,7 @@ Status PySeqToTensor(PyObject* obj, PyObject* dtype, Tensor* ret) {
       break;
   }
   switch (infer_dtype) {
-    case DT_DOUBLE:
+    case DT_FLOAT:
       // TODO(josh11b): Handle mixed floats and complex numbers?
       if (requested_dtype == DT_INVALID) {
         // TensorFlow uses float32s to represent floating point numbers
@@ -445,7 +452,8 @@ Status PySeqToTensor(PyObject* obj, PyObject* dtype, Tensor* ret) {
         // final type.
         RETURN_STRING_AS_STATUS(ConvertDouble(obj, shape, ret));
       }
-
+    case DT_DOUBLE:
+      RETURN_STRING_AS_STATUS(ConvertDouble(obj, shape, ret));
     case DT_INT64:
       if (requested_dtype == DT_INVALID) {
         const char* error = ConvertInt32(obj, shape, ret);

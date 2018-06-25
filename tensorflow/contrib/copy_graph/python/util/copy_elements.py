@@ -201,7 +201,7 @@ def copy_op_to_graph(org_instance, to_graph, variables, scope=''):
     #An instance of tensorflow.core.framework.node_def_pb2.NodeDef, it
     #stores String-based info such as name, device and type of the op.
     #Unique to every Operation instance.
-    new_node_def = deepcopy(op._node_def)
+    new_node_def = deepcopy(op.node_def)
     #Change the name
     new_node_def.name = new_name
 
@@ -211,14 +211,13 @@ def copy_op_to_graph(org_instance, to_graph, variables, scope=''):
 
     #Make a copy of the op_def too.
     #Its unique to every _type_ of Operation.
-    op_def = deepcopy(op._op_def)
+    op_def = deepcopy(op.op_def)
 
     #Initialize a new Operation instance
     new_op = ops.Operation(new_node_def, to_graph, new_inputs, output_types,
                            new_control_inputs, input_types, new_original_op,
                            op_def)
     #Use Graph's hidden methods to add the op
-    to_graph._add_op(new_op)  # pylint: disable=protected-access
     to_graph._record_op_seen_by_control_dependencies(new_op)
     for device_function in reversed(to_graph._device_function_stack):
       new_op._set_device(device_function(new_op))

@@ -19,6 +19,8 @@ See the @{$python/contrib.layers} guide.
 @@avg_pool2d
 @@avg_pool3d
 @@batch_norm
+@@convolution
+@@convolution1d
 @@convolution2d
 @@convolution3d
 @@conv2d_in_plane
@@ -104,6 +106,7 @@ See the @{$python/contrib.layers} guide.
 @@infer_real_valued_columns
 @@sequence_input_from_feature_columns
 
+@@group_norm
 @@instance_norm
 """
 
@@ -122,6 +125,7 @@ _allowed_symbols = ['bias_add',
                     'conv3d',
                     'elu',
                     'feature_column',
+                    'group_norm',
                     'instance_norm',
                     'legacy_fully_connected',
                     'legacy_linear',

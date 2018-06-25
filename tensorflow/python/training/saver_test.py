@@ -19,12 +19,15 @@ from __future__ import division
 from __future__ import print_function
 
 import contextlib
+import functools
 import math
 import os
 import random
 import shutil
+import sys
 import tempfile
 import time
+import traceback
 
 import numpy as np
 import six
@@ -50,6 +53,8 @@ from tensorflow.python.framework import graph_io
 from tensorflow.python.framework import meta_graph
 from tensorflow.python.framework import ops as ops_lib
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.engine import training
+from tensorflow.python.keras.layers import core
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -68,16 +73,18 @@ from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.summary import summary
 from tensorflow.python.training import adam
-from tensorflow.python.training import checkpointable
 from tensorflow.python.training import gradient_descent
 from tensorflow.python.training import queue_runner_impl
 from tensorflow.python.training import saver as saver_module
 from tensorflow.python.training import saver_test_utils
+from tensorflow.python.training import training_util
 from tensorflow.python.training.checkpoint_state_pb2 import CheckpointState
+from tensorflow.python.training.checkpointable import base as checkpointable_base
+from tensorflow.python.training.checkpointable import tracking as checkpointable_tracking
+from tensorflow.python.training.checkpointable import util as checkpointable_utils
 from tensorflow.python.util import compat
 
 
-@test_util.with_c_api
 class SaverTest(test.TestCase):
 
   def basicSaveRestore(self, variable_op):
@@ -165,7 +172,7 @@ class SaverTest(test.TestCase):
   def testBasic(self):
     self.basicSaveRestore(variables.Variable)
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testResourceBasic(self):
     self.basicSaveRestore(resource_variable_ops.ResourceVariable)
 
@@ -246,7 +253,7 @@ class SaverTest(test.TestCase):
         self.assertAllEqual(w3.eval(), 3.0)
         self.assertAllEqual(w4.eval(), 4.0)
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testResourceSaveRestoreCachingDevice(self):
     save_path = os.path.join(self.get_temp_dir(), "resource_cache")
     with self.test_session(graph=ops_lib.Graph()) as sess:
@@ -665,7 +672,7 @@ class SaverTest(test.TestCase):
       save.restore(sess, save_path)
       self.assertAllClose([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], var.eval())
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testSaveWithGlobalStep(self, pad_step_number=False):
     save_path = os.path.join(self.get_temp_dir(), "ckpt_with_global_step")
     global_step_int = 5
@@ -764,7 +771,6 @@ class SaverTest(test.TestCase):
       save.save(sess, save_path)
 
 
-@test_util.with_c_api
 class SaveRestoreShardedTest(test.TestCase):
 
   _WRITE_VERSION = saver_pb2.SaverDef.V1
@@ -804,7 +810,7 @@ class SaveRestoreShardedTest(test.TestCase):
         self.assertEqual(save_path + "-?????-of-00002", val)
       else:
         self.assertEqual(save_path, val)
-      meta_graph_filename = save._MetaGraphFilename(val)
+      meta_graph_filename = saver_module._meta_graph_filename(val)
       self.assertEqual(save_path + ".meta", meta_graph_filename)
 
     if save._write_version is saver_pb2.SaverDef.V1:
@@ -1039,12 +1045,10 @@ class SaveRestoreShardedTest(test.TestCase):
     self._testPartitionedVariables(use_resource=True)
 
 
-@test_util.with_c_api
 class SaveRestoreShardedTestV2(SaveRestoreShardedTest):
   _WRITE_VERSION = saver_pb2.SaverDef.V2
 
 
-@test_util.with_c_api
 class MaxToKeepTest(test.TestCase):
 
   def _get_test_dir(self, dirname):
@@ -1182,13 +1186,13 @@ class MaxToKeepTest(test.TestCase):
       self.assertEqual([s3, s2], save.last_checkpoints)
       self.assertFalse(saver_module.checkpoint_exists(s1))
       self.assertFalse(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s1)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s1)))
       self.assertTrue(saver_module.checkpoint_exists(s3))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s3)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s3)))
       self.assertTrue(saver_module.checkpoint_exists(s2))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s2)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s2)))
       self.assertCheckpointState(
           model_checkpoint_path=s2,
           all_model_checkpoint_paths=[s3, s2],
@@ -1199,13 +1203,13 @@ class MaxToKeepTest(test.TestCase):
       self.assertEqual([s2, s1], save.last_checkpoints)
       self.assertFalse(saver_module.checkpoint_exists(s3))
       self.assertFalse(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s3)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s3)))
       self.assertTrue(saver_module.checkpoint_exists(s2))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s2)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s2)))
       self.assertTrue(saver_module.checkpoint_exists(s1))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s1)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s1)))
       self.assertCheckpointState(
           model_checkpoint_path=s1,
           all_model_checkpoint_paths=[s2, s1],
@@ -1219,14 +1223,14 @@ class MaxToKeepTest(test.TestCase):
       # Created by the first helper.
       self.assertTrue(saver_module.checkpoint_exists(s1))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s1)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s1)))
       # Deleted by the first helper.
       self.assertFalse(saver_module.checkpoint_exists(s3))
       self.assertFalse(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s3)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s3)))
       self.assertTrue(saver_module.checkpoint_exists(s2))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s2)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s2)))
       self.assertCheckpointState(
           model_checkpoint_path=s2,
           all_model_checkpoint_paths=[s3, s2],
@@ -1237,13 +1241,13 @@ class MaxToKeepTest(test.TestCase):
       self.assertEqual([s2, s1], save2.last_checkpoints)
       self.assertFalse(saver_module.checkpoint_exists(s3))
       self.assertFalse(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s3)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s3)))
       self.assertTrue(saver_module.checkpoint_exists(s2))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s2)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s2)))
       self.assertTrue(saver_module.checkpoint_exists(s1))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s1)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s1)))
       self.assertCheckpointState(
           model_checkpoint_path=s1,
           all_model_checkpoint_paths=[s2, s1],
@@ -1257,14 +1261,14 @@ class MaxToKeepTest(test.TestCase):
       # Created by the first helper.
       self.assertTrue(saver_module.checkpoint_exists(s1))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s1)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s1)))
       # Deleted by the first helper.
       self.assertFalse(saver_module.checkpoint_exists(s3))
       self.assertFalse(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s3)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s3)))
       self.assertTrue(saver_module.checkpoint_exists(s2))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s2)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s2)))
       # Even though the file for s1 exists, this saver isn't aware of it, which
       # is why it doesn't end up in the checkpoint state.
       self.assertCheckpointState(
@@ -1277,13 +1281,13 @@ class MaxToKeepTest(test.TestCase):
       self.assertEqual([s2, s1], save3.last_checkpoints)
       self.assertFalse(saver_module.checkpoint_exists(s3))
       self.assertFalse(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s3)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s3)))
       self.assertTrue(saver_module.checkpoint_exists(s2))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s2)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s2)))
       self.assertTrue(saver_module.checkpoint_exists(s1))
       self.assertTrue(
-          saver_module.checkpoint_exists(save._MetaGraphFilename(s1)))
+          saver_module.checkpoint_exists(saver_module._meta_graph_filename(s1)))
       self.assertCheckpointState(
           model_checkpoint_path=s1,
           all_model_checkpoint_paths=[s2, s1],
@@ -1314,7 +1318,7 @@ class MaxToKeepTest(test.TestCase):
       else:
         self.assertEqual(4, len(gfile.Glob(s1 + "*")))
 
-      self.assertTrue(gfile.Exists(save._MetaGraphFilename(s1)))
+      self.assertTrue(gfile.Exists(saver_module._meta_graph_filename(s1)))
 
       s2 = save.save(sess, os.path.join(save_dir, "s2"))
       self.assertEqual([s1, s2], save.last_checkpoints)
@@ -1322,27 +1326,27 @@ class MaxToKeepTest(test.TestCase):
         self.assertEqual(2, len(gfile.Glob(s1)))
       else:
         self.assertEqual(4, len(gfile.Glob(s1 + "*")))
-      self.assertTrue(gfile.Exists(save._MetaGraphFilename(s1)))
+      self.assertTrue(gfile.Exists(saver_module._meta_graph_filename(s1)))
       if save._write_version is saver_pb2.SaverDef.V1:
         self.assertEqual(2, len(gfile.Glob(s2)))
       else:
         self.assertEqual(4, len(gfile.Glob(s2 + "*")))
-      self.assertTrue(gfile.Exists(save._MetaGraphFilename(s2)))
+      self.assertTrue(gfile.Exists(saver_module._meta_graph_filename(s2)))
 
       s3 = save.save(sess, os.path.join(save_dir, "s3"))
       self.assertEqual([s2, s3], save.last_checkpoints)
       self.assertEqual(0, len(gfile.Glob(s1 + "*")))
-      self.assertFalse(gfile.Exists(save._MetaGraphFilename(s1)))
+      self.assertFalse(gfile.Exists(saver_module._meta_graph_filename(s1)))
       if save._write_version is saver_pb2.SaverDef.V1:
         self.assertEqual(2, len(gfile.Glob(s2)))
       else:
         self.assertEqual(4, len(gfile.Glob(s2 + "*")))
-      self.assertTrue(gfile.Exists(save._MetaGraphFilename(s2)))
+      self.assertTrue(gfile.Exists(saver_module._meta_graph_filename(s2)))
       if save._write_version is saver_pb2.SaverDef.V1:
         self.assertEqual(2, len(gfile.Glob(s3)))
       else:
         self.assertEqual(4, len(gfile.Glob(s3 + "*")))
-      self.assertTrue(gfile.Exists(save._MetaGraphFilename(s3)))
+      self.assertTrue(gfile.Exists(saver_module._meta_graph_filename(s3)))
 
   def testNoMaxToKeep(self):
     save_dir = self._get_test_dir("no_max_to_keep")
@@ -1382,10 +1386,9 @@ class MaxToKeepTest(test.TestCase):
 
       s1 = save.save(sess, os.path.join(save_dir, "s1"), write_meta_graph=False)
       self.assertTrue(saver_module.checkpoint_exists(s1))
-      self.assertFalse(gfile.Exists(save._MetaGraphFilename(s1)))
+      self.assertFalse(gfile.Exists(saver_module._meta_graph_filename(s1)))
 
 
-@test_util.with_c_api
 class KeepCheckpointEveryNHoursTest(test.TestCase):
 
   def _get_test_dir(self, dirname):
@@ -1393,7 +1396,7 @@ class KeepCheckpointEveryNHoursTest(test.TestCase):
     gfile.MakeDirs(test_dir)
     return test_dir
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   @test.mock.patch.object(saver_module, "time")
   def testNonSharded(self, mock_time):
     save_dir = self._get_test_dir("keep_checkpoint_every_n_hours")
@@ -1445,7 +1448,6 @@ class KeepCheckpointEveryNHoursTest(test.TestCase):
       self.assertTrue(saver_module.checkpoint_exists(s4))
 
 
-@test_util.with_c_api
 class SaveRestoreWithVariableNameMap(test.TestCase):
 
   def _testNonReshape(self, variable_op):
@@ -1514,7 +1516,7 @@ class SaveRestoreWithVariableNameMap(test.TestCase):
       self.assertEqual(10.0, self.evaluate(v0))
       self.assertEqual(20.0, self.evaluate(v1))
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testNonReshapeResourceVariable(self):
     self._testNonReshape(resource_variable_ops.ResourceVariable)
 
@@ -1522,7 +1524,6 @@ class SaveRestoreWithVariableNameMap(test.TestCase):
     self._testNonReshape(variables.Variable)
 
 
-@test_util.with_c_api
 class LatestCheckpointWithRelativePaths(test.TestCase):
 
   @staticmethod
@@ -1624,7 +1625,6 @@ class LatestCheckpointWithRelativePaths(test.TestCase):
           self.assertEqual(v0.eval(), 2.0)
 
 
-@test_util.with_c_api
 class CheckpointStateTest(test.TestCase):
 
   def _get_test_dir(self, dirname):
@@ -1739,7 +1739,6 @@ class CheckpointStateTest(test.TestCase):
                      os.path.join(save_dir, "./model.ckpt-687529"))
 
 
-@test_util.with_c_api
 class MetaGraphTest(test.TestCase):
 
   def _get_test_dir(self, dirname):
@@ -2341,6 +2340,46 @@ class MetaGraphTest(test.TestCase):
               10, size=[1, 10])
       })
 
+  def testImportIntoNamescopeWithoutVariables(self):
+    # Save a simple graph that contains no variables into a checkpoint.
+    test_dir = self._get_test_dir("no_vars_graph")
+    filename = os.path.join(test_dir, "ckpt")
+    graph_1 = ops_lib.Graph()
+    with session.Session(graph=graph_1) as sess:
+      constant_op.constant([1, 2, 3], name="x")
+      constant_op.constant([1, 2, 3], name="y")
+      saver = saver_module.Saver(allow_empty=True)
+      saver.save(sess, filename)
+
+    # Create a fresh graph.
+    graph_2 = ops_lib.Graph()
+    with session.Session(graph=graph_2) as sess:
+      # Restore the above checkpoint under scope "subgraph_1".
+      new_saver_1 = saver_module.import_meta_graph(
+          filename + ".meta", graph=graph_2, import_scope="subgraph_1")
+      # There are no variables to restore, so import_meta_graph should not
+      # return a Saver.
+      self.assertIsNone(new_saver_1)
+
+      # Create a variable in graph_2 under scope "my_scope".
+      variables.Variable(array_ops.zeros([10]), name="my_scope/my_var")
+      sess.run(variables.global_variables_initializer())
+      # Restore the checkpoint into a different scope "subgraph_2".
+      new_saver_2 = saver_module.import_meta_graph(
+          filename + ".meta", graph=graph_2, import_scope="subgraph_2")
+      # Because the variable does not live in scope "subgraph_2",
+      # import_meta_graph should not attempt to restore the variable. So,
+      # import_meta_graph still won't return a Saver instance.
+      self.assertIsNone(new_saver_2)
+
+      # However, if we restore the checkpoint under scope "my_scope",
+      # import_meta_graph will detect the variable and return a Saver for
+      # restoring it. This should happen even when the variable does not
+      # originate from graph_1.
+      new_saver_3 = saver_module.import_meta_graph(
+          filename + ".meta", graph=graph_2, import_scope="my_scope")
+      self.assertIsInstance(new_saver_3, saver_module.Saver)
+
   def testImportIntoImplicitNamescope(self):
     # Test that we can import a meta graph into an implicit namescope.
     test_dir = self._get_test_dir("import_into_namescope")
@@ -2459,7 +2498,6 @@ class MetaGraphTest(test.TestCase):
           sess.run("new_model/output:0")
 
 
-@test_util.with_c_api
 class CheckpointReaderTest(test.TestCase):
 
   _WRITE_VERSION = saver_pb2.SaverDef.V1
@@ -2512,12 +2550,10 @@ class CheckpointReaderTest(test.TestCase):
       pywrap_tensorflow.NewCheckpointReader("non-existent")
 
 
-@test_util.with_c_api
 class CheckpointReaderForV2Test(CheckpointReaderTest):
   _WRITE_VERSION = saver_pb2.SaverDef.V2
 
 
-@test_util.with_c_api
 class WriteGraphTest(test.TestCase):
 
   def _get_test_dir(self, dirname):
@@ -2545,7 +2581,6 @@ class WriteGraphTest(test.TestCase):
     self.assertTrue(os.path.exists(path))
 
 
-@test_util.with_c_api
 class SaverUtilsTest(test.TestCase):
 
   def setUp(self):
@@ -2587,8 +2622,21 @@ class SaverUtilsTest(test.TestCase):
     self.assertEqual(2, len(mtimes))
     self.assertTrue(mtimes[1] >= mtimes[0])
 
+  def testRemoveCheckpoint(self):
+    for sharded in (False, True):
+      for version in (saver_pb2.SaverDef.V2, saver_pb2.SaverDef.V1):
+        with self.test_session(graph=ops_lib.Graph()) as sess:
+          unused_v = variables.Variable(1.0, name="v")
+          variables.global_variables_initializer().run()
+          saver = saver_module.Saver(sharded=sharded, write_version=version)
 
-@test_util.with_c_api
+          path = os.path.join(self._base_dir, "%s-%s" % (sharded, version))
+          ckpt_prefix = saver.save(sess, path)
+          self.assertTrue(saver_module.checkpoint_exists(ckpt_prefix))
+          saver_module.remove_checkpoint(ckpt_prefix, version)
+          self.assertFalse(saver_module.checkpoint_exists(ckpt_prefix))
+
+
 class ScopedGraphTest(test.TestCase):
 
   def _get_test_dir(self, dirname):
@@ -2726,7 +2774,7 @@ class ScopedGraphTest(test.TestCase):
       # The rest of the variables.
       rest_variables = list(
           set(variables.global_variables()) - set(var_list.keys()))
-      init_rest_op = variables.initialize_variables(rest_variables)
+      init_rest_op = variables.variables_initializer(rest_variables)
 
     with self.test_session(graph=graph) as sess:
       saver = saver_module.Saver(var_list=var_list, max_to_keep=1)
@@ -2892,7 +2940,7 @@ class ScopedGraphTest(test.TestCase):
       self.assertEqual(2.0, var_dict2["variable2:0"].eval())
 
 
-class _OwnsAVariableSimple(checkpointable.CheckpointableBase):
+class _OwnsAVariableSimple(checkpointable_base.CheckpointableBase):
   """A Checkpointable object which can be saved using a tf.train.Saver."""
 
   def __init__(self):
@@ -2900,7 +2948,7 @@ class _OwnsAVariableSimple(checkpointable.CheckpointableBase):
         name="non_dep_variable", initializer=6., use_resource=True)
 
   def _gather_saveables_for_checkpoint(self):
-    return {checkpointable.VARIABLE_VALUE_KEY: self.non_dep_variable}
+    return {checkpointable_base.VARIABLE_VALUE_KEY: self.non_dep_variable}
 
   # The Saver sorts by name before parsing, so we need a name property.
   @property
@@ -2925,7 +2973,7 @@ class _MirroringSaveable(
         self._mirrored_variable.assign(tensor))
 
 
-class _OwnsMirroredVariables(checkpointable.CheckpointableBase):
+class _OwnsMirroredVariables(checkpointable_base.CheckpointableBase):
   """A Checkpointable object which returns a more complex SaveableObject."""
 
   def __init__(self):
@@ -2940,7 +2988,7 @@ class _OwnsMirroredVariables(checkpointable.CheckpointableBase):
           primary_variable=self.non_dep_variable,
           mirrored_variable=self.mirrored,
           name=name)
-    return {checkpointable.VARIABLE_VALUE_KEY: _saveable_factory}
+    return {checkpointable_base.VARIABLE_VALUE_KEY: _saveable_factory}
 
   # The Saver sorts by name before parsing, so we need a name property.
   @property
@@ -2948,11 +2996,33 @@ class _OwnsMirroredVariables(checkpointable.CheckpointableBase):
     return self.non_dep_variable.name
 
 
-@test_util.with_c_api
+class NonLayerCheckpointable(checkpointable_tracking.Checkpointable):
+
+  def __init__(self):
+    super(NonLayerCheckpointable, self).__init__()
+    self.a_variable = checkpointable_utils.add_variable(
+        self, name="a_variable", shape=[])
+
+
+class MyModel(training.Model):
+  """A concrete Model for testing."""
+
+  def __init__(self):
+    super(MyModel, self).__init__()
+    self._named_dense = core.Dense(1, use_bias=True)
+    self._second = core.Dense(1, use_bias=False)
+    # We can still track Checkpointables which aren't Layers.
+    self._non_layer = NonLayerCheckpointable()
+
+  def call(self, values):
+    ret = self._second(self._named_dense(values))
+    return ret
+
+
 class CheckpointableCompatibilityTests(test.TestCase):
 
   # TODO(allenl): Track down python3 reference cycles in these tests.
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testNotSaveableButIsCheckpointable(self):
     v = _OwnsAVariableSimple()
     saver = saver_module.Saver(var_list=[v])
@@ -2965,7 +3035,7 @@ class CheckpointableCompatibilityTests(test.TestCase):
       saver.restore(sess, save_path)
       self.assertEqual(42., self.evaluate(v.non_dep_variable))
 
-  @test_util.run_in_graph_and_eager_modes()
+  @test_util.run_in_graph_and_eager_modes
   def testMoreComplexSaveableReturned(self):
     v = _OwnsMirroredVariables()
     saver = saver_module.Saver(var_list=[v])
@@ -3010,6 +3080,138 @@ class CheckpointableCompatibilityTests(test.TestCase):
         self.assertEqual(1, v.eval_count)
         saver.restore(sess, save_path)
         self.assertEqual(1, v.eval_count)
+
+  def _initialized_model(self):
+    input_value = constant_op.constant([[3.]])
+    model = MyModel()
+    optimizer = adam.AdamOptimizer(0.001)
+    optimizer_step = training_util.get_or_create_global_step()
+    root_checkpointable = checkpointable_utils.Checkpoint(
+        optimizer=optimizer, model=model, optimizer_step=optimizer_step)
+    train_op = optimizer.minimize(
+        functools.partial(model, input_value),
+        global_step=optimizer_step)
+    self.evaluate(checkpointable_utils.gather_initializers(
+        root_checkpointable))
+    self.evaluate(train_op)
+    # A regular variable, a slot variable, and a non-slot Optimizer variable
+    # with known values to check when loading.
+    self.evaluate(model._named_dense.bias.assign([1.]))
+    self.evaluate(optimizer.get_slot(
+        var=model._named_dense.bias, name="m").assign([2.]))
+    beta1_power, _ = optimizer._get_beta_accumulators()
+    self.evaluate(beta1_power.assign(3.))
+    return root_checkpointable
+
+  def _set_sentinels(self, root_checkpointable):
+    self.evaluate(root_checkpointable.model._named_dense.bias.assign([101.]))
+    self.evaluate(
+        root_checkpointable.optimizer.get_slot(
+            var=root_checkpointable.model._named_dense.bias, name="m")
+        .assign([102.]))
+    beta1_power, _ = root_checkpointable.optimizer._get_beta_accumulators()
+    self.evaluate(beta1_power.assign(103.))
+
+  def _check_sentinels(self, root_checkpointable):
+    self.assertAllEqual(
+        [1.], self.evaluate(root_checkpointable.model._named_dense.bias))
+    self.assertAllEqual([2.], self.evaluate(
+        root_checkpointable.optimizer.get_slot(
+            var=root_checkpointable.model._named_dense.bias, name="m")))
+    beta1_power, _ = root_checkpointable.optimizer._get_beta_accumulators()
+    self.assertAllEqual(3., self.evaluate(beta1_power))
+
+  def testVariableNotFoundErrorRaised(self):
+    # Restore does some tricky exception handling to figure out if it should
+    # load an object-based checkpoint. Tests that the exception handling isn't
+    # too broad.
+    checkpoint_directory = self.get_temp_dir()
+    checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
+
+    a = resource_variable_ops.ResourceVariable(1., name="a")
+    b = resource_variable_ops.ResourceVariable(1., name="b")
+    a_saver = saver_module.Saver([a])
+    b_saver = saver_module.Saver([b])
+    with self.test_session() as sess:
+      sess.run(a.initializer)
+      save_path = a_saver.save(sess=sess, save_path=checkpoint_prefix)
+      with self.assertRaisesRegexp(
+          errors.NotFoundError, "Key b not found in checkpoint"):
+        b_saver.restore(sess=sess, save_path=save_path)
+
+  def testCheckpointNotFoundErrorRaised(self):
+    # Restore does some tricky exception handling to figure out if it should
+    # load an object-based checkpoint. Tests that the exception handling isn't
+    # too broad.
+    a = resource_variable_ops.ResourceVariable(1., name="a")
+    saver = saver_module.Saver([a])
+    with self.test_session() as sess:
+      with self.assertRaisesRegexp(
+          errors.NotFoundError,
+          "Failed to find any matching files for path_which_does_not_exist"):
+        saver.restore(sess=sess, save_path="path_which_does_not_exist")
+      try:
+        saver.restore(sess=sess, save_path="path_which_does_not_exist")
+      except errors.NotFoundError:
+        # Make sure we don't have a confusing "During handling of the above
+        # exception" block in Python 3.
+        # pylint: disable=no-value-for-parameter
+        exception_string = "\n".join(
+            traceback.format_exception(*sys.exc_info()))
+        # pylint: enable=no-value-for-parameter
+        self.assertNotIn("NewCheckpointReader", exception_string)
+
+  def testLoadFromObjectBasedGraph(self):
+    checkpoint_directory = self.get_temp_dir()
+    checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
+
+    save_graph = ops_lib.Graph()
+    with save_graph.as_default(), self.test_session(graph=save_graph) as sess:
+      root = self._initialized_model()
+      object_saver = checkpointable_utils.CheckpointableSaver(root)
+      save_path = object_saver.save(file_prefix=checkpoint_prefix)
+
+      # An incompatible object-based checkpoint to check error messages
+      var = resource_variable_ops.ResourceVariable(1., name="a")
+      self.evaluate(var.initializer)
+      second_saver = checkpointable_utils.CheckpointableSaver(var)
+      second_path = second_saver.save(file_prefix=os.path.join(
+          checkpoint_directory, "second"))
+
+    restore_graph = ops_lib.Graph()
+    with restore_graph.as_default(), self.test_session(
+        graph=restore_graph) as sess:
+      root = self._initialized_model()
+      self._set_sentinels(root)
+      saver = saver_module.Saver()
+      saver.restore(sess=sess, save_path=save_path)
+      self._check_sentinels(root)
+      before_second_restore_ops = restore_graph.get_operations()
+      # Test that multiple restores do not pollute the graph
+      saver.restore(sess=sess, save_path=save_path)
+      self.assertEqual(before_second_restore_ops,
+                       restore_graph.get_operations())
+      with self.assertRaisesRegexp(errors.NotFoundError,
+                                   "could not find a_variable"):
+        saver.restore(sess=sess, save_path=second_path)
+
+  def testLoadFromObjectBasedEager(self):
+    checkpoint_directory = self.get_temp_dir()
+    checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
+
+    save_graph = ops_lib.Graph()
+    with save_graph.as_default(), self.test_session(graph=save_graph):
+      root = self._initialized_model()
+      object_saver = checkpointable_utils.CheckpointableSaver(root)
+      save_path = object_saver.save(file_prefix=checkpoint_prefix)
+
+    with context.eager_mode():
+      root = self._initialized_model()
+      self._set_sentinels(root)
+      saver = saver_module.Saver(
+          root.model.variables + root.optimizer.variables())
+      saver.restore(sess=None, save_path=save_path)
+      self._check_sentinels(root)
 
 
 if __name__ == "__main__":

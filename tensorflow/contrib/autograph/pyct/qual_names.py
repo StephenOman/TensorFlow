@@ -112,6 +112,29 @@ class QN(object):
       raise ValueError('Cannot get parent of simple name "%s".' % self.qn[0])
     return self._parent
 
+  @property
+  def support_set(self):
+    """Returns the set of simple symbols that this QN relies on.
+
+    This would be the smallest set of symbols necessary for the QN to
+    statically resolve (assuming properties and index ranges are verified
+    at runtime).
+
+    Examples:
+      'a.b' has only one support symbol, 'a'
+      'a[i]' has two roots, 'a' and 'i'
+    """
+    # TODO(mdan): This might be the set of Name nodes in the AST. Track those?
+    roots = set()
+    if self.has_attr():
+      roots.update(self.parent.support_set)
+    elif self.has_subscript():
+      roots.update(self.parent.support_set)
+      roots.update(self.qn[1].support_set)
+    else:
+      roots.add(self)
+    return roots
+
   def __hash__(self):
     return hash(self.qn + (self._has_attr, self._has_subscript))
 
@@ -182,6 +205,7 @@ class QnResolver(gast.NodeTransformer):
     return node
 
   def visit_Subscript(self, node):
+    # TODO(mdan): This may no longer apply if we overload getitem.
     node = self.generic_visit(node)
     s = node.slice
     if not isinstance(s, gast.Index):
@@ -193,7 +217,11 @@ class QnResolver(gast.NodeTransformer):
     elif isinstance(s.value, gast.Str):
       subscript = QN(StringLiteral(s.value.s))
     else:
-      subscript = anno.getanno(node.slice.value, anno.Basic.QN)
+      # The index may be an expression, case in which a name doesn't make sense.
+      if anno.hasanno(node.slice.value, anno.Basic.QN):
+        subscript = anno.getanno(node.slice.value, anno.Basic.QN)
+      else:
+        return node
     if anno.hasanno(node.value, anno.Basic.QN):
       anno.setanno(node, anno.Basic.QN,
                    QN(anno.getanno(node.value, anno.Basic.QN),

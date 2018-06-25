@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 from tensorflow.core.framework import tensor_shape_pb2
+from tensorflow.python.framework import dtypes
 from tensorflow.python.util import compat
 from tensorflow.python.util.tf_export import tf_export
 
@@ -30,6 +31,8 @@ class Dimension(object):
     """Creates a new Dimension with the given value."""
     if value is None:
       self._value = None
+    elif isinstance(value, dtypes.DType):
+      raise TypeError("Cannot convert %s to Dimension" % value)
     else:
       self._value = int(value)
       if (not isinstance(value, compat.bytes_or_text_types) and
@@ -455,6 +458,9 @@ class Dimension(object):
       return None
     else:
       return self._value >= other.value
+
+  def __reduce__(self):
+    return Dimension, (self._value,)
 
 
 def as_dimension(value):
@@ -928,6 +934,9 @@ class TensorShape(object):
       return True
     return self._dims != other.dims
 
+  def __reduce__(self):
+    return TensorShape, (self._dims,)
+
 
 def as_shape(shape):
   """Converts the given object to a TensorShape."""
@@ -952,9 +961,12 @@ def unknown_shape(ndims=None):
     return TensorShape([Dimension(None)] * ndims)
 
 
+_SCALAR_SHAPE = TensorShape([])
+
+
 def scalar():
   """Returns a shape representing a scalar."""
-  return TensorShape([])
+  return _SCALAR_SHAPE
 
 
 def vector(length):

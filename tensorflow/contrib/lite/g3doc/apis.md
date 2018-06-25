@@ -7,6 +7,9 @@ no surprise that the APIs try to avoid unnecessary copies at the expense of
 convenience.  Similarly, consistency with TensorFlow APIs was not an explicit
 goal and some variance is to be expected.
 
+There is also a Python API for TensorFlow Lite described
+[here](../toco/g3doc/python_api.md#interpreter).
+
 ## C++
 
 In order to run the inference model in TensorFlow Lite, one has to load the
@@ -29,7 +32,7 @@ interpreter->AllocateTensors();
 float* input = interpreter->typed_input_tensor<float>(0);
 // Fill `input`.
 interpreter->Invoke();
-float* output = interpreter->type_output_tensor<float>(0);
+float* output = interpreter->typed_output_tensor<float>(0);
 ```
 ### Data Alignment
 

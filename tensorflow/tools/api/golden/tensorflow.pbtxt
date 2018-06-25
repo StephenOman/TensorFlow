@@ -309,12 +309,20 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "debugging"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "distributions"
     mtype: "<type \'module\'>"
   }
   member {
     name: "double"
     mtype: "<class \'tensorflow.python.framework.dtypes.DType\'>"
+  }
+  member {
+    name: "dtypes"
+    mtype: "<type \'module\'>"
   }
   member {
     name: "errors"
@@ -381,6 +389,10 @@ tf_module {
     mtype: "<class \'tensorflow.python.framework.dtypes.DType\'>"
   }
   member {
+    name: "io"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "keras"
     mtype: "<type \'module\'>"
   }
@@ -402,6 +414,10 @@ tf_module {
   }
   member {
     name: "manip"
+    mtype: "<type \'module\'>"
+  }
+  member {
+    name: "math"
     mtype: "<type \'module\'>"
   }
   member {
@@ -453,6 +469,10 @@ tf_module {
     mtype: "<class \'tensorflow.python.framework.dtypes.DType\'>"
   }
   member {
+    name: "quantization"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "quint16"
     mtype: "<class \'tensorflow.python.framework.dtypes.DType\'>"
   }
@@ -485,12 +505,20 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "sparse"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "spectral"
     mtype: "<type \'module\'>"
   }
   member {
     name: "string"
     mtype: "<class \'tensorflow.python.framework.dtypes.DType\'>"
+  }
+  member {
+    name: "strings"
+    mtype: "<type \'module\'>"
   }
   member {
     name: "summary"
@@ -781,6 +809,10 @@ tf_module {
     argspec: "args=[\'shape_x\', \'shape_y\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "broadcast_to"
+    argspec: "args=[\'input\', \'shape\', \'name\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
     name: "case"
     argspec: "args=[\'pred_fn_pairs\', \'default\', \'exclusive\', \'strict\', \'name\'], varargs=None, keywords=None, defaults=[\'None\', \'False\', \'False\', \'case\'], "
   }
@@ -909,8 +941,12 @@ tf_module {
     argspec: "args=[\'input\', \'name\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
+    name: "decode_compressed"
+    argspec: "args=[\'bytes\', \'compression_type\', \'name\'], varargs=None, keywords=None, defaults=[\'\', \'None\'], "
+  }
+  member_method {
     name: "decode_csv"
-    argspec: "args=[\'records\', \'record_defaults\', \'field_delim\', \'use_quote_delim\', \'name\', \'na_value\'], varargs=None, keywords=None, defaults=[\',\', \'True\', \'None\', \'\'], "
+    argspec: "args=[\'records\', \'record_defaults\', \'field_delim\', \'use_quote_delim\', \'name\', \'na_value\', \'select_cols\'], varargs=None, keywords=None, defaults=[\',\', \'True\', \'None\', \'\', \'None\'], "
   }
   member_method {
     name: "decode_json_example"
@@ -1517,6 +1553,10 @@ tf_module {
     argspec: "args=[\'x\', \'y\', \'name\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
+    name: "print"
+    argspec: "args=[\'input_\', \'data\', \'message\', \'first_n\', \'summarize\', \'name\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'None\'], "
+  }
+  member_method {
     name: "py_func"
     argspec: "args=[\'func\', \'inp\', \'Tout\', \'stateful\', \'name\'], varargs=None, keywords=None, defaults=[\'True\', \'None\'], "
   }
@@ -1678,7 +1718,7 @@ tf_module {
   }
   member_method {
     name: "scan"
-    argspec: "args=[\'fn\', \'elems\', \'initializer\', \'parallel_iterations\', \'back_prop\', \'swap_memory\', \'infer_shape\', \'name\'], varargs=None, keywords=None, defaults=[\'None\', \'10\', \'True\', \'False\', \'True\', \'None\'], "
+    argspec: "args=[\'fn\', \'elems\', \'initializer\', \'parallel_iterations\', \'back_prop\', \'swap_memory\', \'infer_shape\', \'reverse\', \'name\'], varargs=None, keywords=None, defaults=[\'None\', \'10\', \'True\', \'False\', \'True\', \'False\', \'None\'], "
   }
   member_method {
     name: "scatter_add"
@@ -1971,6 +2011,10 @@ tf_module {
   member_method {
     name: "string_split"
     argspec: "args=[\'source\', \'delimiter\', \'skip_empty\'], varargs=None, keywords=None, defaults=[\' \', \'True\'], "
+  }
+  member_method {
+    name: "string_strip"
+    argspec: "args=[\'input\', \'name\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
     name: "string_to_hash_bucket"

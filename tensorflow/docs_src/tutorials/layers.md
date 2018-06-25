@@ -190,10 +190,9 @@ def cnn_model_fn(features, labels, mode):
 The following sections (with headings corresponding to each code block above)
 dive deeper into the `tf.layers` code used to create each layer, as well as how
 to calculate loss, configure the training op, and generate predictions. If
-you're already experienced with CNNs and @{$get_started/custom_estimators$TensorFlow `Estimator`s},
+you're already experienced with CNNs and @{$custom_estimators$TensorFlow `Estimator`s},
 and find the above code intuitive, you may want to skim these sections or just
-skip ahead to ["Training and Evaluating the CNN MNIST
-Classifier"](#training_and_evaluating_the_cnn_mnist_classifier).
+skip ahead to ["Training and Evaluating the CNN MNIST Classifier"](#train_eval_mnist).
 
 ### Input Layer
 
@@ -210,7 +209,6 @@ for two-dimensional image data expect input tensors to have a shape of
 *   _`channels`_. Number of color channels in the example images. For color
     images, the number of channels is 3 (red, green, blue). For monochrome
     images, there is just 1 channel (black).
-*   _`image_height`_. Height of the example images.
 *   _`data_format`_. A string, one of `channels_last` (default) or `channels_first`.
       `channels_last` corresponds to inputs with shape
       `(batch, ..., channels)` while `channels_first` corresponds to
@@ -536,8 +534,9 @@ if mode == tf.estimator.ModeKeys.TRAIN:
 ```
 
 > Note: For a more in-depth look at configuring training ops for Estimator model
-> functions, see @{$get_started/custom_estimators#defining_the_training_op_for_the_model$"Defining the training op for the model"} 
-> in the @{$get_started/custom_estimators$"Creating Estimators in tf.estimator."} tutorial.
+> functions, see @{$custom_estimators#defining-the-training-op-for-the-model$"Defining the training op for the model"}
+> in the @{$custom_estimators$"Creating Estimations in tf.estimator"} tutorial.
+
 
 ### Add evaluation metrics
 
@@ -552,7 +551,8 @@ return tf.estimator.EstimatorSpec(
     mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
 ```
 
-## Training and Evaluating the CNN MNIST Classifier {#training_and_evaluating_the_cnn_mnist_classifier}
+<a id="train_eval_mnist"></a>
+## Training and Evaluating the CNN MNIST Classifier
 
 We've coded our MNIST CNN model function; now we're ready to train and evaluate
 it.
@@ -600,7 +600,7 @@ be saved (here, we specify the temp directory `/tmp/mnist_convnet_model`, but
 feel free to change to another directory of your choice).
 
 > Note: For an in-depth walkthrough of the TensorFlow `Estimator` API, see the
-> tutorial @{$get_started/custom_estimators$"Creating Estimators in tf.estimator."}
+> tutorial @{$custom_estimators$"Creating Estimators in tf.estimator."}
 
 ### Set Up a Logging Hook {#set_up_a_logging_hook}
 
@@ -612,9 +612,9 @@ following to `main()`:
 
 ```python
 # Set up logging for predictions
-  tensors_to_log = {"probabilities": "softmax_tensor"}
-  logging_hook = tf.train.LoggingTensorHook(
-      tensors=tensors_to_log, every_n_iter=50)
+tensors_to_log = {"probabilities": "softmax_tensor"}
+logging_hook = tf.train.LoggingTensorHook(
+    tensors=tensors_to_log, every_n_iter=50)
 ```
 
 We store a dict of the tensors we want to log in `tensors_to_log`. Each key is a
@@ -627,7 +627,7 @@ operation earlier when we generated the probabilities in `cnn_model_fn`.
 > argument, TensorFlow will assign a default name. A couple easy ways to
 > discover the names applied to operations are to visualize your graph on
 > @{$graph_viz$TensorBoard}) or to enable the
-> @{$programmers_guide/debugger$TensorFlow Debugger (tfdbg)}.
+> @{$guide/debugger$TensorFlow Debugger (tfdbg)}.
 
 Next, we create the `LoggingTensorHook`, passing `tensors_to_log` to the
 `tensors` argument. We set `every_n_iter=50`, which specifies that probabilities
@@ -719,7 +719,7 @@ Here, we've achieved an accuracy of 97.3% on our test data set.
 To learn more about TensorFlow Estimators and CNNs in TensorFlow, see the
 following resources:
 
-*   @{$get_started/custom_estimators$Creating Estimators in tf.estimator}
+*   @{$custom_estimators$Creating Estimators in tf.estimator}
     provides an introduction to the TensorFlow Estimator API. It walks through
     configuring an Estimator, writing a model function, calculating loss, and
     defining a training op.

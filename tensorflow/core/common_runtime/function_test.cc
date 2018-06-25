@@ -25,6 +25,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/device.h"
 #include "tensorflow/core/common_runtime/device_factory.h"
 #include "tensorflow/core/common_runtime/executor.h"
+#include "tensorflow/core/common_runtime/executor_factory.h"
 #include "tensorflow/core/common_runtime/function_testlib.h"
 #include "tensorflow/core/common_runtime/rendezvous_mgr.h"
 #include "tensorflow/core/common_runtime/step_stats_collector.h"
@@ -39,6 +40,7 @@ limitations under the License.
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/lib/core/threadpool.h"
+#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/test.h"
 #include "tensorflow/core/public/session_options.h"
 #include "tensorflow/core/public/version.h"
@@ -53,8 +55,8 @@ Status GetOpSig(const string& op, const OpDef** sig) {
   return OpRegistry::Global()->LookUpOpDef(op, sig);
 }
 
-void HasError(const Status& s, const string& substr) {
-  EXPECT_TRUE(StringPiece(s.ToString()).contains(substr))
+void HasError(const Status& s, StringPiece substr) {
+  EXPECT_TRUE(str_util::StrContains(s.ToString(), substr))
       << s << ", expected substring " << substr;
 }
 
@@ -240,7 +242,7 @@ class FunctionLibraryRuntimeTest : public ::testing::Test {
     Status status2 = Run(flr, handle, opts, args, std::move(rets));
     EXPECT_TRUE(errors::IsInvalidArgument(status2));
     EXPECT_TRUE(
-        StringPiece(status2.error_message()).contains("remote execution."));
+        str_util::StrContains(status2.error_message(), "remote execution."));
 
     return status;
   }
@@ -310,7 +312,7 @@ class FunctionLibraryRuntimeTest : public ::testing::Test {
     Status status2 = Run(flr, handle, opts, args, std::move(rets));
     EXPECT_TRUE(errors::IsInvalidArgument(status2));
     EXPECT_TRUE(
-        StringPiece(status2.error_message()).contains("remote execution."));
+        str_util::StrContains(status2.error_message(), "remote execution."));
 
     return status;
   }
@@ -527,6 +529,69 @@ TEST_F(FunctionLibraryRuntimeTest, StateHandle) {
       }
       TF_CHECK_OK(flr0_->ReleaseHandle(handle_isolated));
     }
+  }
+}
+
+namespace {
+class DummyExecutorRegistrar {
+ public:
+  DummyExecutorRegistrar() {
+    ExecutorFactory::Register("DUMMY", new Factory());
+  }
+
+ private:
+  class Factory : public ExecutorFactory {
+    Status NewExecutor(const LocalExecutorParams& params,
+                       std::unique_ptr<const Graph> graph,
+                       std::unique_ptr<Executor>* out_executor) override {
+      return errors::Internal("This is a dummy.");
+    }
+  };
+};
+static DummyExecutorRegistrar registrar;
+}  // namespace
+
+TEST_F(FunctionLibraryRuntimeTest, ExecutorFactory) {
+  Init({test::function::XTimesTwo()});
+
+  auto x = test::AsTensor<float>({1, 2, 3, 4});
+  Tensor y;
+
+  // Test that the default executor works.
+  {
+    FunctionLibraryRuntime::InstantiateOptions options;
+    options.executor_type = "";
+    TF_CHECK_OK(InstantiateAndRun(flr0_, "XTimesTwo", {{"T", DT_FLOAT}},
+                                  options, {x}, {&y}));
+    test::ExpectTensorEqual<float>(y, test::AsTensor<float>({2, 4, 6, 8}));
+  }
+
+  // Test the explicit registration for the default executor.
+  {
+    FunctionLibraryRuntime::InstantiateOptions options;
+    options.executor_type = "DEFAULT";
+    TF_CHECK_OK(InstantiateAndRun(flr0_, "XTimesTwo", {{"T", DT_FLOAT}},
+                                  options, {x}, {&y}));
+    test::ExpectTensorEqual<float>(y, test::AsTensor<float>({2, 4, 6, 8}));
+  }
+
+  // Test that a non-default executor factory can be invoked.
+  {
+    FunctionLibraryRuntime::InstantiateOptions options;
+    options.executor_type = "DUMMY";
+    HasError(InstantiateAndRun(flr0_, "XTimesTwo", {{"T", DT_FLOAT}}, options,
+                               {x}, {&y}),
+             "Internal: This is a dummy.");
+  }
+
+  // Test that non-existent exector types trigger an error.
+  {
+    FunctionLibraryRuntime::InstantiateOptions options;
+    options.executor_type = "UNKNOWN_EXECUTOR";
+    HasError(InstantiateAndRun(flr0_, "XTimesTwo", {{"T", DT_FLOAT}}, options,
+                               {x}, {&y}),
+             "Not found: No executor factory registered for the given executor "
+             "type: UNKNOWN_EXECUTOR");
   }
 }
 
@@ -802,7 +867,7 @@ TEST_F(FunctionLibraryRuntimeTest, OptimizeGraph) {
     Scope s = Scope::NewRootScope();
     auto x = ops::_Arg(s.WithOpName("x"), DT_FLOAT, 0);
     auto x4_x2_scale = ops::Const<float>(
-        s.WithOpName("x4/x2/scale/_12__cf__6")
+        s.WithOpName("x4/x2/scale/_12__cf__10")
             .WithDevice("/job:localhost/replica:0/task:0/device:CPU:0"),
         2.0f);
     auto x4_x2_y = ops::Mul(s.WithOpName("x4/x2/y"), x, x4_x2_scale);
@@ -844,7 +909,7 @@ TEST_F(FunctionLibraryRuntimeTest, ManySwapsNodeDef) {
   ASSERT_TRUE(g != nullptr);
   OptimizeGraph(flr0_, &g);
   const char* e0 = R"P(
-(n3:float, n2:float) -> (n3:float) {
+(n2:float, n3:float) -> (n2:float) {
 }
 )P";
   EXPECT_EQ(e0, DebugString(g.get()));
@@ -912,7 +977,7 @@ TEST_F(FunctionLibraryRuntimeTest, Error_NotFound) {
            "Not found: Function Foo is not defined.");
 }
 
-TEST_F(FunctionLibraryRuntimeTest, Error_InstantiaionError) {
+TEST_F(FunctionLibraryRuntimeTest, Error_InstantiationError) {
   auto bad_x_times_two = FDH::Define(
       // Name
       "XTimesTwo",
@@ -1008,13 +1073,13 @@ TEST_F(FunctionLibraryRuntimeTest, Gradient_XTimesTwo) {
     auto x = ops::_Arg(s.WithOpName("x"), DT_FLOAT, 0);
     auto func0 = ops::_Arg(s.WithOpName("Func/_0"), DT_FLOAT, 1);
     auto scale = ops::Const(
-        s.WithOpName("scale/_6__cf__11")
+        s.WithOpName("scale/_6__cf__15")
             .WithDevice("/job:localhost/replica:0/task:0/device:CPU:0"),
         2.0f);
     auto func1_gx = ops::Mul(s.WithOpName("Func/_1/gx"), func0, scale);
     auto func1_sx = ops::Shape(s.WithOpName("Func/_1/sx"), x);
     auto const0 = ops::Const(
-        s.WithOpName("Func/_1/sy/_5__cf__10")
+        s.WithOpName("Func/_1/sy/_5__cf__14")
             .WithDevice("/job:localhost/replica:0/task:0/device:CPU:0"),
         0, {0});
     auto func1_rx = ops::internal::BroadcastGradientArgs(

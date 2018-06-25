@@ -17,6 +17,8 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include "tensorflow/contrib/lite/context.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif  // __cplusplus
@@ -51,6 +53,8 @@ typedef struct {
   TfLitePadding padding;
   int stride_width;
   int stride_height;
+  int dilation_width_factor;
+  int dilation_height_factor;
   TfLiteFusedActivation activation;
 } TfLiteConvParams;
 
@@ -144,10 +148,20 @@ typedef struct {
   float beta;
 } TfLiteLocalResponseNormParams;
 
+typedef enum {
+  kTfLiteLSTMFullKernel = 0,
+  kTfLiteLSTMBasicKernel
+} TfLiteLSTMKernelType;
+
 typedef struct {
+  // Parameters for LSTM version 1.
   TfLiteFusedActivation activation;
   float cell_clip;
   float proj_clip;
+
+  // Parameters for LSTM version 2.
+  // kTfLiteLSTMBasicKernel is only supported in version 2 or above.
+  TfLiteLSTMKernelType kernel_type;
 } TfLiteLSTMParams;
 
 typedef struct {
@@ -156,6 +170,9 @@ typedef struct {
 
 typedef struct {
 } TfLitePadParams;
+
+typedef struct {
+} TfLitePadV2Params;
 
 typedef struct {
   // TODO(ahentz): We can't have dynamic data in this struct, at least not yet.
@@ -173,6 +190,11 @@ typedef struct {
 typedef struct {
   int block_size;
 } TfLiteSpaceToDepthParams;
+
+typedef struct {
+  TfLiteType in_data_type;
+  TfLiteType out_data_type;
+} TfLiteCastParams;
 
 typedef enum {
   kTfLiteCombinerTypeSum = 0,
@@ -193,7 +215,7 @@ typedef struct {
 
 typedef struct {
   bool keep_dims;
-} TfLiteMeanParams;
+} TfLiteReducerParams;
 
 typedef struct {
   int num_splits;
@@ -213,6 +235,24 @@ typedef struct {
   int new_axis_mask;
   int shrink_axis_mask;
 } TfLiteStridedSliceParams;
+
+typedef struct {
+  TfLiteType output_type;
+} TfLiteArgMaxParams;
+
+typedef struct {
+  TfLitePadding padding;
+  int stride_width;
+  int stride_height;
+} TfLiteTransposeConvParams;
+
+typedef struct {
+  bool validate_indices;
+} TfLiteSparseToDenseParams;
+
+typedef struct {
+  TfLiteType out_type;
+} TfLiteShapeParams;
 
 #ifdef __cplusplus
 }  // extern "C"

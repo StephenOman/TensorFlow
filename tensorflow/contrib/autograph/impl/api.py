@@ -27,14 +27,15 @@ import gast
 import six
 # pylint:enable=g-bad-import-order
 
-from tensorflow.contrib.autograph.impl import config
+from tensorflow.contrib.autograph.core import config
+from tensorflow.contrib.autograph.core import converter
 from tensorflow.contrib.autograph.impl import conversion
 from tensorflow.contrib.autograph.pyct import compiler
 from tensorflow.contrib.autograph.pyct import inspect_utils
-from tensorflow.contrib.autograph.pyct import parser
 from tensorflow.contrib.autograph.utils import builtins
 from tensorflow.contrib.autograph.utils import py_func
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util import tf_decorator
 from tensorflow.python.util import tf_inspect
 
 # TODO(mdan): Properly document the type hints.
@@ -49,7 +50,7 @@ def convert(recursive=False, verbose=False, arg_types=None):
   function is called. This means the parameter values are known at compilation.
 
   Args:
-    recursive: Whether to recusrively convert any functions that the decorator
+    recursive: Whether to recursively convert any functions that the decorator
         function may call.
     verbose: Whether to output the compiled code in the logs.
     arg_types: See to_graph.
@@ -69,6 +70,8 @@ def convert(recursive=False, verbose=False, arg_types=None):
     @wraps(f)
     def wrapper(*args, **kwargs):
       return converted_call(f, recursive, verbose, arg_types, *args, **kwargs)
+
+    wrapper = tf_decorator.make_decorator(f, wrapper)
 
     # Sometimes the decorator is just desugared, making it impossible to detect.
     # This attribute makes detection easier.
@@ -137,7 +140,7 @@ def converted_call(f, recursive, verbose, arg_types, *args, **kwargs):
 
   unknown_arg_value = object()  # Sentinel for arguments of unknown value
 
-  if tf_inspect.isbuiltin(f):
+  if inspect_utils.isbuiltin(f):
     return builtins.dynamic_builtin(f, *args, **kwargs)
 
   if tf_inspect.isfunction(f) or tf_inspect.ismethod(f):
@@ -156,7 +159,7 @@ def converted_call(f, recursive, verbose, arg_types, *args, **kwargs):
     # Constructors
     target_entity = f
     arg_map_target = f.__init__
-    effective_args = (unknown_arg_value,) + args
+    effective_args = args
     partial_types = ()
 
   elif hasattr(f, '__call__') and hasattr(f, '__class__'):
@@ -215,7 +218,7 @@ def to_graph(e,
 
   Args:
     e: A Python entity.
-    recursive: Whether to recusrively convert any functions that the decorator
+    recursive: Whether to recursively convert any functions that the decorator
         function may call.
     verbose: Whether to output the compiled code in the logs.
     arg_values: A dict containing value hints for symbols like function
@@ -230,27 +233,27 @@ def to_graph(e,
     A function with a signature identical to `o`, but which when executed it
   creates TF a graph that has the same functionality as the original entity.
   """
-  conversion_map = conversion.ConversionMap(
+  program_ctx = converter.ProgramContext(
       recursive=recursive,
-      nocompile_decorators=(convert, do_not_convert, converted_call),
+      autograph_decorators=(convert, do_not_convert, converted_call),
       partial_types=partial_types,
-      api_module=tf_inspect.getmodule(to_graph))
-  _, name = conversion.entity_to_graph(e, conversion_map, arg_values, arg_types)
+      autograph_module=tf_inspect.getmodule(to_graph),
+      uncompiled_modules=config.DEFAULT_UNCOMPILED_MODULES)
+  _, name, namespace = conversion.entity_to_graph(e, program_ctx, arg_values,
+                                                  arg_types)
 
   module = gast.Module([])
-  for import_line in config.COMPILED_IMPORT_STATEMENTS:
-    module.body.extend(parser.parse_str(import_line).body)
-  for dep in conversion_map.dependency_cache.values():
+  for dep in reversed(program_ctx.dependency_cache.values()):
     module.body.append(dep)
-  compiled_node, compiled_src = compiler.ast_to_object(module)
+  compiled_node, compiled_src = compiler.ast_to_object(
+      module, source_prefix=program_ctx.required_imports)
 
-  # The compiled code should see everything the entry function saw.
+  # The compiled code should see everything the entry entity saw.
   # TODO(mdan): This might not work well if the call tree spans modules?
-  if tf_inspect.isfunction(e):
-    for key, val in inspect_utils.getnamespace(e).items():
-      # Avoid overwriting entities that have been transformed.
-      if key not in compiled_node.__dict__:
-        compiled_node.__dict__[key] = val
+  for key, val in namespace.items():
+    # Avoid overwriting entities that have been transformed.
+    if key not in compiled_node.__dict__:
+      compiled_node.__dict__[key] = val
   compiled_fn = getattr(compiled_node, name)
 
   if verbose:
@@ -280,17 +283,16 @@ def to_code(e,
   Returns:
     String.
   """
-  conversion_map = conversion.ConversionMap(
+  program_ctx = converter.ProgramContext(
       recursive=recursive,
-      nocompile_decorators=(convert, do_not_convert, converted_call),
+      autograph_decorators=(convert, do_not_convert, converted_call),
       partial_types=partial_types,
-      api_module=tf_inspect.getmodule(to_graph))
-  conversion.entity_to_graph(e, conversion_map, arg_values, arg_types)
+      autograph_module=tf_inspect.getmodule(to_graph),
+      uncompiled_modules=config.DEFAULT_UNCOMPILED_MODULES)
+  conversion.entity_to_graph(e, program_ctx, arg_values, arg_types)
 
-  imports = '\n'.join(config.COMPILED_IMPORT_STATEMENTS)
   code = '\n'.join(
       compiler.ast_to_source(dep, indentation)
-      for dep in reversed(tuple(
-          six.itervalues(conversion_map.dependency_cache))))
+      for dep in reversed(tuple(six.itervalues(program_ctx.dependency_cache))))
 
-  return imports + '\n\n' + code
+  return program_ctx.required_imports + '\n\n' + code

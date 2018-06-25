@@ -23,7 +23,6 @@ py_library(
         "anno.py",
         "ast_util.py",
         "compiler.py",
-        "context.py",
         "inspect_utils.py",
         "parser.py",
         "pretty_printer.py",
@@ -38,6 +37,8 @@ py_library(
         "@gast_archive//:gast",
         "@six_archive//:six",
         "@termcolor_archive//:termcolor",
+        # TODO(mdan): Remove this dependency.
+        "//tensorflow/python:util",
     ],
 )
 
@@ -66,6 +67,7 @@ py_test(
     name = "compiler_test",
     srcs = ["compiler_test.py"],
     srcs_version = "PY2AND3",
+    tags = ["no_windows"],
     deps = [
         ":pyct",
         "//tensorflow/python:client_testlib",
@@ -118,6 +120,18 @@ py_test(
     name = "templates_test",
     srcs = ["templates_test.py"],
     srcs_version = "PY2AND3",
+    deps = [
+        ":pyct",
+        "//tensorflow/python:client_testlib",
+        "@gast_archive//:gast",
+    ],
+)
+
+py_test(
+    name = "transformer_test",
+    srcs = ["transformer_test.py"],
+    srcs_version = "PY2AND3",
+    tags = ["no_windows"],
     deps = [
         ":pyct",
         "//tensorflow/python:client_testlib",

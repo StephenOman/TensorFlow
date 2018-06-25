@@ -81,10 +81,9 @@ class ShapeVerifier : public DfsHloVisitor {
       HloInstruction* batch_norm_inference) override;
   Status HandleBatchNormGrad(HloInstruction* batch_norm_grad) override;
   Status HandleGather(HloInstruction* gather) override;
+  Status HandleGenerateToken(HloInstruction* token) override;
 
-  Status FinishVisit(HloInstruction*) override {
-    return tensorflow::Status::OK();
-  }
+  Status FinishVisit(HloInstruction*) override { return Status::OK(); }
 
  protected:
   // Check the instruction's shape against the shape given by ShapeInference
@@ -102,7 +101,7 @@ class ShapeVerifier : public DfsHloVisitor {
   Status CheckTernaryShape(const HloInstruction* instruction);
   Status CheckVariadicShape(const HloInstruction* instruction);
 
-  // Checks if the given two instructions shares the same channel id.
+  // Checks if the given two instructions share the same channel id.
   Status CheckSameChannel(const HloInstruction* instr1,
                           const HloInstruction* instr2);
 
@@ -144,9 +143,15 @@ class HloVerifier : public HloPassInterface {
   // CHECKs various invariants of a fusion instruction.
   Status CheckFusionInstruction(HloInstruction* fusion) const;
 
+  Status CheckWhileInstruction(HloInstruction* instruction);
+
+  // Checks that the non-scalar operand shapes are compatible to the output
+  // shape, i.e., that there are no implicit broadcasts of size-one dimensions.
+  Status CheckElementwiseInstruction(HloInstruction* instruction);
+
   // Creates a ShapeVerifier that checks that shapes match inferred
-  // expectations.  This is a factory function because ShapeVerifier,  Note that
-  // ShapeVerifier, being a DfsHloVisitor, is stateful.  We want a clean object
+  // expectations. This is a factory function because ShapeVerifier,
+  // being a DfsHloVisitor, is stateful. We want a clean object
   // for each run of the verifier.
   ShapeVerifierFactory shape_verifier_factory_;
 };

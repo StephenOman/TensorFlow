@@ -48,29 +48,31 @@ Status XlaCompileOnDemandOp::Run(OpKernelContext* ctx,
                                  const XlaCompiler::CompilationResult* result,
                                  xla::LocalExecutable* executable) {
   std::map<int, OptionalTensor> variables = GetVariables(ctx);
-  int64 num_resource_args = variables.size();
 
   xla::LocalClient* client = metadata.client();
-  XlaTensorInfoManager* tensor_info_manager = &metadata.tensor_info_manager();
 
   // Builds an XLA allocator for the device.
-  XlaAllocator xla_allocator(client->platform(), ctx);
   XlaComputationLaunchContext launch_context(
-      num_resource_args, client, &xla_allocator, tensor_info_manager);
+      client, client->backend().memory_allocator(), true);
 
   launch_context.PopulateInputs(ctx, result, variables);
 
-  perftools::gputools::Stream* stream =
+  se::Stream* stream =
       ctx->op_device_context() ? ctx->op_device_context()->stream() : nullptr;
   TF_RET_CHECK(stream);
 
-  VLOG(2) << "Executing computation.";
+  VLOG(2) << "Executing computation: " << name();
+  for (const xla::ShapedBuffer* arg : launch_context.arguments()) {
+    VLOG(2) << name() << ": " << *arg;
+  }
   xla::ExecutableRunOptions run_options;
   run_options.set_stream(stream);
-  run_options.set_allocator(&xla_allocator);
+  run_options.set_allocator(client->backend().memory_allocator());
   run_options.set_intra_op_thread_pool(&ctx->eigen_cpu_device());
+  run_options.set_rng_seed(ctx->step_id());
 
-  auto run_result = executable->Run(launch_context.arguments(), run_options);
+  xla::StatusOr<xla::ScopedShapedBuffer> run_result =
+      executable->Run(launch_context.arguments(), run_options);
   TF_RETURN_IF_ERROR(run_result.status());
 
   launch_context.PopulateOutputs(ctx, result, run_result.ConsumeValueOrDie());
@@ -106,16 +108,13 @@ Status XlaCompileOnDemandOp::Compile(
     OpKernelContext* ctx, const XlaDevice::Metadata& metadata,
     const XlaCompiler::CompilationResult** result,
     xla::LocalExecutable** executable) {
-  XlaTensorInfoManager* tensor_info_manager = &metadata.tensor_info_manager();
-
   std::map<int, Tensor> constant_arguments;
   for (int64 i = 0; i < ctx->num_inputs(); ++i) {
     const Tensor& device_tensor = ctx->input(i);
-    if (const XlaTensorInfo* tensor_info =
-            tensor_info_manager->GetTensorInfo(device_tensor)) {
-      if (tensor_info->has_host_tensor() &&
+    if (const XlaTensor* xla_tensor = XlaTensor::FromTensor(&device_tensor)) {
+      if (xla_tensor->has_host_tensor() &&
           ShouldArgumentBeConstant(&ctx->op_kernel(), i)) {
-        constant_arguments[i] = tensor_info->host_tensor();
+        constant_arguments[i] = xla_tensor->host_tensor();
       }
     }
     if (constant_arguments.count(i) == 0 &&
@@ -123,8 +122,10 @@ Status XlaCompileOnDemandOp::Compile(
       // Slow path; the argument is not available as a host constant so we must
       // fetch it synchronously.
       Tensor host_tensor;
+      AllocatorAttributes attrs;
+      attrs.set_on_host(true);
       TF_RETURN_IF_ERROR(ctx->allocate_temp(
-          device_tensor.dtype(), device_tensor.shape(), &host_tensor));
+          device_tensor.dtype(), device_tensor.shape(), &host_tensor, attrs));
       Notification n;
       ctx->op_device_context()->CopyDeviceTensorToCPU(
           &device_tensor, "ConstantArgument",
@@ -154,16 +155,18 @@ Status XlaCompileOnDemandOp::Compile(
   core::ScopedUnref cache_ref(cache);
 
   XlaCompiler::Options options;
-  DeviceType device_type = metadata.jit_device_type();
-  options.device_type = &device_type;
+  options.device_type = metadata.jit_device_type();
   options.client = metadata.client();
   options.flib_def =
       new FunctionLibraryDefinition(OpRegistry::Global(), FunctionDefLibrary{});
+  options.shape_representation_fn = metadata.shape_representation_fn();
+
+  XlaCompiler::CompileOptions compile_options;
+  compile_options.is_entry_computation = true;
 
   std::map<int, OptionalTensor> variable_args = GetVariables(ctx);
   return cache->CompileSingleOp(options, constant_arguments, variable_args, ctx,
-                                result, executable,
-                                /*compile_options=*/nullptr);
+                                result, executable, &compile_options);
 }
 
 void XlaCompileOnDemandOp::Compute(OpKernelContext* ctx) {

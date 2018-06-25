@@ -34,8 +34,6 @@ limitations under the License.
 #include "tensorflow/core/platform/notification.h"
 #include "tensorflow/core/platform/stream_executor_no_cuda.h"
 
-namespace se = ::perftools::gputools;
-
 namespace xla {
 
 namespace {
@@ -90,8 +88,8 @@ CpuTransferManager::CpuTransferManager()
     : GenericTransferManager(se::host::kHostPlatformId,
                              /*pointer_size=*/sizeof(void*)) {}
 
-Status CpuTransferManager::TransferLiteralToInfeed(se::StreamExecutor* executor,
-                                                   const Literal& literal) {
+Status CpuTransferManager::TransferLiteralToInfeed(
+    se::StreamExecutor* executor, const LiteralSlice& literal) {
   const Shape& shape = literal.shape();
   VLOG(2) << "Transferring literal to infeed with shape: "
           << ShapeUtil::HumanString(shape);
@@ -162,9 +160,8 @@ CpuTransferManager::TransferBufferToInfeedInternal(se::StreamExecutor* executor,
 
   int32 size_32 = static_cast<int32>(size);
   CpuInfeedBuffer* queued_buffer = new CpuInfeedBuffer(size_32);
-  Status s =
-      TransferBufferToDevice(executor, /*size=*/size,
-                             /*source=*/source, queued_buffer->device_memory());
+  Status s = executor->SynchronousMemcpyH2D(
+      /*host_src=*/source, /*size=*/size, queued_buffer->device_memory());
 
   if (!s.ok()) {
     queued_buffer->Done(s);
@@ -241,21 +238,20 @@ Status CpuTransferManager::TransferLiteralFromOutfeed(
 }
 
 StatusOr<Shape> CpuTransferManager::TransferTupleBuffersFromOutfeed(
-    perftools::gputools::StreamExecutor* executor,
+    se::StreamExecutor* executor,
     tensorflow::gtl::ArraySlice<std::pair<void*, int64>> buffer_data) {
   return TransferBuffersFromOutfeedInternal(executor, buffer_data,
                                             /*is_tuple=*/true);
 }
 
 StatusOr<Shape> CpuTransferManager::TransferArrayBufferFromOutfeed(
-    perftools::gputools::StreamExecutor* executor, void* destination,
-    int64 size_bytes) {
+    se::StreamExecutor* executor, void* destination, int64 size_bytes) {
   return TransferBuffersFromOutfeedInternal(
       executor, {{destination, size_bytes}}, /*is_tuple=*/false);
 }
 
 StatusOr<Shape> CpuTransferManager::TransferBuffersFromOutfeedInternal(
-    perftools::gputools::StreamExecutor* executor,
+    se::StreamExecutor* executor,
     tensorflow::gtl::ArraySlice<std::pair<void*, int64>> buffer_data,
     bool is_tuple) {
   std::vector<std::unique_ptr<CpuOutfeedBuffer>> buffers;
@@ -306,8 +302,8 @@ static std::unique_ptr<xla::TransferManager> CreateCpuTransferManager() {
 }
 
 static bool InitModule() {
-  xla::TransferManager::RegisterTransferManager(se::host::kHostPlatformId,
-                                                &CreateCpuTransferManager);
+  xla::TransferManager::RegisterTransferManager(
+      stream_executor::host::kHostPlatformId, &CreateCpuTransferManager);
   return true;
 }
 static bool module_initialized = InitModule();

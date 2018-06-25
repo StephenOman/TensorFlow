@@ -13,10 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// TODO(b/74197823): Replace computation_builder.h with this file.
-//
-// This is NOT YET ready to use.
-
 #ifndef TENSORFLOW_COMPILER_XLA_CLIENT_XLA_CLIENT_XLA_BUILDER_H_
 #define TENSORFLOW_COMPILER_XLA_CLIENT_XLA_CLIENT_XLA_BUILDER_H_
 
@@ -48,30 +44,49 @@ class XlaBuilder;
 // This represents an instruction that has been enqueued using the XlaBuilder.
 // This is used to pass to subsequent computations that depends upon the
 // instruction as an operand.
-//
-// TODO(b/74197823): Replace xla::ComputationDataHandle with this one.
 class XlaOp {
  public:
-  XlaOp() : handle_(0), builder_(nullptr) {}
+  XlaOp() : handle_(-1), builder_(nullptr) {}
+  ~XlaOp() {}
 
-  StatusOr<Shape> GetShape() const;
+  XlaBuilder* builder() const { return builder_; }
+
+  bool operator==(const XlaOp& rhs) const {
+    return handle_ == rhs.handle_ && builder_ == rhs.builder_;
+  }
+
+  bool operator!=(const XlaOp& rhs) const {
+    return handle_ != rhs.handle_ || builder_ != rhs.builder_;
+  }
+
+  // Returns true if the XlaOp represents valid, non-erroneous value.
+  bool valid() const { return handle_ >= 0; }
+
+  friend std::ostream& operator<<(std::ostream& out, const XlaOp& op) {
+    out << op.handle();
+    return out;
+  }
 
  private:
+  explicit XlaOp(XlaBuilder* builder) : handle_(-1), builder_(builder) {}
   XlaOp(int64 handle, XlaBuilder* builder)
       : handle_(handle), builder_(builder) {}
 
   int64 handle() const { return handle_; }
+
   friend class XlaBuilder;
 
+  // < 0 means "invalid handle".
   int64 handle_;
-  XlaBuilder* builder_;  // Not owned.
+
+  // Not owned. Non-null for any handle returned by XlaBuilder, even if the
+  // handle is invalid.
+  XlaBuilder* builder_;
 };
 
 // A convenient interface for building up computations.
 //
 // Thread-compatible.
-//
-// TODO(b/74197823): Replace xla::ComputationBuilder with this one.
 class XlaBuilder {
  public:
   // computation_name: name to use for the built computation.
@@ -122,7 +137,7 @@ class XlaBuilder {
 
   // Enqueues a constant with the value of the given literal onto the
   // computation.
-  XlaOp ConstantLiteral(const Literal& literal);
+  XlaOp ConstantLiteral(const LiteralSlice& literal);
 
   // Enqueues a constant onto the computation. Methods are templated on the
   // native host type (NativeT) which corresponds to a specific XLA
@@ -521,9 +536,35 @@ class XlaBuilder {
       tensorflow::gtl::ArraySlice<int64> window_strides,
       tensorflow::gtl::ArraySlice<std::pair<int64, int64>> padding);
 
-  // Returns the sum of the operand value across all replicas. All replicas
-  // supply one input to the sum and all replicas receive the resulting sum.
-  XlaOp CrossReplicaSum(const XlaOp& operand);
+  // Returns the sum of the operand value within each subgroup of replicas. All
+  // replicas supply one input to the sum and all replicas receive the resulting
+  // sum for each subgroup.
+  XlaOp CrossReplicaSum(
+      const XlaOp& operand,
+      tensorflow::gtl::ArraySlice<int64> replica_group_ids = {});
+
+  // Enqueues an operation that do an AllReduce of the operand cross cores. Here
+  // AllReduce means doing a reduction on the input operand cross cores and then
+  // broadcasting the reduction result to those cores. The reduction function is
+  // defined by `computation`, which should be a commutative computation on
+  // scalars, e.g., add, min, or max. The way that AllReduce is applied is
+  // configured by:
+  //
+  // - `replica_group_ids`: maps replica ids to subgroup ids. If empty, all
+  // replicas belong to one group. Allreduce will be applied within subgroups.
+  // For example, we have 4 replicas, then replica_group_ids={0,1,0,1} means,
+  // replica 0 and 2 are in subgroup 0, replica 1 and 3 are in subgroup 1.
+  //
+  // - `channel_id`: for Allreduce nodes from different models, if they have the
+  // same channel_id, they will be 'Allreduce'd. If empty, Allreduce will not be
+  // applied cross models.
+  //
+  // TODO(b/79737069): Rename this to AllReduce when it's ready to use.
+  XlaOp CrossReplicaSum(
+      const XlaOp& operand, const XlaComputation& computation,
+      tensorflow::gtl::ArraySlice<int64> replica_group_ids = {},
+      const tensorflow::gtl::optional<ChannelHandle>& channel_id =
+          tensorflow::gtl::nullopt);
 
   // Enqueues an operation that scatters the `source` array to the selected
   // indices of each window.
@@ -554,6 +595,9 @@ class XlaBuilder {
   // Enqueues an exp instruction onto the computation.
   XlaOp Exp(const XlaOp& operand);
 
+  // Enqueues an expm1 instruction onto the computation.
+  XlaOp Expm1(const XlaOp& operand);
+
   // Enqueues a floor instruction onto the computation.
   XlaOp Floor(const XlaOp& operand);
 
@@ -567,8 +611,14 @@ class XlaBuilder {
   // Enqueues an log instruction (natural logarithm) onto the computation.
   XlaOp Log(const XlaOp& operand);
 
+  // Enqueues an log1p instruction (log(x+1)) onto the computation.
+  XlaOp Log1p(const XlaOp& operand);
+
   // Enqueues a sign instruction onto the computation.
   XlaOp Sign(const XlaOp& operand);
+
+  // Enqueues a count leading zeros instruction onto the computation.
+  XlaOp Clz(const XlaOp& operand);
 
   // Enqueues a cosine instruction onto the computation.
   XlaOp Cos(const XlaOp& operand);
@@ -687,11 +737,12 @@ class XlaBuilder {
   XlaOp Recv(const Shape& shape, const ChannelHandle& handle);
 
   // Returns true if 'operand' is a compile-time constant. A compile-time
-  // constant does not depend on parameters with index greater than or equal to
-  // `num_parameters`, or on stateful operators such as `RngNormal` or `Infeed`.
-  // Unlike `ComputeConstant`, `IsConstant` tests whether a computation is a
-  // compile-time constant without evaluating the computation.
-  StatusOr<bool> IsConstant(const XlaOp& operand, int64 num_parameters = 0);
+  // constant does not depend on any parameters, or on stateful operators such
+  // as `RngNormal` or `Infeed`.
+  //
+  // This tests whether a computation is a compile-time constant without
+  // evaluating the computation.
+  StatusOr<bool> IsConstant(const XlaOp& operand) const;
 
   // Normalizes operand across spatial and batch dimensions for each feature.
   //
@@ -731,47 +782,14 @@ class XlaBuilder {
                       const XlaOp& grad_output, float epsilon,
                       int64 feature_index);
 
-  // Computes the value of a constant indicated by a XlaOp using a non-optimized
-  // interpreter on the host.
-  //
-  // The operand must represent a constant value, which in this case
-  // means that it must not statically depend on any parameter of the
-  // computation that is being built other then the ones specified on the
-  // parameter list. The parameters in the list will be indexed by their
-  // parameter id property so the number of parameters specified should be at
-  // least as many as the largest used parameter index.
-  //
-  // `IsConstant` can be used to test whether a computation is a compile-time
-  // constant without evaluation it. `ComputeConstant` only succeeds for
-  // computations where `IsConstant` returns true.
-  //
-  // This functionality can be useful when translating a computation
-  // into XLA where something that looked dynamic is required by
-  // XLA to be specified as a constant. E.g. the source
-  // computation (outside of XLA) may include a dynamic
-  // computation of the shape of something and ComputeConstant lets
-  // you determine what the value of that computation is in the case
-  // where the value can be determined at compile time.
-  //
-  // If output_layout is non-null, then the output of the computation
-  // will be stored using that layout.
-  StatusOr<std::unique_ptr<Literal>> ComputeConstant(
-      const XlaOp& operand, const Layout* output_layout = nullptr,
-      tensorflow::gtl::ArraySlice<Literal> parameters = {});
-
   // Returns a new XlaBuilder whose resultant Computation is used only by this
   // XlaBuilder. The sub-XlaBuilder has the same die_immediately_on_error
   // behavior as the parent.
   std::unique_ptr<XlaBuilder> CreateSubBuilder(const string& computation_name);
 
-  // Modifies the computation being built so that executions of it will return
-  // the value associated with operand, rather than the last expression enqueued
-  // on the XlaBuilder. Any subsequent operations added to the XlaBuilder will
-  // not have any effect unless SetReturnValue is called again.
-  Status SetReturnValue(const XlaOp& operand);
-
   // Builds the computation with the requested operations, or returns a non-ok
-  // status.
+  // status. Note that all ops that have been enqueued will be moved to the
+  // computation being returned.
   StatusOr<XlaComputation> Build();
 
   // Builds the computation with the requested operations, or notes an error in
@@ -783,6 +801,12 @@ class XlaBuilder {
   // a XlaBuilder other than the parent XlaBuilder then Build() should be used
   // instead.
   XlaComputation BuildAndNoteError();
+
+  // Returns a subgraph that roots on the given root. If the root is not a
+  // compile-time constant (see `IsConstant`), returns an error.
+  //
+  // This will copy the needed ops/computations to the subgraph.
+  StatusOr<XlaComputation> BuildConstantSubGraph(const XlaOp& root_op) const;
 
   // Returns the first error that was encountered while building the
   // computation. When an error is encountered, by default we return a vacuous
@@ -796,12 +820,15 @@ class XlaBuilder {
   StatusOr<Shape> GetShape(const XlaOp& op) const;
 
   // Returns the (inferred) result for the current computation's shape.
-  StatusOr<ProgramShape> GetProgramShape();
+  StatusOr<ProgramShape> GetProgramShape() const;
 
  private:
   StatusOr<XlaOp> AddInstruction(
       HloInstructionProto&& instr, HloOpcode opcode,
       tensorflow::gtl::ArraySlice<XlaOp> operands = {});
+
+  void AddCalledComputation(const XlaComputation& computation,
+                            HloInstructionProto* instr);
 
   // Notes that the error occurred by:
   // * storing it internally and capturing a backtrace if it's the first error
@@ -809,16 +836,7 @@ class XlaBuilder {
   // * dying if die_immediately_on_error_ is true
   void NoteError(const Status& error);
 
-  XlaOp NoteErrorOrReturn(StatusOr<XlaOp>&& op) {
-    if (!op.ok()) {
-      NoteError(op.status());
-      return XlaOp();
-    }
-    return op.ConsumeValueOrDie();
-  }
-
-  // Helper method that creates an empty op and notes error.
-  XlaOp UnimplementedOp();
+  XlaOp NoteErrorOrReturn(const std::function<StatusOr<XlaOp>()>& op_creator);
 
   StatusOr<const HloInstructionProto*> LookUpInstruction(const XlaOp& op) const;
 
@@ -835,6 +853,10 @@ class XlaBuilder {
   XlaOp TernaryOp(HloOpcode triop, const XlaOp& lhs, const XlaOp& rhs,
                   const XlaOp& ehs);
 
+  XlaOp RngOp(RandomDistribution distribution,
+              tensorflow::gtl::ArraySlice<XlaOp> parameters,
+              const Shape& shape);
+
   StatusOr<XlaOp> InDimBroadcast(
       const Shape& shape, const XlaOp& operand,
       tensorflow::gtl::ArraySlice<int64> broadcast_dimensions);
@@ -850,7 +872,33 @@ class XlaBuilder {
 
   // Returns the (inferred) result for the program shape for the current
   // computation and fills the root_id in the pointer.
-  StatusOr<ProgramShape> GetProgramShape(int64* root_id);
+  StatusOr<ProgramShape> GetProgramShape(int64* root_id) const;
+
+  // Returns shapes for the operands.
+  StatusOr<std::vector<Shape>> GetOperandShapes(
+      tensorflow::gtl::ArraySlice<XlaOp> operands) const;
+
+  // A visitor which checks whether an operation is a compile-time constant,
+  // meaning that it doesn't depend on any parameters, or on any stateful
+  // operation such as `RngNormal` or `Infeed`. The visitor walks the
+  // computation starting at a given operation and sets is_constant to false iff
+  // a parameter or stateful operation is encountered.
+  void IsConstantVisitor(const int64 op_handle, std::set<int64>* visited,
+                         bool* is_constant) const;
+
+  // Checks bounds for convolution parameters.
+  Status VerifyConvolution(
+      const Shape& lhs_shape, const Shape& rhs_shape,
+      const ConvolutionDimensionNumbers& dimension_numbers) const;
+
+  // Helper function for creating a Window proto from user-supplied data.
+  // Returns error if the user-supplied data was invalid.
+  StatusOr<Window> MakeWindow(
+      tensorflow::gtl::ArraySlice<int64> window_dimensions,
+      tensorflow::gtl::ArraySlice<int64> window_strides,
+      tensorflow::gtl::ArraySlice<std::pair<int64, int64>> padding,
+      tensorflow::gtl::ArraySlice<int64> lhs_dilation,
+      tensorflow::gtl::ArraySlice<int64> rhs_dilation) const;
 
   string name_;  // Name to use for the built computation.
 
@@ -961,6 +1009,35 @@ template <typename NativeT>
 XlaOp XlaBuilder::ConstantR4FromArray4D(const Array4D<NativeT>& values) {
   return ConstantFromArray(values);
 }
+
+// RAII-style object: sets the current sharding assignment in builder on
+// construction, and sets back to the previous assignment on destruction.
+class XlaScopedShardingAssignment {
+ public:
+  XlaScopedShardingAssignment(xla::XlaBuilder* builder,
+                              tensorflow::gtl::optional<OpSharding> sharding)
+      : builder_(builder), prev_sharding_(builder->sharding()) {
+    SetSharding(sharding);
+  }
+
+  XlaScopedShardingAssignment(const XlaScopedShardingAssignment&) = delete;
+  XlaScopedShardingAssignment& operator=(const XlaScopedShardingAssignment&) =
+      delete;
+
+  ~XlaScopedShardingAssignment() { SetSharding(prev_sharding_); }
+
+ private:
+  void SetSharding(const tensorflow::gtl::optional<OpSharding>& sharding) {
+    if (sharding.has_value()) {
+      builder_->SetSharding(sharding.value());
+    } else {
+      builder_->ClearSharding();
+    }
+  }
+
+  xla::XlaBuilder* const builder_;
+  tensorflow::gtl::optional<OpSharding> prev_sharding_;
+};
 
 }  // namespace xla
 

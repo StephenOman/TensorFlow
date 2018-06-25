@@ -18,32 +18,32 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.contrib.autograph.core import converter
 from tensorflow.contrib.autograph.pyct import templates
-from tensorflow.contrib.autograph.pyct import transformer
 
 
-class IfExp(transformer.Base):
+class IfExp(converter.Base):
   """Canonicalizes all IfExp nodes into plain conditionals."""
 
   def visit_IfExp(self, node):
     template = """
-        autograph_utils.run_cond(test, lambda: (body,), lambda: (orelse,))
+        ag__.utils.run_cond(test, lambda: (body,), lambda: (orelse,))
     """
     desugared_ifexp = templates.replace_as_expression(
         template, test=node.test, body=node.body, orelse=node.orelse)
     return desugared_ifexp
 
 
-def transform(node, context):
+def transform(node, ctx):
   """Desugar IfExp nodes into plain conditionals.
 
   Args:
-     node: an AST node to transform
-     context: a context object
+     node: ast.AST, the node to transform
+     ctx: converter.EntityContext
 
   Returns:
      new_node: an AST with no IfExp nodes, only conditionals.
   """
 
-  node = IfExp(context).visit(node)
+  node = IfExp(ctx).visit(node)
   return node

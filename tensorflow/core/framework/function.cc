@@ -30,6 +30,7 @@ limitations under the License.
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/gtl/inlined_vector.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
+#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/equal_graph_def.h"
 
 namespace tensorflow {
@@ -278,7 +279,7 @@ class FunctionInstantiationHelper {
       auto it = index_.lower_bound(node_name);
       while (it != index_.end() && it->first <= node_colon_bound) {
         if (it->first == node_name ||
-            tensorflow::StringPiece(it->first).starts_with(node_colon)) {
+            tensorflow::str_util::StartsWith(it->first, node_colon)) {
           nid = it->second.nid;
           break;
         }
@@ -502,8 +503,8 @@ string Print(const NodeDef& n) {
   std::vector<StringPiece> dat;
   std::vector<string> dep;
   for (StringPiece s : n.input()) {
-    if (s.Consume("^")) {
-      dep.push_back(s.ToString());
+    if (str_util::ConsumePrefix(&s, "^")) {
+      dep.push_back(std::string(s));
     } else {
       dat.push_back(s);
     }
@@ -813,6 +814,10 @@ string Canonicalize(const string& funcname, AttrSlice attrs,
   if (!options.state_handle.empty()) {
     entries.push_back(
         strings::StrCat("_state_handle", "=", options.state_handle));
+  }
+  if (!options.executor_type.empty()) {
+    entries.push_back(
+        strings::StrCat("_executor_type", "=", options.executor_type));
   }
   std::sort(entries.begin(), entries.end());
   return strings::StrCat(funcname, "[", str_util::Join(entries, ","), "]");

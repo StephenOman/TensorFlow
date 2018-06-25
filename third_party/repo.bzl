@@ -68,7 +68,7 @@ def _apply_delete(ctx, paths):
   _execute_and_check_ret_code(ctx, cmd)
 
 def _tf_http_archive(ctx):
-  if ("mirror.bazel.build" not in ctx.attr.urls[0] or
+  if ("mirror.bazel.build" not in ctx.attr.urls[0] and
       (len(ctx.attr.urls) < 2 and
        ctx.attr.name not in _SINGLE_URL_WHITELIST)):
     fail("tf_http_archive(urls) must have redundant URLs. The " +
@@ -87,7 +87,9 @@ def _tf_http_archive(ctx):
   if ctx.attr.patch_file != None:
     _apply_patch(ctx, ctx.attr.patch_file)
   if ctx.attr.build_file != None:
-    ctx.template("BUILD", ctx.attr.build_file, {
+    # Use BUILD.bazel to avoid conflict with third party projects with
+    # BUILD or build (directory) underneath.
+    ctx.template("BUILD.bazel", ctx.attr.build_file, {
         "%prefix%": ".." if _repos_are_siblings() else "external",
     }, False)
 
