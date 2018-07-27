@@ -20,10 +20,8 @@ limitations under the License.
 namespace tensorflow {
 
 bool GpuOpFilter(KernelDef* kdef) {
-  // TODO(b/31361304): The GPU backend does not parallelize PRNG ops, leading to
-  // slow code.
-  if (kdef->op() == "RandomStandardNormal" || kdef->op() == "RandomUniform" ||
-      kdef->op() == "RandomUniformInt" || kdef->op() == "TruncatedNormal") {
+  // TODO(b/26783907): The GPU backend currently does not implement sort.
+  if (kdef->op() == "XlaSort" || kdef->op() == "TopKV2") {
     return false;
   }
   if (kdef->op() == "Const") {

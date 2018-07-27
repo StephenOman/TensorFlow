@@ -24,7 +24,6 @@ import numpy as np
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.data.ops import iterator_ops
 from tensorflow.python.eager import context
-from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_util
@@ -39,9 +38,9 @@ from tensorflow.python.keras.engine import training_generator
 from tensorflow.python.keras.engine import training_utils
 from tensorflow.python.keras.engine.network import Network
 from tensorflow.python.keras.utils.generic_utils import slice_arrays
-from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import optimizer as tf_optimizer_module
+from tensorflow.python.training.checkpointable import base as checkpointable
 from tensorflow.python.util.tf_export import tf_export
 
 
@@ -115,6 +114,7 @@ class Model(Network):
     # Create a cache for dataset - uninitialized iterators
     self._dataset_iterator_cache = weakref.WeakKeyDictionary()
 
+  @checkpointable.no_automatic_dependency_tracking
   def compile(self,
               optimizer,
               loss=None,
@@ -178,6 +178,11 @@ class Model(Network):
       raise ValueError('Only TF native optimizers are supported in Eager mode.')
 
     self.optimizer = optimizers.get(optimizer)
+    # We've disabled automatic dependency tracking for this method, but do want
+    # to add a checkpoint dependency on the optimizer if it's checkpointable.
+    if isinstance(self.optimizer, checkpointable.CheckpointableBase):
+      self._track_checkpointable(
+          self.optimizer, name='optimizer', overwrite=True)
     self.loss = loss
     self.metrics = metrics or []
     self.loss_weights = loss_weights
@@ -210,10 +215,9 @@ class Model(Network):
       for name in self.output_names:
         if name not in loss:
           logging.warning(
-              'Output "' + name + '" missing from loss dictionary. '
-              'We assume this was done on purpose, '
-              'and we will not be expecting '
-              'any data to be passed to "' + name + '" during training.')
+              'Output "' + name + '" missing from loss dictionary. We assume '
+              'this was done on purpose. The fit and evaluate APIs will not be '
+              'expecting any data to be passed to "' + name + '".')
         loss_functions.append(losses.get(loss.get(name)))
     elif isinstance(loss, list):
       if len(loss) != len(self.outputs):
@@ -366,21 +370,14 @@ class Model(Network):
               'sample_weight_mode dictionary: "' + name + '". '
               'Only expected the following keys: ' + str(self.output_names))
       for i, name in enumerate(self.output_names):
-        if i in skip_target_weighing_indices:
-          weight = None
-          sample_weight_modes.append(None)
-        else:
-          if name not in sample_weight_mode:
-            raise ValueError(
-                'Output "' + name + '" missing from sample_weight_modes '
-                'dictionary')
-          if sample_weight_mode.get(name) == 'temporal':
-            weight = K.placeholder(ndim=2, name=name + '_sample_weights')
-            sample_weight_modes.append('temporal')
-          else:
-            weight = K.placeholder(ndim=1, name=name + 'sample_weights')
-            sample_weight_modes.append(None)
+        if (i not in skip_target_weighing_indices and
+            name not in sample_weight_mode):
+          raise ValueError('Output "' + name +
+                           '" missing from sample_weight_modes dictionary')
+        weight, mode = training_utils.get_output_sample_weight_and_mode(
+            skip_target_weighing_indices, sample_weight_mode.get(name), name, i)
         sample_weights.append(weight)
+        sample_weight_modes.append(mode)
     elif isinstance(sample_weight_mode, list):
       if len(sample_weight_mode) != len(self.outputs):
         raise ValueError('When passing a list as sample_weight_mode, '
@@ -388,36 +385,17 @@ class Model(Network):
                          'The model has ' + str(len(self.outputs)) +
                          ' outputs, but you passed '
                          'sample_weight_mode=' + str(sample_weight_mode))
-      for i in range(len(self.output_names)):
-        if i in skip_target_weighing_indices:
-          weight = None
-          sample_weight_modes.append(None)
-        else:
-          mode = sample_weight_mode[i]
-          name = self.output_names[i]
-          if mode == 'temporal':
-            weight = K.placeholder(ndim=2, name=name + '_sample_weights')
-            sample_weight_modes.append('temporal')
-          else:
-            weight = K.placeholder(ndim=1, name=name + '_sample_weights')
-            sample_weight_modes.append(None)
+      for i, name in enumerate(self.output_names):
+        weight, mode = training_utils.get_output_sample_weight_and_mode(
+            skip_target_weighing_indices, sample_weight_mode[i], name, i)
         sample_weights.append(weight)
+        sample_weight_modes.append(mode)
     else:
       for i, name in enumerate(self.output_names):
-        if i in skip_target_weighing_indices:
-          sample_weight_modes.append(None)
-          sample_weights.append(None)
-        else:
-          if sample_weight_mode == 'temporal':
-            sample_weights.append(array_ops.placeholder_with_default(
-                constant_op.constant([[1.]], dtype=K.floatx()),
-                shape=[None, None], name=name + '_sample_weights'))
-            sample_weight_modes.append('temporal')
-          else:
-            sample_weights.append(array_ops.placeholder_with_default(
-                constant_op.constant([1.], dtype=K.floatx()),
-                shape=[None], name=name + '_sample_weights'))
-            sample_weight_modes.append(None)
+        weight, mode = training_utils.get_output_sample_weight_and_mode(
+            skip_target_weighing_indices, sample_weight_mode, name, i)
+        sample_weights.append(weight)
+        sample_weight_modes.append(mode)
     self.sample_weight_modes = sample_weight_modes
     self._feed_sample_weight_modes = []
     for i in range(len(self.outputs)):
@@ -592,7 +570,7 @@ class Model(Network):
         # Unconditional updates
         updates += self.get_updates_for(None)
         # Conditional updates relevant to this model
-        updates += self.get_updates_for(self._feed_inputs)
+        updates += self.get_updates_for(self.inputs)
         # Stateful metrics updates
         updates += self.metrics_updates
         # Gets loss and metrics. Updates weights at each call.
@@ -601,7 +579,6 @@ class Model(Network):
             updates=updates,
             name='train_function',
             **self._function_kwargs)
-    self._post_build_cleanup()
 
   def _make_test_function(self):
     if not hasattr(self, 'test_function'):
@@ -619,7 +596,6 @@ class Model(Network):
           updates=self.state_updates + self.metrics_updates,
           name='test_function',
           **self._function_kwargs)
-    self._post_build_cleanup()
 
   def _make_predict_function(self):
     if not hasattr(self, 'predict_function'):
@@ -638,7 +614,6 @@ class Model(Network):
           updates=self.state_updates,
           name='predict_function',
           **kwargs)
-    self._post_build_cleanup()
 
   def _get_iterator_get_next_tensors(self, iterator):
     get_next_op = self._iterator_get_next.get(iterator, None)
@@ -890,7 +865,11 @@ class Model(Network):
         for output_shape, loss_fn in zip(self._feed_output_shapes,
                                          self._feed_loss_fns):
           if loss_fn is losses.sparse_categorical_crossentropy:
-            feed_output_shapes.append(output_shape[:-1] + (1,))
+            if K.image_data_format() == 'channels_first':
+              feed_output_shapes.append(
+                  (output_shape[0], 1) + output_shape[2:])
+            else:
+              feed_output_shapes.append(output_shape[:-1] + (1,))
           elif (not hasattr(loss_fn, '__name__') or
                 getattr(losses, loss_fn.__name__, None) is None):
             # If `loss_fn` is not a function (e.g. callable class)
@@ -941,6 +920,7 @@ class Model(Network):
                          str(x[0].shape[0]) + ' samples')
     return x, y, sample_weights
 
+  @checkpointable.no_automatic_dependency_tracking
   def _set_inputs(self, inputs, training=None):
     """Set model's input and output specs based on the input data received.
 
@@ -980,15 +960,20 @@ class Model(Network):
         inputs = inputs[0]
 
       if tensor_util.is_tensor(inputs):
-        input_shape = (None,) + tuple(inputs.get_shape().as_list()[1:])
+        if context.executing_eagerly():
+          input_shape = (None,) + tuple(inputs.get_shape().as_list()[1:])
+          self.build(input_shape=input_shape)
+        else:
+          self.symbolic_set_inputs(inputs)
       else:
         input_shape = (None,) + inputs.shape[1:]
-      self.build(input_shape=input_shape)
+        self.build(input_shape=input_shape)
     elif context.executing_eagerly():
       self._eager_set_inputs(inputs)
     else:
       self._symbolic_set_inputs(inputs, training=training)
 
+  @checkpointable.no_automatic_dependency_tracking
   def _eager_set_inputs(self, inputs):
     """Set model's input and output specs based on the input data received.
 
@@ -1041,6 +1026,7 @@ class Model(Network):
         'output_%d' % (i + 1) for i in range(len(dummy_output_values))]
     self.built = True
 
+  @checkpointable.no_automatic_dependency_tracking
   def _symbolic_set_inputs(self, inputs, outputs=None, training=None):
     """Set model's inputs and output specs based.
 

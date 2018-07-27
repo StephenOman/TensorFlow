@@ -24,9 +24,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import functools
-import operator
-
 import tensorflow as tf
 from tensorflow.contrib.eager.python.examples.revnet import blocks
 
@@ -44,65 +41,10 @@ class RevNet(tf.keras.Model):
     self.axis = 1 if config.data_format == "channels_first" else 3
     self.config = config
 
-    self._init_block = self._construct_init_block()
+    self._init_block = blocks.InitBlock(config=self.config)
+    self._final_block = blocks.FinalBlock(config=self.config)
     self._block_list = self._construct_intermediate_blocks()
-    self._final_block = self._construct_final_block()
-
-  def _construct_init_block(self):
-    init_block = tf.keras.Sequential(
-        [
-            tf.keras.layers.Conv2D(
-                filters=self.config.init_filters,
-                kernel_size=self.config.init_kernel,
-                strides=(self.config.init_stride, self.config.init_stride),
-                data_format=self.config.data_format,
-                use_bias=False,
-                padding="SAME",
-                input_shape=self.config.input_shape),
-            tf.keras.layers.BatchNormalization(
-                axis=self.axis, fused=self.config.fused),
-            tf.keras.layers.Activation("relu"),
-        ],
-        name="init")
-    if self.config.init_max_pool:
-      init_block.add(
-          tf.keras.layers.MaxPooling2D(
-              pool_size=(3, 3),
-              strides=(2, 2),
-              padding="SAME",
-              data_format=self.config.data_format))
-    return init_block
-
-  def _construct_final_block(self):
-    f = self.config.filters[-1]  # Number of filters
-    r = functools.reduce(operator.mul, self.config.strides, 1)  # Reduce ratio
-    r *= self.config.init_stride
-    if self.config.init_max_pool:
-      r *= 2
-
-    if self.config.data_format == "channels_first":
-      w, h = self.config.input_shape[1], self.config.input_shape[2]
-      input_shape = (f, w // r, h // r)
-    elif self.config.data_format == "channels_last":
-      w, h = self.config.input_shape[0], self.config.input_shape[1]
-      input_shape = (w // r, h // r, f)
-    else:
-      raise ValueError("Data format should be either `channels_first`"
-                       " or `channels_last`")
-
-    final_block = tf.keras.Sequential(
-        [
-            tf.keras.layers.BatchNormalization(
-                axis=self.axis,
-                input_shape=input_shape,
-                fused=self.config.fused),
-            tf.keras.layers.Activation("relu"),
-            tf.keras.layers.GlobalAveragePooling2D(
-                data_format=self.config.data_format),
-            tf.keras.layers.Dense(self.config.n_classes)
-        ],
-        name="final")
-    return final_block
+    self._moving_average_variables = []
 
   def _construct_intermediate_blocks(self):
     # Precompute input shape after initial block
@@ -137,7 +79,8 @@ class RevNet(tf.keras.Model):
           batch_norm_first=(i != 0),  # Only skip on first block
           data_format=self.config.data_format,
           bottleneck=self.config.bottleneck,
-          fused=self.config.fused)
+          fused=self.config.fused,
+          dtype=self.config.dtype)
       block_list.append(rev_block)
 
       # Precompute input shape for the next block
@@ -153,7 +96,6 @@ class RevNet(tf.keras.Model):
   def call(self, inputs, training=True):
     """Forward pass."""
 
-    # Only store hidden states during training
     if training:
       saved_hidden = [inputs]
 
@@ -173,69 +115,103 @@ class RevNet(tf.keras.Model):
   def compute_loss(self, logits, labels):
     """Compute cross entropy loss."""
 
-    cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-        logits=logits, labels=labels)
+    if self.config.dtype == tf.float32 or self.config.dtype == tf.float16:
+      cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+          logits=logits, labels=labels)
+    else:
+      # `sparse_softmax_cross_entropy_with_logits` does not have a GPU kernel
+      # for float64, int32 pairs
+      labels = tf.one_hot(
+          labels, depth=self.config.n_classes, axis=1, dtype=self.config.dtype)
+      cross_ent = tf.nn.softmax_cross_entropy_with_logits(
+          logits=logits, labels=labels)
 
     return tf.reduce_mean(cross_ent)
 
-  def compute_gradients(self, inputs, labels, training=True):
+  def compute_gradients(self, saved_hidden, labels, training=True, l2_reg=True):
     """Manually computes gradients.
 
+    This method silently updates the running averages of batch normalization.
+
     Args:
-      inputs: Image tensor, either NHWC or NCHW, conforming to `data_format`
+      saved_hidden: List of hidden states Tensors
       labels: One-hot labels for classification
-      training: for batch normalization
+      training: Use the mini-batch stats in batch norm if set to True
+      l2_reg: Apply l2 regularization
 
     Returns:
-      list of tuple each being (grad, var) for optimizer use
+      A tuple with the first entry being a list of all gradients and the second
+      being the loss
     """
 
-    # Forward pass record hidden states before downsampling
-    _, saved_hidden = self.call(inputs, training=training)
+    def _defunable_pop(l):
+      """Functional style list pop that works with `tfe.defun`."""
+      t, l = l[-1], l[:-1]
+      return t, l
 
-    grads_all = []
-    vars_all = []
-
-    # Manually backprop through last block
+    # Backprop through last block
     x = saved_hidden[-1]
     with tf.GradientTape() as tape:
-      x = tf.identity(x)  # TODO(lxuechen): Remove after b/110264016 is fixed
       tape.watch(x)
       logits = self._final_block(x, training=training)
       loss = self.compute_loss(logits, labels)
-
     grads_combined = tape.gradient(loss,
                                    [x] + self._final_block.trainable_variables)
-    dy, grads_ = grads_combined[0], grads_combined[1:]
-    grads_all += grads_
-    vars_all += self._final_block.trainable_variables
+    dy, final_grads = grads_combined[0], grads_combined[1:]
 
-    # Manually backprop through intermediate blocks
+    # Backprop through intermediate blocks
+    intermediate_grads = []
     for block in reversed(self._block_list):
-      y = saved_hidden.pop()
+      y, saved_hidden = _defunable_pop(saved_hidden)
       x = saved_hidden[-1]
-      dy, grads, vars_ = block.backward_grads_and_vars(
-          x, y, dy, training=training)
-      grads_all += grads
-      vars_all += vars_
+      dy, grads = block.backward_grads(x, y, dy, training=training)
+      intermediate_grads = grads + intermediate_grads
 
-    # Manually backprop through first block
-    saved_hidden.pop()
-    x = saved_hidden.pop()
-    assert not saved_hidden  # Cleared after backprop
-
+    # Backprop through first block
+    _, saved_hidden = _defunable_pop(saved_hidden)
+    x, saved_hidden = _defunable_pop(saved_hidden)
+    assert not saved_hidden
     with tf.GradientTape() as tape:
-      x = tf.identity(x)  # TODO(lxuechen): Remove after b/110264016 is fixed
       y = self._init_block(x, training=training)
+    init_grads = tape.gradient(
+        y, self._init_block.trainable_variables, output_gradients=dy)
 
-    grads_all += tape.gradient(
-        y, self._init_block.trainable_variables, output_gradients=[dy])
-    vars_all += self._init_block.trainable_variables
+    # Ordering match up with `model.trainable_variables`
+    grads_all = init_grads + final_grads + intermediate_grads
+    if l2_reg:
+      grads_all = self._apply_weight_decay(grads_all)
 
-    grads_all = self._apply_weight_decay(grads_all, vars_all)
+    return grads_all, loss
 
-    return grads_all, vars_all, loss
-
-  def _apply_weight_decay(self, grads, vars_):
+  def _apply_weight_decay(self, grads):
     """Update gradients to reflect weight decay."""
-    return [g + self.config.weight_decay * v for g, v in zip(grads, vars_)]
+    return [
+        g + self.config.weight_decay * v if v.name.endswith("kernel:0") else g
+        for g, v in zip(grads, self.trainable_variables)
+    ]
+
+  def get_moving_stats(self):
+    """Get moving averages of batch normalization."""
+    device = "/gpu:0" if tf.test.is_gpu_available() else "/cpu:0"
+    with tf.device(device):
+      return [v.read_value() for v in self.moving_average_variables]
+
+  def restore_moving_stats(self, values):
+    """Restore moving averages of batch normalization."""
+    device = "/gpu:0" if tf.test.is_gpu_available() else "/cpu:0"
+    with tf.device(device):
+      for var_, val in zip(self.moving_average_variables, values):
+        var_.assign(val)
+
+  @property
+  def moving_average_variables(self):
+    """Get all variables that are batch norm moving averages."""
+
+    def _is_moving_avg(v):
+      n = v.name
+      return n.endswith("moving_mean:0") or n.endswith("moving_variance:0")
+
+    if not self._moving_average_variables:
+      self._moving_average_variables = filter(_is_moving_avg, self.variables)
+
+    return self._moving_average_variables

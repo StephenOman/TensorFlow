@@ -29,8 +29,6 @@ import six
 
 from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
-from tensorflow.core.protobuf import config_pb2
-from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.client import session as tf_session
 from tensorflow.python.eager import context
 from tensorflow.python.estimator import model_fn as model_fn_lib
@@ -38,6 +36,7 @@ from tensorflow.python.estimator import run_config
 from tensorflow.python.estimator import util as estimator_util
 from tensorflow.python.estimator.export import export as export_helpers
 from tensorflow.python.estimator.export import export_output
+from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
@@ -215,11 +214,7 @@ class Estimator(object):
     logging.info('Using config: %s', str(vars(self._config)))
 
     if self._config.session_config is None:
-      rewrite_opts = rewriter_config_pb2.RewriterConfig(
-          meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE)
-      graph_opts = config_pb2.GraphOptions(rewrite_options=rewrite_opts)
-      self._session_config = config_pb2.ConfigProto(
-          allow_soft_placement=True, graph_options=graph_opts)
+      self._session_config = run_config.get_default_session_config()
     else:
       self._session_config = self._config.session_config
 
@@ -572,12 +567,19 @@ class Estimator(object):
 
   def _assert_members_are_not_overridden(self):
     """Asserts members of `Estimator` are not overridden."""
+    # TPUEstimator is special cased (owned by TF).
+    if self.__class__.__name__ == 'TPUEstimator':
+      return
+
     allowed_overrides = set([
-        '_call_input_fn', '_create_global_step',
+        '_call_input_fn', '_call_model_fn',
         '_convert_train_steps_to_hooks', '_convert_eval_steps_to_hooks',
-        '_tf_api_names', '_estimator_api_names', '_estimator_api_constants',
+        '_create_global_step', '_create_and_assert_global_step',
+        '_tf_api_names', '_tf_api_names_v1', '_estimator_api_names',
+        '_estimator_api_names_v1', '_estimator_api_constants',
+        '_estimator_api_constants_v1',
         '_validate_features_in_predict_input',
-        '_call_model_fn', '_add_meta_graph_for_mode'
+        '_add_meta_graph_for_mode'
     ])
     estimator_members = set([m for m in Estimator.__dict__.keys()
                              if not m.startswith('__')])
@@ -848,7 +850,8 @@ class Estimator(object):
                                strip_default_attrs,
                                save_variables=True,
                                mode=model_fn_lib.ModeKeys.PREDICT,
-                               export_tags=None):
+                               export_tags=None,
+                               check_variables=True):
     # pylint: disable=line-too-long
     """Loads variables and adds them along with a MetaGraphDef for saving.
 
@@ -869,6 +872,10 @@ class Estimator(object):
       mode: tf.estimator.ModeKeys value indicating which mode will be exported.
       export_tags: The set of tags with which to save `MetaGraphDef`. If None,
         a default set will be selected to matched the passed mode.
+      check_variables: bool, whether to check the checkpoint has all variables.
+
+    Raises:
+      ValueError: if `save_variables` is `True` and `check_variable` is `False`.
     """
     # pylint: enable=line-too-long
     if export_tags is None:
@@ -899,9 +906,10 @@ class Estimator(object):
 
       with tf_session.Session(config=self._session_config) as session:
 
-        local_init_op = (
-            estimator_spec.scaffold.local_init_op or
-            monitored_session.Scaffold.default_local_init_op())
+        if estimator_spec.scaffold.local_init_op is not None:
+          local_init_op = estimator_spec.scaffold.local_init_op
+        else:
+          local_init_op = monitored_session.Scaffold.default_local_init_op()
 
         # This saver will be used both for restoring variables now,
         # and in saving out the metagraph below. This ensures that any
@@ -909,16 +917,20 @@ class Estimator(object):
         # SavedModel for restore later.
         graph_saver = estimator_spec.scaffold.saver or saver.Saver(sharded=True)
 
-        try:
-          graph_saver.restore(session, checkpoint_path)
-        except errors.NotFoundError as e:
-          msg = ('Could not load all requested variables from the checkpoint. '
-                 'Please make sure your model_fn does not expect variables '
-                 'that were not saved in the checkpoint.\n\n'
-                 'Encountered error with mode `{}` while restoring checkpoint '
-                 'from: `{}`. Full Traceback:\n\n{}').format(
-                     mode, checkpoint_path, e)
-          raise ValueError(msg)
+        if save_variables and not check_variables:
+          raise ValueError('If `save_variables` is `True, `check_variables`'
+                           'must not be `False`.')
+        if check_variables:
+          try:
+            graph_saver.restore(session, checkpoint_path)
+          except errors.NotFoundError as e:
+            msg = ('Could not load all requested variables from checkpoint. '
+                   'Please make sure your model_fn does not expect variables '
+                   'that were not saved in the checkpoint.\n\n'
+                   'Encountered error with mode `{}` while restoring '
+                   'checkpoint from: `{}`. Full Traceback:\n\n{}').format(
+                       mode, checkpoint_path, e)
+            raise ValueError(msg)
 
         # We add the train op explicitly for now, so that we don't have to
         # change the Builder public interface. Note that this is a no-op
@@ -1149,13 +1161,19 @@ class Estimator(object):
     with ops.Graph().as_default() as g, g.device(self._device_fn):
       random_seed.set_random_seed(self._config.tf_random_seed)
       global_step_tensor = self._create_and_assert_global_step(g)
-      training_util._get_or_create_global_step_read()  # pylint: disable=protected-access
+
+      # Skip creating a read variable if _create_and_assert_global_step
+      # returns None (e.g. tf.contrib.estimator.SavedModelEstimator).
+      if global_step_tensor is not None:
+        training_util._get_or_create_global_step_read(g)  # pylint: disable=protected-access
+
       features, labels, input_hooks = (
           self._get_features_and_labels_from_input_fn(
               input_fn, model_fn_lib.ModeKeys.TRAIN))
       worker_hooks.extend(input_hooks)
       estimator_spec = self._call_model_fn(
           features, labels, model_fn_lib.ModeKeys.TRAIN, self.config)
+      global_step_tensor = training_util.get_global_step(g)
       return self._train_with_estimator_spec(estimator_spec, worker_hooks,
                                              hooks, global_step_tensor,
                                              saving_listeners)
@@ -1174,25 +1192,73 @@ class Estimator(object):
       Loss from training
     """
     self._distribution.configure(self._session_config)
+
+    # TODO(sourabhbajaj): Remove this hack once we migrate the other strategies
+    # to use the new API
+    is_tpu_strategy = self._distribution.__class__.__name__ == 'TPUStrategy'
+
     worker_hooks = []
     with ops.Graph().as_default() as g:
       with self._distribution.scope():
         random_seed.set_random_seed(self._config.tf_random_seed)
-        features, labels, input_hooks = (
-            self._get_features_and_labels_from_input_fn(
-                input_fn, model_fn_lib.ModeKeys.TRAIN))
-        worker_hooks.extend(input_hooks)
-        global_step_tensor = self._create_and_assert_global_step(g)
-        # we want to add to the global collection in the main thread not the
-        # tower threads.
-        ops.add_to_collection(training_util.GLOBAL_STEP_READ_KEY,
-                              self._distribution.read_var(global_step_tensor))
-        grouped_estimator_spec = self._distribution.call_for_each_tower(
-            self._call_model_fn,
-            features,
-            labels,  # although this will be None it seems
-            model_fn_lib.ModeKeys.TRAIN,
-            self.config)
+
+        if is_tpu_strategy:
+          # Create the iterator for run_on_dataset function
+          # TODO(sourabhbajaj): refactor this out to call a function on the
+          # strategy
+          dataset = self._distribution.distribute_dataset(
+              lambda: self._call_input_fn(input_fn,  # pylint: disable=g-long-lambda
+                                          model_fn_lib.ModeKeys.TRAIN))
+          iterator = dataset.make_initializable_iterator()
+          worker_hooks.append(
+              estimator_util._DatasetInitializerHook(iterator))  # pylint: disable=protected-access
+
+          global_step_tensor = self._create_and_assert_global_step(g)
+          # we want to add to the global collection in the main thread not the
+          # tower threads.
+          ops.add_to_collection(training_util.GLOBAL_STEP_READ_KEY,
+                                self._distribution.read_var(global_step_tensor))
+
+          # Create a step_fn from the train_op of grouped_estimator_spec
+          def step_fn(ctx, inputs):
+            """A single step that is passed to run_on_dataset."""
+            features, labels = inputs
+            estimator_spec = self._distribution.call_for_each_tower(
+                self._call_model_fn,
+                features,
+                labels,
+                model_fn_lib.ModeKeys.TRAIN,
+                self.config)
+            ctx.last_step_outputs = estimator_spec.loss
+            ctx.non_tensor_outputs = {'estimator_spec': estimator_spec}
+            with ops.control_dependencies([estimator_spec.train_op]):
+              return array_ops.identity(estimator_spec.loss)
+
+          # Create new train_op post graph rewrites
+          # TODO(sourabhbajaj): Make sure train_steps and tpu_iterations
+          # work correctly. Currently hardcoded at 2
+          initial_training_loss = constant_op.constant(1e7)
+          distributed_train_op, tpu_result, ctx = \
+              self._distribution._run_steps_on_dataset(  # pylint: disable=protected-access
+                  step_fn, iterator, iterations=2,
+                  initial_loop_values=initial_training_loss)
+          grouped_estimator_spec = ctx.non_tensor_outputs['estimator_spec']
+        else:
+          features, labels, input_hooks = (
+              self._get_features_and_labels_from_input_fn(
+                  input_fn, model_fn_lib.ModeKeys.TRAIN))
+          worker_hooks.extend(input_hooks)
+          global_step_tensor = self._create_and_assert_global_step(g)
+          # we want to add to the global collection in the main thread not the
+          # tower threads.
+          ops.add_to_collection(training_util.GLOBAL_STEP_READ_KEY,
+                                self._distribution.read_var(global_step_tensor))
+          grouped_estimator_spec = self._distribution.call_for_each_tower(
+              self._call_model_fn,
+              features,
+              labels,  # although this will be None it seems
+              model_fn_lib.ModeKeys.TRAIN,
+              self.config)
 
         # TODO(anjalisridhar): Figure out how to resolve the following scaffold
         # parameters: init_feed_dict, init_fn.
@@ -1278,13 +1344,28 @@ class Estimator(object):
         training_chief_hooks = get_hooks_from_the_first_device(
             grouped_estimator_spec.training_chief_hooks)
 
+        # TODO(sourabhbajaj): Merge the two code paths once we can
+        # handle per device variables correctly in reduce and can output
+        # the loss scaler.
+        if is_tpu_strategy:
+          loss = self._distribution.unwrap(
+              self._distribution.reduce(distribute_lib.get_loss_reduction(),
+                                        tpu_result)[0])[0]
+          worker_hooks.append(
+              estimator_util.StrategyInitFinalizeHook(
+                  self._distribution.get_initialization_ops,
+                  self._distribution.get_finalize_ops))
+        else:
+          loss = self._distribution.unwrap(
+              self._distribution.reduce(distribute_lib.get_loss_reduction(),
+                                        grouped_estimator_spec.loss,
+                                        destinations='/device:CPU:0'))[0]
+          distributed_train_op = grouped_estimator_spec.train_op
+
         estimator_spec = model_fn_lib.EstimatorSpec(
             mode=grouped_estimator_spec.mode,
-            loss=self._distribution.unwrap(
-                self._distribution.reduce(distribute_lib.get_loss_reduction(),
-                                          grouped_estimator_spec.loss,
-                                          destinations='/device:CPU:0'))[0],
-            train_op=self._distribution.group(grouped_estimator_spec.train_op),
+            loss=loss,
+            train_op=self._distribution.group(distributed_train_op),
             training_hooks=training_hooks,
             training_chief_hooks=training_chief_hooks,
             scaffold=scaffold)
@@ -1379,13 +1460,13 @@ class Estimator(object):
   def _evaluate_build_graph(self, input_fn, hooks=None, checkpoint_path=None):
     """Builds the graph and related hooks to run evaluation."""
     random_seed.set_random_seed(self._config.tf_random_seed)
-    global_step_tensor = self._create_and_assert_global_step(
-        ops.get_default_graph())
+    self._create_and_assert_global_step(ops.get_default_graph())
     features, labels, input_hooks = (
         self._get_features_and_labels_from_input_fn(input_fn,
                                                     model_fn_lib.ModeKeys.EVAL))
     estimator_spec = self._call_model_fn(
         features, labels, model_fn_lib.ModeKeys.EVAL, self.config)
+    global_step_tensor = training_util.get_global_step(ops.get_default_graph())
 
     # Call to warm_start has to be after model_fn is called.
     self._maybe_warm_start(checkpoint_path)
@@ -1411,7 +1492,21 @@ class Estimator(object):
     all_hooks.extend(hooks)
     all_hooks.extend(list(estimator_spec.evaluation_hooks or []))
 
-    return estimator_spec.scaffold, update_op, eval_dict, all_hooks
+    # New local variables have been added, so update the estimator spec's
+    # local init op if it was defined.
+    scaffold = estimator_spec.scaffold
+    if estimator_spec.scaffold and estimator_spec.scaffold.local_init_op:
+      # Ensure that eval step has been created before updating local init op.
+      evaluation._get_or_create_eval_step()  # pylint: disable=protected-access
+
+      scaffold = monitored_session.Scaffold(
+          local_init_op=control_flow_ops.group(
+              estimator_spec.scaffold.local_init_op,
+              monitored_session.Scaffold.default_local_init_op()),
+          copy_from_scaffold=scaffold
+      )
+
+    return scaffold, update_op, eval_dict, all_hooks
 
   def _evaluate_run(self, checkpoint_path, scaffold, update_op, eval_dict,
                     all_hooks, output_dir):
@@ -1842,6 +1937,19 @@ class WarmStartSettings(
     )
 
 
+def _get_saved_model_ckpt(saved_model_dir):
+  """Return path to variables checkpoint in a SavedModel directory."""
+  if not gfile.Exists(
+      os.path.join(compat.as_bytes(saved_model_dir),
+                   compat.as_bytes('variables/variables.index'))):
+    raise ValueError('Directory provided has an invalid SavedModel format: %s'
+                     % saved_model_dir)
+  return os.path.join(
+      compat.as_bytes(saved_model_dir),
+      compat.as_bytes('{}/{}'.format(constants.VARIABLES_DIRECTORY,
+                                     constants.VARIABLES_FILENAME)))
+
+
 def _get_default_warm_start_settings(warm_start_from):
   """Returns default WarmStartSettings.
 
@@ -1865,10 +1973,8 @@ def _get_default_warm_start_settings(warm_start_from):
     if gfile.Exists(os.path.join(compat.as_bytes(warm_start_from),
                                  compat.as_bytes('variables/variables.index'))):
       logging.info('Warm-starting from a SavedModel')
-      return WarmStartSettings(ckpt_to_initialize_from=os.path.join(
-          compat.as_bytes(warm_start_from),
-          compat.as_bytes('{}/{}'.format(constants.VARIABLES_DIRECTORY,
-                                         constants.VARIABLES_FILENAME))))
+      return WarmStartSettings(
+          ckpt_to_initialize_from=_get_saved_model_ckpt(warm_start_from))
     return WarmStartSettings(ckpt_to_initialize_from=warm_start_from)
   elif isinstance(warm_start_from, WarmStartSettings):
     return warm_start_from

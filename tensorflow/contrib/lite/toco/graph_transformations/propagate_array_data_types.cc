@@ -62,6 +62,9 @@ bool PropagateArrayDataTypes::Run(Model* model, std::size_t op_index) {
     case OperatorType::kGreaterEqual:
     case OperatorType::kEqual:
     case OperatorType::kNotEqual:
+    case OperatorType::kAny:
+    case OperatorType::kLogicalAnd:
+    case OperatorType::kLogicalNot:
       // These operators unconditionally produce bool outputs
       SetDataTypeForAllOutputs(model, op, ArrayDataType::kBool);
       break;
@@ -98,6 +101,13 @@ bool PropagateArrayDataTypes::Run(Model* model, std::size_t op_index) {
       CHECK_EQ(op->outputs.size(), 1);
       auto* argmax_op = static_cast<ArgMaxOperator*>(op);
       model->GetArray(op->outputs[0]).data_type = argmax_op->output_data_type;
+      break;
+    }
+    case OperatorType::kArgMin: {
+      // Data type of the ArgMin op is specified.
+      CHECK_EQ(op->outputs.size(), 1);
+      auto* argmin_op = static_cast<ArgMinOperator*>(op);
+      model->GetArray(op->outputs[0]).data_type = argmin_op->output_data_type;
       break;
     }
     case OperatorType::kRange: {
@@ -144,8 +154,8 @@ bool PropagateArrayDataTypes::Run(Model* model, std::size_t op_index) {
         return false;
       }
       for (int i = 0; i < op->outputs.size(); ++i) {
-        auto output = op->outputs[i];
-        auto data_type = unsupported_op->output_data_types[i];
+        const string& output = op->outputs[i];
+        const ArrayDataType data_type = unsupported_op->output_data_types[i];
         model->GetArray(output).data_type = data_type;
       }
       break;
@@ -173,6 +183,34 @@ bool PropagateArrayDataTypes::Run(Model* model, std::size_t op_index) {
           model->GetArray(op->inputs[3]).data_type;
       CHECK(data_type == data_type_default);
       SetDataTypeForAllOutputs(model, op, data_type);
+      break;
+    }
+    case OperatorType::kPow: {
+      CHECK_EQ(op->inputs.size(), 2);
+      CHECK(model->GetArray(op->inputs[0]).data_type ==
+            model->GetArray(op->inputs[1]).data_type);
+      const ArrayDataType data_type = model->GetArray(op->inputs[0]).data_type;
+      SetDataTypeForAllOutputs(model, op, data_type);
+      break;
+    }
+    case OperatorType::kPack: {
+      const ArrayDataType data_type = model->GetArray(op->inputs[0]).data_type;
+      for (const auto& input : op->inputs) {
+        CHECK(data_type == model->GetArray(input).data_type);
+      }
+      SetDataTypeForAllOutputs(model, op, data_type);
+      break;
+    }
+    case OperatorType::kOneHot: {
+      CHECK_EQ(op->inputs.size(), 4);
+      CHECK_EQ(op->outputs.size(), 1);
+      const ArrayDataType on_value_type =
+          model->GetArray(op->inputs[OneHotOperator::ON_VALUE_INPUT]).data_type;
+      const ArrayDataType off_value_type =
+          model->GetArray(op->inputs[OneHotOperator::OFF_VALUE_INPUT])
+              .data_type;
+      CHECK(on_value_type == off_value_type);
+      model->GetArray(op->outputs[0]).data_type = on_value_type;
       break;
     }
     default: {

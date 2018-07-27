@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
+from collections import OrderedDict
 import contextlib
 import gc
 import itertools
@@ -27,6 +29,7 @@ import random
 import re
 import tempfile
 import threading
+import unittest
 
 import numpy as np
 import six
@@ -414,8 +417,28 @@ def assert_no_new_pyobjects_executing_eagerly(f):
       f(self, **kwargs)
       gc.collect()
       previous_count = len(gc.get_objects())
+      collection_sizes_before = {
+          collection: len(ops.get_collection(collection))
+          for collection in ops.get_default_graph().collections}
       for _ in range(3):
         f(self, **kwargs)
+      # Note that gc.get_objects misses anything that isn't subject to garbage
+      # collection (C types). Collections are a common source of leaks, so we
+      # test for collection sizes explicitly.
+      for collection_key in ops.get_default_graph().collections:
+        collection = ops.get_collection(collection_key)
+        size_before = collection_sizes_before.get(collection_key, 0)
+        if len(collection) > size_before:
+          raise AssertionError(
+              ("Collection %s increased in size from "
+               "%d to %d (current items %s).")
+              % (collection_key, size_before, len(collection), collection))
+        # Make sure our collection checks don't show up as leaked memory by
+        # removing references to temporary variables.
+        del collection
+        del collection_key
+        del size_before
+      del collection_sizes_before
       gc.collect()
       # There should be no new Python objects hanging around.
       new_count = len(gc.get_objects())
@@ -550,6 +573,78 @@ def assert_no_garbage_created(f):
   return decorator
 
 
+def _combine_named_parameters(**kwargs):
+  """Generate combinations based on its keyword arguments.
+
+  Two sets of returned combinations can be concatenated using +.  Their product
+  can be computed using `times()`.
+
+  Args:
+    **kwargs: keyword arguments of form `option=[possibilities, ...]`
+         or `option=the_only_possibility`.
+
+  Returns:
+    a list of dictionaries for each combination. Keys in the dictionaries are
+    the keyword argument names.  Each key has one value - one of the
+    corresponding keyword argument values.
+  """
+  if not kwargs:
+    return [OrderedDict()]
+
+  sort_by_key = lambda k: k[0][0]
+  kwargs = OrderedDict(sorted(kwargs.items(), key=sort_by_key))
+  first = list(kwargs.items())[0]
+
+  rest = dict(list(kwargs.items())[1:])
+  rest_combined = _combine_named_parameters(**rest)
+
+  key = first[0]
+  values = first[1]
+  if not isinstance(values, list):
+    values = [values]
+
+  combinations = [
+      OrderedDict(sorted(list(combined.items()) + [(key, v)], key=sort_by_key))
+      for v in values
+      for combined in rest_combined
+  ]
+  return combinations
+
+
+def generate_combinations_with_testcase_name(**kwargs):
+  """Generate combinations based on its keyword arguments using combine().
+
+  This function calls combine() and appends a testcase name to the list of
+  dictionaries returned. The 'testcase_name' key is a required for named
+  parameterized tests.
+
+  Args:
+    **kwargs: keyword arguments of form `option=[possibilities, ...]`
+         or `option=the_only_possibility`.
+
+  Returns:
+    a list of dictionaries for each combination. Keys in the dictionaries are
+    the keyword argument names.  Each key has one value - one of the
+    corresponding keyword argument values.
+  """
+  combinations = _combine_named_parameters(**kwargs)
+  named_combinations = []
+  for combination in combinations:
+    assert isinstance(combination, OrderedDict)
+    name = "".join([
+        "_{}_{}".format(
+            "".join(filter(str.isalnum, key)),
+            "".join(filter(str.isalnum, str(value))))
+        for key, value in combination.items()
+    ])
+    named_combinations.append(
+        OrderedDict(
+            list(combination.items()) + [("testcase_name",
+                                          "_test{}".format(name))]))
+
+  return named_combinations
+
+
 def run_all_in_graph_and_eager_modes(cls):
   """Execute all test methods in the given class with and without eager."""
   base_decorator = run_in_graph_and_eager_modes
@@ -625,16 +720,12 @@ def run_in_graph_and_eager_modes(func=None,
           "Did you mean to use `run_all_tests_in_graph_and_eager_modes`?")
 
     def decorated(self, **kwargs):
-      with context.graph_mode():
-        with self.test_session(use_gpu=use_gpu, config=config):
-          f(self, **kwargs)
-
-      if reset_test:
-        # This decorator runs the wrapped test twice.
-        # Reset the test environment between runs.
-        self.tearDown()
-        self._tempdir = None
-        self.setUp()
+      try:
+        with context.graph_mode():
+          with self.test_session(use_gpu=use_gpu, config=config):
+            f(self, **kwargs)
+      except unittest.case.SkipTest:
+        pass
 
       def run_eagerly(self, **kwargs):
         if not use_gpu:
@@ -649,6 +740,13 @@ def run_in_graph_and_eager_modes(func=None,
             assert_no_garbage_created(run_eagerly))
 
       with context.eager_mode():
+        if reset_test:
+          # This decorator runs the wrapped test twice.
+          # Reset the test environment between runs.
+          self.tearDown()
+          self._tempdir = None
+          self.setUp()
+
         run_eagerly(self, **kwargs)
 
     return decorated
@@ -1203,8 +1301,8 @@ class TensorFlowTestCase(googletest.TestCase):
       a = a._asdict()
     if hasattr(b, "_asdict"):
       b = b._asdict()
-    a_is_dict = isinstance(a, dict)
-    if a_is_dict != isinstance(b, dict):
+    a_is_dict = isinstance(a, collections.Mapping)
+    if a_is_dict != isinstance(b, collections.Mapping):
       raise ValueError("Can't compare dict to non-dict, a%s vs b%s. %s" %
                        (path_str, path_str, msg))
     if a_is_dict:

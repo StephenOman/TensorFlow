@@ -59,6 +59,9 @@
 #   TF_BUILD_BAZEL_CLEAN:
 #                      Will perform "bazel clean", if and only if this variable
 #                      is set to any non-empty and non-0 value
+#   TF_BAZEL_BUILD_ONLY:
+#                      If it is set to any non-empty value that is not "0", Bazel 
+#                      will only build specified targets
 #   TF_GPU_COUNT:
 #                      Run this many parallel tests for serial builds.
 #                      For now, only can be edited for PIP builds.
@@ -128,7 +131,7 @@ BAZEL_CMD="bazel test"
 BAZEL_BUILD_ONLY_CMD="bazel build"
 BAZEL_CLEAN_CMD="bazel clean"
 
-DEFAULT_BAZEL_CONFIGS="--config=gcp --config=hdfs"
+DEFAULT_BAZEL_CONFIGS=""
 
 PIP_CMD="${CI_BUILD_DIR}/builds/pip.sh"
 PIP_TEST_TUTORIALS_FLAG="--test_tutorials"
@@ -147,36 +150,7 @@ BAZEL_TARGET="//tensorflow/... -//tensorflow/compiler/..."
 if [[ -n "$TF_SKIP_CONTRIB_TESTS" ]]; then
   BAZEL_TARGET="$BAZEL_TARGET -//tensorflow/contrib/..."
 else
-  BAZEL_TARGET="${BAZEL_TARGET} -//tensorflow/contrib/lite/..."
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite:context_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite:framework"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite:interpreter_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite:model_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/toco:toco"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite:simple_memory_arena_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite:string_util_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:activations_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:add_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:basic_rnn_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:concatenation_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:conv_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:depthwise_conv_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:embedding_lookup_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:embedding_lookup_sparse_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:fully_connected_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:hashtable_lookup_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:local_response_norm_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:lsh_projection_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:lstm_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:l2norm_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:mul_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:pooling_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:reshape_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:resize_bilinear_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:skip_gram_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:softmax_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:space_to_depth_test"
-  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/kernels:svdf_test"
+  BAZEL_TARGET="${BAZEL_TARGET} //tensorflow/contrib/lite/..."
 fi
 
 TUT_TEST_DATA_DIR="/tmp/tf_tutorial_test_data"
@@ -409,6 +383,11 @@ fi
 # instead of the target configuration. We can save some build time by setting
 # this flag, and it only affects a few tests.
 EXTRA_ARGS="${EXTRA_ARGS} --distinct_host_configuration=false"
+
+if [[ ! -z "${TF_BAZEL_BUILD_ONLY}" ]] &&
+   [[ "${TF_BAZEL_BUILD_ONLY}" != "0" ]];then 
+  BAZEL_CMD=${BAZEL_BUILD_ONLY_CMD}
+fi
 
 # Process PIP install-test option
 if [[ ${TF_BUILD_IS_PIP} == "no_pip" ]] ||

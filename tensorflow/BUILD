@@ -20,8 +20,16 @@ load(
     "tf_additional_binary_deps",
 )
 load(
-    "//tensorflow/tools/api/generator:api_gen.bzl",
+    "//tensorflow/python/tools/api/generator:api_gen.bzl",
     "gen_api_init_files",  # @unused
+)
+
+# Config setting used when building for products
+# which requires restricted licenses to be avoided.
+config_setting(
+    name = "no_lgpl_deps",
+    values = {"define": "__TENSORFLOW_NO_LGPL_DEPS__=1"},
+    visibility = ["//visibility:public"],
 )
 
 # Config setting for determining if we are building for Android.
@@ -216,8 +224,8 @@ config_setting(
 )
 
 config_setting(
-    name = "with_s3_support",
-    define_values = {"with_s3_support": "true"},
+    name = "with_aws_support",
+    define_values = {"with_aws_support": "true"},
     visibility = ["//visibility:public"],
 )
 
@@ -244,8 +252,8 @@ config_setting(
 )
 
 config_setting(
-    name = "with_s3_support_windows_override",
-    define_values = {"with_s3_support": "true"},
+    name = "with_aws_support_windows_override",
+    define_values = {"with_aws_support": "true"},
     values = {"cpu": "x64_windows"},
     visibility = ["//visibility:public"],
 )
@@ -253,6 +261,13 @@ config_setting(
 config_setting(
     name = "with_kafka_support_windows_override",
     define_values = {"with_kafka_support": "true"},
+    values = {"cpu": "x64_windows"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "with_cuda_support_windows_override",
+    define_values = {"using_cuda_nvcc": "true"},
     values = {"cpu": "x64_windows"},
     visibility = ["//visibility:public"],
 )
@@ -272,8 +287,8 @@ config_setting(
 )
 
 config_setting(
-    name = "with_s3_support_android_override",
-    define_values = {"with_s3_support": "true"},
+    name = "with_aws_support_android_override",
+    define_values = {"with_aws_support": "true"},
     values = {"crosstool_top": "//external:android/crosstool"},
     visibility = ["//visibility:public"],
 )
@@ -293,8 +308,8 @@ config_setting(
 )
 
 config_setting(
-    name = "with_s3_support_ios_override",
-    define_values = {"with_s3_support": "true"},
+    name = "with_aws_support_ios_override",
+    define_values = {"with_aws_support": "true"},
     values = {"crosstool_top": "//tools/osx/crosstool:crosstool"},
     visibility = ["//visibility:public"],
 )
@@ -390,14 +405,6 @@ config_setting(
 config_setting(
     name = "override_eigen_strong_inline",
     values = {"define": "override_eigen_strong_inline=true"},
-    visibility = ["//visibility:public"],
-)
-
-# TODO(laigd): consider removing this option and make TensorRT enabled
-# automatically when CUDA is enabled.
-config_setting(
-    name = "with_tensorrt_support",
-    values = {"define": "with_tensorrt_support=true"},
     visibility = ["//visibility:public"],
 )
 
